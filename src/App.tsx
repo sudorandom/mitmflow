@@ -1,46 +1,16 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
-import {
-  Search, Pause, Play, X, ChevronDown, ChevronRight, Minus, Download, FileText, Braces, HardDriveDownload
-} from 'lucide-react';
+import { Search, Pause, Play, X, Download, FileText, Braces, HardDriveDownload, Info, Menu } from 'lucide-react';
+import { createConnectTransport } from "@connectrpc/connect-web";
+import { createClient } from "@connectrpc/connect";
+import { Service, Flow, HTTPFlow, FlowSchema, Request, Response, StreamFlowsResponse } from "./gen/mitmflow/v1/mitmflow_pb";
+import { Light as SyntaxHighlighter } from 'react-syntax-highlighter';
+import { atomOneDark } from 'react-syntax-highlighter/dist/esm/styles/hljs'; // A simple, light theme
+import HexViewer from './HexViewer';
+import { toJson } from "@bufbuild/protobuf";
 
-// --- TYPE DEFINITIONS ---
+type ContentFormat = 'auto' | 'text' | 'json' | 'protobuf' | 'grpc' | 'grpc-web' | 'xml' | 'binary' | 'image' | 'dns' | 'javascript';
 
-type LogLevel = 'INFO' | 'WARN' | 'ERRO' | 'DEBUG';
-
-interface LogEntry {
-  id: string;
-  level: LogLevel;
-  message: string;
-  timestamp: number;
-}
-
-type Protocol = 'HTTP' | 'HTTPS';
-
-interface Flow {
-  id: string;
-  protocol: Protocol;
-  method: string;
-  status: number;
-  source: string; // We'll keep it in the data model, just not display it
-  destination: string;
-  path: string;
-  url: string;
-  size: string;
-  duration: string;
-  requestTs: number;
-  _latency: string;
-  _request: string;
-  _response: string;
-  _requestBody: string;
-  _responseBody: string;
-}
-
-type DetailView = { type: 'flow'; data: Flow } | { type: 'log'; data: LogEntry } | null;
-
-// --- SIMULATION HELPERS ---
-
-const randomChoice = <T,>(arr: T[]): T => arr[Math.floor(Math.random() * arr.length)];
-const randomInt = (min: number, max: number): number => Math.floor(Math.random() * (max - min + 1)) + min;
+const client = createClient(Service, createConnectTransport({ baseUrl: "http://localhost:50051" }));
 
 const formatTimestamp = (ts: number): string => {
   const date = new Date(ts);
@@ -52,88 +22,339 @@ const formatTimestamp = (ts: number): string => {
   }) + '.' + date.getMilliseconds().toString().padStart(3, '0');
 };
 
-const methods = ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'];
-const protocols: Protocol[] = ['HTTP', 'HTTPS'];
-const domains = ['example.com', 'api.google.com', 'assets.cdn.net', 'tracking.service.org', 'auth.provider.io', 'my-app-backend.local'];
-const paths = ['/api/v2/users', '/login', '/main.js', '/pixel.gif', '/', '/config.json', '/items/123', '/search?q=test'];
-const statuses = [200, 201, 204, 301, 302, 304, 400, 401, 403, 404, 500, 502, 503];
-const contentTypes = ['application/json', 'text/html', 'image/png', 'text/css', 'application/javascript'];
-const userAgents = [
-  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/108.0.0.0 Safari/537.36',
-  'curl/7.81.0',
-  'MyAwesomeApp/1.2.3 (iOS; 16.1; iPhone14,5)'
-];
-
-const createRandomFlow = (): Flow => {
-  const method = randomChoice(methods);
-  const protocol = randomChoice(protocols);
-  const status = randomChoice(statuses);
-  const domain = randomChoice(domains);
-  const path = randomChoice(paths);
-  const sourceIp = `192.168.1.${randomInt(100, 200)}`;
-  const url = `${protocol.toLowerCase()}://${domain}${path}`;
-  const size = randomInt(50, 5000);
-  const duration = randomInt(20, 1500);
-  const requestTs = Date.now();
-
-  const requestBody = (method === 'POST' || method === 'PUT') ? `{"id": ${randomInt(1, 1000)}, "value": "some_data_${Math.random().toString(36).substring(7)}"}` : '';
-  const responseBody = (status === 200 && method === 'GET') ? `{"data": "some_json_payload_${randomInt(100, 999)}"}` : `[${status} Response Body]`;
-
-  return {
-    id: `flow_${requestTs}_${Math.random()}`,
-    protocol,
-    method,
-    status,
-    source: sourceIp,
-    destination: domain,
-    path: path,
-    url: url,
-    size: size > 1024 ? `${(size / 1024).toFixed(1)} KB` : `${size} B`,
-    duration: `${duration} ms`,
-    requestTs: requestTs,
-    _latency: `${duration} ms`,
-    _request: `${method} ${path} HTTP/1.1\nHost: ${domain}\nUser-Agent: ${randomChoice(userAgents)}\nAccept: */*\n\n${requestBody}`,
-    _response: `HTTP/1.1 ${status}\nContent-Type: ${randomChoice(contentTypes)}\nContent-Length: ${size}\n\n${responseBody}`,
-    _requestBody: requestBody,
-    _responseBody: responseBody
-  };
+type FormattedContent = {
+  data: string | Uint8Array;
+  encoding: 'text' | 'base64' | 'binary'; // 'binary' for Uint8Array that HexViewer expects
+  effectiveFormat: ContentFormat;
 };
 
-const createRandomLog = (): Omit<LogEntry, 'id' | 'timestamp'> => {
-  const rand = Math.random();
-  if (rand < 0.1) {
-    return { level: 'DEBUG', message: `Client connected from 192.168.1.${randomInt(100, 200)}` };
-  } else {
-    return { level: 'WARN', message: `SSL Handshake error for ${randomChoice(domains)}` };
+const formatContent = (content: Uint8Array | string | undefined, format: ContentFormat, contentTypeHeader?: string): FormattedContent => {
+  let effectiveFormat = format;
+  if (format === 'auto' && contentTypeHeader) {
+    if (contentTypeHeader.includes('json')) {
+      effectiveFormat = 'json';
+    } else if (contentTypeHeader.includes('application/grpc-web')) {
+      effectiveFormat = 'grpc-web';
+    } else if (contentTypeHeader.includes('application/grpc')) {
+      effectiveFormat = 'grpc';
+    } else if (contentTypeHeader.includes('application/proto')) {
+      effectiveFormat = 'protobuf';
+    } else if (contentTypeHeader.includes('image')) {
+      effectiveFormat = 'image';
+    } else if (contentTypeHeader.includes('xml')) {
+      effectiveFormat = 'xml';
+    } else if (contentTypeHeader.includes('text')) {
+      effectiveFormat = 'text';
+    } else if (contentTypeHeader.includes('javascript')) {
+      effectiveFormat = 'javascript';
+    } else if (contentTypeHeader.includes('application/octet')) {
+      effectiveFormat = 'binary';
+    } else if (contentTypeHeader.includes('dns')) {
+      effectiveFormat = 'dns';
+    }
   }
+
+  if (!content) {
+    switch (effectiveFormat) {
+      case 'binary':
+      case 'protobuf':
+      case 'grpc':
+      case 'grpc-web':
+        return { data: new Uint8Array(), encoding: 'binary', effectiveFormat: effectiveFormat };
+      default:
+        return { data: '', encoding: 'text', effectiveFormat: 'text' };
+    }
+  }
+
+  const contentAsUint8Array = typeof content === 'string' ? new TextEncoder().encode(content) : content;
+  const contentAsString = typeof content === 'string' ? content : new TextDecoder().decode(contentAsUint8Array);
+
+  switch (effectiveFormat) {
+    case 'json':
+      try {
+        return { data: JSON.stringify(JSON.parse(contentAsString), null, 2), encoding: 'text', effectiveFormat: effectiveFormat };
+      } catch {
+        return { data: contentAsString, encoding: 'text', effectiveFormat: effectiveFormat };
+      }
+    case 'xml':
+    case 'javascript':
+    case 'dns':
+    case 'text':
+    case 'auto': // Fallback to text if auto-detection failed or not applicable
+      return { data: contentAsString, encoding: 'text', effectiveFormat: effectiveFormat };
+    case 'image':
+      // For images, we want to base64 encode the Uint8Array
+      return { data: btoa(String.fromCharCode(...contentAsUint8Array)), encoding: 'base64', effectiveFormat: effectiveFormat };
+    case 'binary':
+    case 'protobuf':
+    case 'grpc':
+    case 'grpc-web':
+    default:
+      return { data: contentAsUint8Array, encoding: 'binary', effectiveFormat: effectiveFormat };
+  }
+};
+
+const getHarContent = (content: Uint8Array | undefined, contentTypeHeader?: string) => {
+  if (!content || content.length === 0) {
+    return { text: '', mimeType: contentTypeHeader || 'application/octet-stream' };
+  }
+
+  const contentAsString = new TextDecoder().decode(content);
+  const mimeType = contentTypeHeader || 'application/octet-stream';
+
+  // Check for common text-based content types
+  if (mimeType.includes('json') || mimeType.includes('xml') || mimeType.includes('text')) {
+    return { text: contentAsString, mimeType: mimeType };
+  } else {
+    // For other types (binary, image, etc.), base64 encode
+    return { text: btoa(String.fromCharCode(...content)), mimeType: mimeType, encoding: 'base64' };
+  }
+};
+
+// New function to generate HAR blob
+const generateHarBlob = (flowsToExport: StreamFlowsResponse[]): Blob => {
+  const har = {
+    log: {
+      version: "1.2",
+      creator: { name: "mitm-flows", version: "1.0" },
+      entries: flowsToExport.map(response => {
+        const flow = response.flow;
+        const httpFlow = flow?.flow?.case === 'httpFlow' ? flow.flow.value : null;
+
+        if (!flow || !httpFlow) {
+          return {}; // Skip this entry if httpFlow is not available
+        }
+
+        return {
+          startedDateTime: new Date(getTimestamp(flow.timestampStart)).toISOString(),
+          time: httpFlow.durationMs,
+          request: {
+            method: httpFlow.request?.method || '',
+            url: httpFlow.request?.url || '',
+            httpVersion: "HTTP/1.1", headers: [], queryString: [], cookies: [],
+            postData: getHarContent(httpFlow.request?.content, httpFlow.request?.headers['Content-Type'])
+          },
+          response: {
+            status: httpFlow.response?.statusCode || 0, statusText: "OK", httpVersion: "HTTP/1.1", headers: [], cookies: [],
+            content: getHarContent(httpFlow.response?.content, httpFlow.response?.headers['Content-Type'])
+          }
+        };
+      })
+    }
+  };
+  return new Blob([JSON.stringify(har, null, 2)], { type: 'application/json;charset=utf-8' });
 };
 
 // --- HELPER COMPONENTS ---
 
+const formatHeaders = (headers: { [key: string]: string }): string => {
+  return Object.entries(headers)
+    .map(([key, value]) => `${key}: ${value}`)
+    .join('\n');
+};
+
+type RequestResponseViewProps = {
+  title: string;
+  fullContent?: string;
+  bodyContent?: FormattedContent; // Allow Uint8Array for binary
+  format: ContentFormat;
+  setFormat: (format: ContentFormat) => void;
+  contentTypeHeader?: string; // To help with auto-selection
+  flowPart?: Request | Response;
+};
+
+const RequestResponseView: React.FC<RequestResponseViewProps> = ({ title, fullContent, bodyContent, format, setFormat, contentTypeHeader, flowPart }) => {
+  const [isBodyExpanded, setIsBodyExpanded] = useState(false);
+  const headers = useMemo(() => {
+    if (!fullContent) return 'No content captured.';
+    const parts = fullContent.split('\n\n');
+    return parts[0];
+  }, [fullContent]);
+
+  const bodySize = bodyContent?.data ? (typeof bodyContent.data === 'string' ? bodyContent.data.length : bodyContent.data.byteLength) : 0;
+  const showBodyByDefault = (bodySize > 0 && bodySize < 1024) || bodyContent?.effectiveFormat === 'image';
+
+  const effectiveFormat = bodyContent?.effectiveFormat || format;
+
+  return (
+    <div>
+      <h3 className="text-lg font-semibold mb-2 pb-2 border-b border-zinc-700 flex items-center justify-between">
+        {title}
+        <select
+          className="bg-zinc-800 border border-zinc-700 rounded px-2 py-1 text-xs"
+          value={format}
+          onChange={(e) => setFormat(e.target.value as ContentFormat)}
+        >
+          <option value="auto">Auto</option>
+          <option value="text">Text</option>
+          <option value="json">JSON</option>
+          <option value="protobuf">Protobuf</option>
+          <option value="grpc">gRPC</option>
+          <option value="grpc-web">gRPC-Web</option>
+          <option value="xml">XML</option>
+          <option value="binary">Binary</option>
+          <option value="image">Image</option>
+          <option value="dns">DNS</option>
+          <option value="javascript">JavaScript</option>
+        </select>
+      </h3>
+      <pre className="bg-zinc-800 p-3 rounded text-xs font-mono whitespace-pre-wrap break-all">
+        {headers}
+      </pre>
+      {flowPart?.trailers && Object.keys(flowPart.trailers).length > 0 && (
+        <>
+            <h4 className="text-md font-semibold mt-4 mb-2 pb-2 border-b border-zinc-700">Trailers</h4>
+            <pre className="bg-zinc-800 p-3 rounded text-xs font-mono whitespace-pre-wrap break-all">
+                {Object.entries(flowPart.trailers).map(([k, v]) => `${k}: ${v}`).join('\n')}
+            </pre>
+        </>
+      )}
+      {bodySize > 0 && !showBodyByDefault && (
+        <div className="mt-2 text-sm">
+          <a href="#" onClick={(e) => { e.preventDefault(); setIsBodyExpanded(!isBodyExpanded); }} className="text-orange-400 hover:underline">
+            {isBodyExpanded ? 'Collapse' : 'Expand'} body ({bodySize} bytes)
+          </a>
+        </div>
+      )}
+      {(showBodyByDefault || isBodyExpanded) && (
+        (() => {
+          if ((effectiveFormat === 'protobuf' || effectiveFormat === 'grpc' || effectiveFormat === 'grpc-web') && flowPart?.contentProtoscopeFrames && flowPart.contentProtoscopeFrames.length > 0) {
+            return (
+              <div>
+                {flowPart.contentProtoscopeFrames.map((frame, index) => (
+                  <div key={index} className="border-b border-zinc-700 py-2">
+                    <h4 className="text-sm font-semibold mb-1">Frame {index + 1}</h4>
+                    <SyntaxHighlighter
+                      language={'protobuf'}
+                      style={atomOneDark}
+                      customStyle={{
+                        backgroundColor: '#27272a',
+                        padding: '1rem',
+                        borderRadius: '0.25rem',
+                        fontSize: '0.75rem',
+                        fontFamily: 'monospace',
+                        whiteSpace: 'pre-wrap',
+                        wordBreak: 'break-all',
+                        marginTop: '0.5rem',
+                      }}
+                      showLineNumbers={false}
+                    >
+                      {frame}
+                    </SyntaxHighlighter>
+                  </div>
+                ))}
+              </div>
+            );
+          }
+
+          if (bodyContent) {
+            if (bodyContent.encoding === 'base64') {
+              return <img src={`data:${(contentTypeHeader || 'application/octet-stream').split(';')[0]};base64,${bodyContent.data}`} alt="Image content" className="max-w-full h-auto" />;
+            }
+            if (bodyContent.encoding === 'binary') {
+              return <HexViewer data={bodyContent.data instanceof Uint8Array ? bodyContent.data : new Uint8Array()} />;
+            }
+            return (
+              <SyntaxHighlighter
+                language={format === 'json' ? 'json' : (format === 'xml' ? 'xml' : (format === 'javascript' ? 'javascript' : 'text'))}
+                style={atomOneDark}
+                customStyle={{
+                  backgroundColor: '#27272a',
+                  padding: '1rem',
+                  borderRadius: '0.25rem',
+                  fontSize: '0.75rem',
+                  fontFamily: 'monospace',
+                  whiteSpace: 'pre-wrap',
+                  wordBreak: 'break-all',
+                  marginTop: '0.5rem',
+                }}
+                showLineNumbers={false}
+              >
+                {bodyContent.data as string}
+              </SyntaxHighlighter>
+            );
+          }
+          return null;
+        })()
+      )}
+    </div>
+  );
+};
+
+interface TimestampWithToDate {
+  toDate(): Date;
+}
+
+interface TimestampWithSecondsNanos {
+  seconds: number | string;
+  nanos: number | string;
+}
+
+type TimestampInput = TimestampWithToDate | TimestampWithSecondsNanos | undefined;
+
+const getTimestamp = (ts: TimestampInput): number => {
+  if (!ts) {
+    return 0;
+  }
+  if (typeof (ts as TimestampWithToDate).toDate === 'function') {
+    return (ts as TimestampWithToDate).toDate().getTime();
+  }
+  if ((ts as TimestampWithSecondsNanos).seconds && (ts as TimestampWithSecondsNanos).nanos) {
+    return Number((ts as TimestampWithSecondsNanos).seconds) * 1000 + Number((ts as TimestampWithSecondsNanos).nanos) / 1000000;
+  }
+  return 0;
+}
+
+const getFlowId = (flow: Flow | undefined | null): string | undefined => {
+  if (flow?.flow?.case === 'httpFlow' && flow.flow.value) {
+    return flow.flow.value.id;
+  }
+  return undefined;
+};
+
 /**
  * Renders a single flow row in the table
  */
-const FlowRow: React.FC<{ flow: Flow; isSelected: boolean; onClick: () => void }> = ({ flow, isSelected, onClick }) => {
+const FlowRow: React.FC<{
+    flow: StreamFlowsResponse;
+    isSelected: boolean;
+    onMouseDown: (flow: Flow, event: React.MouseEvent) => void;
+    onMouseEnter: (flow: Flow) => void;
+}> = ({ flow: response, isSelected, onMouseDown, onMouseEnter }) => {
+  const flow = response.flow;
+  if (!flow || !flow.flow || flow.flow.case !== 'httpFlow') {
+    // For now, we only render HTTP flows.
+    return null;
+  }
+  const httpFlow = flow.flow.value;
+
   const statusClass = useMemo(() => {
-    if (flow.status >= 500) return 'text-red-500 font-bold';
-    if (flow.status >= 400) return 'text-red-400';
-    if (flow.status >= 300) return 'text-yellow-400';
+    if (!httpFlow.response) return 'text-zinc-500';
+    if (httpFlow.response.statusCode >= 500) return 'text-red-500 font-bold';
+    if (httpFlow.response.statusCode >= 400) return 'text-red-400';
+    if (httpFlow.response.statusCode >= 300) return 'text-yellow-400';
     return 'text-green-400';
-  }, [flow.status]);
+  }, [httpFlow.response]);
+
+  const url = useMemo(() => {
+    try {
+      return new URL(httpFlow.request?.url || '');
+    } catch {
+      return null;
+    }
+  }, [httpFlow.request?.url]);
 
   return (
     <tr
-      className={`border-b border-zinc-800 cursor-pointer ${isSelected ? 'bg-orange-900/30 hover:bg-orange-900/40' : 'hover:bg-zinc-800/50'}`}
-      onClick={onClick}
-      data-flow-id={flow.id} // Add data-attribute for scrolling
+      className={`border-b border-zinc-800 cursor-pointer select-none ${isSelected ? 'bg-orange-900/30 hover:bg-orange-900/40' : 'hover:bg-zinc-800/50'}`}
+      onMouseDown={(event) => onMouseDown(flow, event)}
+      onMouseEnter={() => onMouseEnter(flow)}
+      data-flow-id={httpFlow.id} // Add data-attribute for scrolling
     >
-      <td className="p-3 font-mono max-w-xs overflow-hidden text-ellipsis whitespace-nowrap">{flow.protocol}</td>
-      <td className="p-3 font-mono max-w-xs overflow-hidden text-ellipsis whitespace-nowrap">{flow.method}</td>
-      <td className={`p-3 font-mono max-w-xs overflow-hidden text-ellipsis whitespace-nowrap ${statusClass}`}>{flow.status}</td>
-      <td className="p-3 font-mono max-w-xs overflow-hidden text-ellipsis whitespace-nowrap" title={flow.destination}>{flow.destination}</td>
-      <td className="p-3 font-mono max-w-xs overflow-hidden text-ellipsis whitespace-nowrap" title={flow.path}>{flow.path}</td>
-      <td className="p-3 font-mono max-w-xs overflow-hidden text-ellipsis whitespace-nowrap">{flow.size}</td>
-      <td className="p-3 font-mono max-w-xs overflow-hidden text-ellipsis whitespace-nowrap">{flow.duration}</td>
+      <td className={`p-3 font-mono max-w-xs overflow-hidden text-ellipsis whitespace-nowrap ${statusClass}`}>{httpFlow.response?.statusCode ?? '...'}</td>
+      <td className="p-3 font-mono max-w-xs overflow-hidden text-ellipsis whitespace-nowrap">{httpFlow.request?.method} {url?.toString()}</td>
+      <td className="hidden md:table-cell p-3 font-mono max-w-xs overflow-hidden text-ellipsis whitespace-nowrap">{httpFlow.response ? `${httpFlow.response.content.length} B` : '...'}</td>
+      <td className="hidden md:table-cell p-3 font-mono max-w-xs overflow-hidden text-ellipsis whitespace-nowrap">{httpFlow.durationMs ? `${httpFlow.durationMs.toFixed(0)} ms` : '...'}</td>
     </tr>
   );
 };
@@ -141,103 +362,172 @@ const FlowRow: React.FC<{ flow: Flow; isSelected: boolean; onClick: () => void }
 /**
  * Renders the slide-up details panel
  */
-const DetailsPanel: React.FC<{
-  detailView: DetailView;
+const DetailsPanel: React.FC <{
+  flow: Flow | null;
   isMinimized: boolean;
   onClose: () => void;
-  onMinimize: () => void;
-}> = ({ detailView, isMinimized, onClose, onMinimize }) => {
-  const [isDownloadOpen, setDownloadOpen] = useState(false);
-  const downloadRef = useRef<HTMLDivElement>(null);
-  const contentRef = useRef<HTMLDivElement>(null);
+  panelHeight: number | null;
+  setPanelHeight: (height: number) => void;
+  requestFormat: ContentFormat;
+  setRequestFormat: (format: ContentFormat) => void;
+  responseFormat: ContentFormat;
+  setResponseFormat: (format: ContentFormat) => void;
+  downloadFlowContent: (flow: Flow, type: 'har' | 'flow-json' | 'request' | 'response') => void;
+}> = ({ flow, isMinimized, onClose, panelHeight, setPanelHeight, requestFormat, setRequestFormat, responseFormat, setResponseFormat, downloadFlowContent }) => {
+  console.log("DetailsPanel rendering with flow:", flow);
+  const httpFlow = flow?.flow.case === 'httpFlow' ? flow.flow.value : null;
+  console.log("httpFlow.request.content:", httpFlow?.request?.content);
+  console.log("httpFlow.response.content:", httpFlow?.response?.content);
 
-  // Close download menu on outside click
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (downloadRef.current && !downloadRef.current.contains(event.target as Node)) {
-        setDownloadOpen(false);
-      }
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+
+  if (!flow || !httpFlow) {
+    return null;
+  }
+
+  const requestAsText = useMemo(() => {
+    if (!httpFlow.request) return '';
+    const requestLine = `${httpFlow.request.method} ${httpFlow.request.url} ${httpFlow.request.httpVersion}`;
+    const headers = formatHeaders(httpFlow.request.headers);
+    return `${requestLine}\n${headers}`;
+  }, [httpFlow.request]);
+
+  const responseAsText = useMemo(() => {
+    if (!httpFlow.response) return '';
+    const statusLine = `${httpFlow.response.httpVersion} ${httpFlow.response.statusCode}`;
+    const headers = formatHeaders(httpFlow.response.headers);
+    return `${statusLine}\n${headers}`;
+  }, [httpFlow.response]);
+
+  const [isResizing, setIsResizing] = useState(false);
+
+  const statusClass = useMemo(() => {
+    if (!httpFlow?.response) return 'text-zinc-500';
+    if (httpFlow.response.statusCode >= 500) return 'text-red-500 font-bold';
+    if (httpFlow.response.statusCode >= 400) return 'text-red-400';
+    if (httpFlow.response.statusCode >= 300) return 'text-yellow-400';
+    return 'text-green-400';
+  }, [httpFlow?.response]);
+
+  const handleMouseDown = useCallback((e: React.MouseEvent) => {
+    setIsResizing(true);
+    e.preventDefault(); // Prevent text selection during drag
   }, []);
 
-  const handleDownload = (type: 'har' | 'request' | 'response') => {
-    if (detailView?.type !== 'flow') return;
-    const { data: flow } = detailView;
+  const handleMouseMove = useCallback((e: MouseEvent) => {
+    if (!isResizing) return;
+    const newHeight = window.innerHeight - e.clientY;
+    setPanelHeight(Math.max(50, newHeight)); // Minimum height of 50px
+  }, [isResizing, setPanelHeight]);
 
-    let blob: Blob;
-    let filename: string;
+  const handleMouseUp = useCallback(() => {
+    setIsResizing(false);
+  }, []);
 
-    if (type === 'request') {
-      blob = new Blob([flow._requestBody || flow._request], { type: 'text/plain;charset=utf-8' });
-      filename = 'request.txt';
-    } else if (type === 'response') {
-      blob = new Blob([flow._responseBody || flow._response], { type: 'text/plain;charset=utf-8' });
-      filename = 'response.txt';
+  useEffect(() => {
+    if (isResizing) {
+      window.addEventListener('mousemove', handleMouseMove);
+      window.addEventListener('mouseup', handleMouseUp);
     } else {
-      // Simplified HAR generation
-      const har = {
-        log: {
-          version: "1.2",
-          creator: { name: "mitm-prototype-react", version: "1.0" },
-          entries: [{
-            startedDateTime: new Date(flow.requestTs).toISOString(),
-            time: parseInt(flow._latency),
-            request: {
-              method: flow.method,
-              url: flow.url,
-              httpVersion: "HTTP/1.1", headers: [], queryString: [], cookies: [],
-              postData: { mimeType: "application/json", text: flow._requestBody }
-            },
-            response: {
-              status: flow.status, statusText: "OK", httpVersion: "HTTP/1.1", headers: [], cookies: [],
-              content: { text: flow._responseBody, mimeType: "application/json" }
-            }
-          }]
-        }
-      };
-      blob = new Blob([JSON.stringify(har, null, 2)], { type: 'application/json;charset=utf-8' });
-      filename = 'flow.har';
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
     }
-
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = filename;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-    setDownloadOpen(false);
-  };
-
-  const panelClasses = [
-    'fixed bottom-0 left-0 w-full bg-zinc-900 border-t border-orange-500 shadow-2xl z-50 transition-transform duration-300 ease-in-out flex flex-col max-h-[50vh]',
-    detailView ? 'translate-y-0' : 'translate-y-full',
-    isMinimized ? 'translate-y-[calc(100%-39px)]' : '',
-  ].join(' ');
-
-  const isDropdownDown = contentRef.current && contentRef.current.offsetHeight > 200;
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [isResizing, handleMouseMove, handleMouseUp]);
 
   return (
-    <div className={panelClasses}>
-      {/* Panel Header */}
+    <div
+      className={`absolute bottom-0 left-0 right-0 bg-zinc-900 border-t border-zinc-700 flex flex-col z-40 transition-all duration-200 ease-out ${isMinimized ? 'h-0' : ''}`}
+      style={{ height: isMinimized ? '0px' : `${panelHeight}px` }}
+    >
       <div
-        className="flex items-center p-2.5 px-4 bg-zinc-800 border-b border-zinc-700 cursor-pointer flex-shrink-0"
-        onClick={onMinimize}
+        className="absolute top-0 left-0 right-0 h-2 -mt-1 cursor-ns-resize z-50"
+        onMouseDown={handleMouseDown}
+      />
+      <div
+        className="flex items-center p-2.5 px-4 bg-zinc-800 border-b border-zinc-700 flex-shrink-0"
       >
         <h4 className="font-semibold font-mono text-sm text-ellipsis overflow-hidden whitespace-nowrap">
-          {detailView?.type === 'flow' ? `Flow: ${detailView.data.url}` : 'Log Details'}
+          {httpFlow && <span className={`mr-2 `}>{httpFlow.response?.statusCode ?? '...'}</span>}
+          {httpFlow ? httpFlow.request?.url : ''}
         </h4>
-        <div className="ml-auto flex items-center">
-          <button
-            onClick={(e) => { e.stopPropagation(); onMinimize(); }}
-            className="p-1 text-zinc-500 hover:text-zinc-200"
-            title="Minimize"
-          >
-            <Minus size={18} />
-          </button>
+        <div className="ml-auto flex items-center gap-4">
+          {httpFlow && (
+            <>
+              <div className="hidden md:flex items-center gap-4 text-sm font-mono text-zinc-400">
+                <div><strong className="text-zinc-500">Time:</strong> {formatTimestamp(getTimestamp(httpFlow.timestampStart))}</div>
+                <div><strong className="text-zinc-500">Latency:</strong> {httpFlow.durationMs ? `${httpFlow.durationMs.toFixed(0)} ms` : '...'}</div>
+                {httpFlow.live && <div><strong className="text-zinc-500">Live</strong></div>}
+                {httpFlow.isWebsocket && <div><strong className="text-zinc-500">WebSocket</strong></div>}
+                {httpFlow.serverConnAddress && <div><strong className="text-zinc-500">Server:</strong> {httpFlow.serverConnAddress}</div>}
+                {httpFlow.error && <div><strong className="text-red-500">Error:</strong> {httpFlow.error}</div>}
+              </div>
+              <div className="relative inline-block">
+                <button
+                  onClick={(e) => { e.stopPropagation(); setDownloadOpen(o => !o); }}
+                  className="p-1.5 bg-zinc-700 rounded text-sm font-medium hover:bg-zinc-600"
+                  title="Download"
+                >
+                  <Download size={14} />
+                </button>
+                {isDownloadOpen && (
+                  <div className={`absolute right-0 bg-zinc-800 border border-zinc-700 rounded shadow-lg z-10 min-w-[180px] ${isMinimized ? 'bottom-full mb-2' : 'top-full mt-2'}`}>
+                    <a
+                      href="#"
+                      onClick={(e) => { e.preventDefault(); downloadFlowContent(flow, 'har'); }}
+                      className="flex items-center gap-3 px-4 py-2.5 text-sm text-zinc-400 hover:bg-zinc-700 hover:text-zinc-200"
+                    >
+                      <HardDriveDownload size={16} /> Download HAR
+                    </a>
+                    <a
+                      href="#"
+                      onClick={(e) => { e.preventDefault(); downloadFlowContent(flow, 'flow-json'); }}
+                      className="flex items-center gap-3 px-4 py-2.5 text-sm text-zinc-400 hover:bg-zinc-700 hover:text-zinc-200"
+                    >
+                      <Braces size={16} /> Download Flow (JSON)
+                    </a>
+                    <a
+                      href="#"
+                      onClick={(e) => { e.preventDefault(); downloadFlowContent(flow, 'request'); }}
+                      className="flex items-center gap-3 px-4 py-2.5 text-sm text-zinc-400 hover:bg-zinc-700 hover:text-zinc-200"
+                    >
+                      <FileText size={16} /> Download Request
+                    </a>
+                    <a
+                      href="#"
+                      onClick={(e) => { e.preventDefault(); downloadFlowContent(flow, 'response'); }}
+                      className="flex items-center gap-3 px-4 py-2.5 text-sm text-zinc-400 hover:bg-zinc-700 hover:text-zinc-200"
+                    >
+                      <Braces size={16} /> Download Response
+                    </a>
+                  </div>
+                )}
+              </div>
+              <div className="relative md:hidden">
+                <button
+                  onMouseEnter={() => setIsInfoTooltipOpen(true)}
+                  onMouseLeave={() => setIsInfoTooltipOpen(false)}
+                  className="p-1.5 bg-zinc-700 rounded text-sm font-medium hover:bg-zinc-600"
+                >
+                  <Info size={14} />
+                </button>
+                {isInfoTooltipOpen && (
+                  <div className="absolute right-0 bottom-full mb-2 bg-zinc-800 border border-zinc-700 rounded shadow-lg z-10 p-4 min-w-[250px]">
+                    <div className="flex flex-col gap-2 text-sm font-mono text-zinc-400">
+                      <div><strong className="text-zinc-500">Time:</strong> {formatTimestamp(getTimestamp(httpFlow.timestampStart))}</div>
+                      <div><strong className="text-zinc-500">Latency:</strong> {httpFlow.durationMs ? `${httpFlow.durationMs.toFixed(0)} ms` : '...'}</div>
+                      {httpFlow.live && <div><strong className="text-zinc-500">Live</strong></div>}
+                      {httpFlow.isWebsocket && <div><strong className="text-zinc-500">WebSocket</strong></div>}
+                      {httpFlow.serverConnAddress && <div><strong className="text-zinc-500">Server:</strong> {httpFlow.serverConnAddress}</div>}
+                      {httpFlow.error && <div><strong className="text-red-500">Error:</strong> {httpFlow.error}</div>}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </>
+          )}
           <button
             onClick={(e) => { e.stopPropagation(); onClose(); }}
             className="p-1 text-zinc-500 hover:text-zinc-200"
@@ -249,178 +539,342 @@ const DetailsPanel: React.FC<{
       </div>
 
       {/* Panel Content */}
-      <div className="p-5 overflow-y-auto flex-grow" ref={contentRef}>
-        {detailView?.type === 'flow' && (
-          <>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 font-mono text-sm mb-4">
-              <div className="bg-zinc-800 p-2.5 rounded">
-                <strong className="text-zinc-500 mr-2">Time:</strong> {formatTimestamp(detailView.data.requestTs)}
-              </div>
-              <div className="bg-zinc-800 p-2.5 rounded">
-                <strong className="text-zinc-500 mr-2">Latency:</strong> {detailView.data._latency}
-              </div>
-            </div>
-            
-            <div className="border-b border-zinc-700 pb-4 mb-4">
-              <div className="relative inline-block" ref={downloadRef}>
-                <button
-                  onClick={() => setDownloadOpen(o => !o)}
-                  className="flex items-center gap-2 bg-zinc-700 px-4 py-2 rounded text-sm font-medium hover:bg-zinc-600"
-                >
-                  <Download size={16} />
-                  Download
-                  <ChevronDown size={16} className={`transition-transform ${isDownloadOpen ? 'rotate-180' : ''}`} />
-                </button>
-                {isDownloadOpen && (
-                  <div className={`absolute left-0 bg-zinc-800 border border-zinc-700 rounded shadow-lg z-10 min-w-[180px] ${isDropdownDown ? 'top-full mt-1' : 'bottom-full mb-1'}`}>
-                    <a
-                      href="#"
-                      onClick={(e) => { e.preventDefault(); handleDownload('har'); }}
-                      className="flex items-center gap-3 px-4 py-2.5 text-sm text-zinc-400 hover:bg-zinc-700 hover:text-zinc-200"
-                    >
-                      <HardDriveDownload size={16} /> Download HAR
-                    </a>
-                    <a
-                      href="#"
-                      onClick={(e) => { e.preventDefault(); handleDownload('request'); }}
-                      className="flex items-center gap-3 px-4 py-2.5 text-sm text-zinc-400 hover:bg-zinc-700 hover:text-zinc-200"
-                    >
-                      <FileText size={16} /> Download Request
-                    </a>
-                    <a
-                      href="#"
-                      onClick={(e) => { e.preventDefault(); handleDownload('response'); }}
-                      className="flex items-center gap-3 px-4 py-2.5 text-sm text-zinc-400 hover:bg-zinc-700 hover:text-zinc-200"
-                    >
-                      <Braces size={16} /> Download Response
-                    </a>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <h3 className="text-lg font-semibold mb-2 pb-2 border-b border-zinc-700">Request</h3>
-                <pre className="bg-zinc-800 p-3 rounded text-xs font-mono whitespace-pre-wrap break-all max-h-48 overflow-y-auto">
-                  {detailView.data._request}
-                </pre>
-              </div>
-              <div>
-                <h3 className="text-lg font-semibold mb-2 pb-2 border-b border-zinc-700">Response</h3>
-                <pre className="bg-zinc-800 p-3 rounded text-xs font-mono whitespace-pre-wrap break-all max-h-48 overflow-y-auto">
-                  {detailView.data._response}
-                </pre>
-              </div>
-            </div>
-          </>
-        )}
-        {detailView?.type === 'log' && (
-          <div className="font-mono text-sm whitespace-pre-wrap break-all">
-            {detailView.data.message}
+      <div className={`p-5 overflow-y-auto flex-grow ${isMinimized ? 'hidden' : ''}`} ref={contentRef}>
+        {flow && (
+          <div className="grid grid-cols-1 gap-4">
+            <RequestResponseView
+              title="Request"
+              fullContent={requestAsText}
+              bodyContent={formatContent(httpFlow.request?.content, requestFormat, httpFlow.request?.headers['Content-Type'])}
+              format={requestFormat}
+              setFormat={setRequestFormat}
+              contentTypeHeader={httpFlow.request?.headers['Content-Type']}
+              flowPart={httpFlow.request}
+            />
+            <RequestResponseView
+              title="Response"
+              fullContent={responseAsText}
+              bodyContent={formatContent(httpFlow.response?.content, responseFormat, httpFlow.response?.headers['Content-Type'])}
+              format={responseFormat}
+              setFormat={setResponseFormat}
+              contentTypeHeader={httpFlow.response?.headers['Content-Type']}
+              flowPart={httpFlow.response}
+            />
           </div>
         )}
+
       </div>
     </div>
   );
 };
-
 // --- MAIN APP COMPONENT ---
+
+type ConnectionStatus = 'connecting' | 'live' | 'paused' | 'failed';
 
 const App: React.FC = () => {
   // --- State ---
-  const [flows, setFlows] = useState<Flow[]>([]);
-  const [logEntries, setLogEntries] = useState<LogEntry[]>([
-    { id: 'log_0', level: 'INFO', message: 'Proxy started at http://*:8080', timestamp: Date.now() }
-  ]);
+  const [flows, setFlows] = useState<StreamFlowsResponse[]>([]);
   const [isPaused, setIsPaused] = useState(false);
+  const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>('connecting');
   const [filterText, setFilterText] = useState('');
-  const [isLogExpanded, setIsLogExpanded] = useState(false);
-  const [detailView, setDetailView] = useState<DetailView>(null);
+  const [selectedFlow, setSelectedFlow] = useState<Flow | null>(null);
   const [isPanelMinimized, setIsPanelMinimized] = useState(false);
   const [selectedFlowId, setSelectedFlowId] = useState<string | null>(null);
-  
-  const logContentRef = useRef<HTMLDivElement>(null);
+  const [selectedFlowIds, setSelectedFlowIds] = useState<Set<string>>(new Set()); // New state for multi-select
+  const [isDragging, setIsDragging] = useState(false);
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isBulkDownloadOpen, setIsBulkDownloadOpen] = useState(false); // New state for bulk download menu
+  const [detailsPanelHeight, setDetailsPanelHeight] = useState<number | null>(null);
+  const [requestFormats, setRequestFormats] = useState<Map<string, ContentFormat>>(new Map());
+  const [responseFormats, setResponseFormats] = new Map();
   const mainTableRef = useRef<HTMLDivElement>(null); // Ref for the main table scrolling area
+  const lastSelectedFlowId = useRef<string | null>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+  const bulkDownloadRef = useRef<HTMLDivElement>(null); // New ref for bulk download menu
 
-  // --- Simulation Effects ---
-  useEffect(() => {
-    let flowInterval: ReturnType<typeof setInterval>;
-    let logInterval: ReturnType<typeof setInterval>;
+  const downloadFlowContent = useCallback((flow: Flow, type: 'har' | 'flow-json' | 'request' | 'response') => {
+    const httpFlow = flow.flow.case === 'httpFlow' ? flow.flow.value : null;
+    if (!httpFlow) return;
 
-    if (!isPaused) {
-      // Add new flows
-      flowInterval = setInterval(() => {
-        setFlows(prevFlows => [createRandomFlow(), ...prevFlows.slice(0, 99)]);
-      }, randomInt(800, 2000));
+    let blob: Blob;
+    let filename: string;
 
-      // Add random log events
-      logInterval = setInterval(() => {
-        const rand = Math.random();
-        if (rand > 0.15) return; // Only add logs 15% of the time
-        
-        const newLog = createRandomLog();
-        setLogEntries(prevLogs => [
-          ...prevLogs,
-          { ...newLog, id: `log_${Date.now()}`, timestamp: Date.now() }
-        ]);
-      }, 3000);
+    const requestAsText = (() => {
+      if (!httpFlow.request) return '';
+      const requestLine = `${httpFlow.request.method} ${httpFlow.request.url} ${httpFlow.request.httpVersion}`;
+      const headers = formatHeaders(httpFlow.request.headers);
+      return `${requestLine}\n${headers}`;
+    })();
+
+    const responseAsText = (() => {
+      if (!httpFlow.response) return '';
+      const statusLine = `${httpFlow.response.httpVersion} ${httpFlow.response.statusCode}`;
+      const headers = formatHeaders(httpFlow.response.headers);
+      return `${statusLine}\n${headers}`;
+    })();
+
+    switch (type) {
+      case 'har':
+        blob = generateHarBlob([{ flow: flow }]);
+        filename = `${httpFlow.id}.har`;
+        break;
+      case 'flow-json':
+        blob = new Blob([JSON.stringify(toJson(FlowSchema, flow), null, 2)], { type: 'application/json;charset=utf-8' });
+        filename = `${httpFlow.id}.json`;
+        break;
+      case 'request':
+        blob = new Blob([requestAsText], { type: 'text/plain;charset=utf-8' });
+        filename = `${httpFlow.id}_request.txt`;
+        break;
+      case 'response':
+        blob = new Blob([responseAsText], { type: 'text/plain;charset=utf-8' });
+        filename = `${httpFlow.id}_response.txt`;
+        break;
+      default:
+        return;
     }
 
-    // Cleanup
-    return () => {
-      clearInterval(flowInterval);
-      clearInterval(logInterval);
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }, []);
+
+  const handleMouseUp = useCallback(() => {
+    setIsDragging(false);
+  }, []);
+
+  const handleRowMouseEnter = (flow: Flow) => {
+    if (isDragging) {
+      const newSelectedFlowIds = new Set(selectedFlowIds);
+      if (flow && flow.flow) {
+        const flowId = getFlowId(flow);
+        if (flowId) {
+          newSelectedFlowIds.add(flowId);
+        }
+      }
+      setSelectedFlowIds(newSelectedFlowIds);
+    }
+  };
+
+  // --- Data Fetching ---
+  useEffect(() => {
+    if (isPaused) {
+      setConnectionStatus('paused');
+      return;
+    }
+
+    setConnectionStatus('connecting'); // Set to connecting immediately when not paused
+
+    let timeoutId: NodeJS.Timeout;
+    let abortController = new AbortController(); // Declare here to be accessible in cleanup
+
+    const attemptConnection = async () => {
+      abortController = new AbortController(); // Create a new AbortController for each attempt
+      const signal = abortController.signal;
+
+      try {
+        const stream = client.streamFlows({}, { signal });
+        setConnectionStatus('live'); // Stream established
+        for await (const response of stream) {
+          if (!response.flow || !response.flow.flow) {
+            continue;
+          }
+          setFlows(prevFlows => {
+            const existingIndex = prevFlows.findIndex(r => {
+              const rFlowId = getFlowId(r.flow);
+              const responseFlowId = getFlowId(response.flow);
+              return rFlowId && responseFlowId && rFlowId === responseFlowId;
+            });
+            if (existingIndex !== -1) {
+              const newFlows = [...prevFlows];
+              newFlows[existingIndex] = response;
+              return newFlows;
+            }
+            return [response, ...prevFlows.slice(0, 499)];
+          });
+        }
+        // Stream completed without error, re-attempt after a delay
+        if (!isPaused) {
+          timeoutId = setTimeout(attemptConnection, 2000); // Re-attempt after 2 seconds
+        }
+      } catch (err) {
+        if (signal.aborted) {
+          return;
+        }
+        console.error(err);
+        setConnectionStatus('failed');
+        // Retry after a delay if failed and not paused
+        if (!isPaused) {
+          timeoutId = setTimeout(attemptConnection, 5000); // Retry after 5 seconds on error
+        }
+      }
     };
-  }, [isPaused]); // Dependency: re-run when pause state changes
 
-  // --- Auto-scroll log ---
+    attemptConnection();
+
+    return () => {
+      clearTimeout(timeoutId);
+      abortController.abort(); // Abort the current connection attempt
+    };
+  }, [isPaused]);
+
+
   useEffect(() => {
-    if (logContentRef.current) {
-      logContentRef.current.scrollTop = logContentRef.current.scrollHeight;
+    window.addEventListener('mouseup', handleMouseUp);
+    return () => {
+      window.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [handleMouseUp]);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        setIsMenuOpen(false);
+      }
+      if (bulkDownloadRef.current && !bulkDownloadRef.current.contains(event.target as Node)) {
+        setIsBulkDownloadOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  useEffect(() => {
+    if (detailsPanelHeight === null) {
+      setDetailsPanelHeight(window.innerHeight * 0.5);
     }
-  }, [logEntries]); // Dependency: run when new log entries are added
+  }, [detailsPanelHeight]);
 
   // --- Derived State (Filtering) ---
   const filteredFlows = useMemo(() => {
     const filter = filterText.toLowerCase();
-    if (!filter) return flows;
+    if (!filter) {
+      // Ensure all flows have a defined flow.flow before returning
+      return flows.filter(response => response.flow && response.flow.flow);
+    }
     
-    return flows.filter(flow => {
-      // Removed flow.source from the filter string
-      const filterText = `${flow.protocol} ${flow.method} ${flow.status} ${flow.destination} ${flow.path}`.toLowerCase();
+    return flows.filter(response => {
+      if (!response.flow || !response.flow.flow || response.flow.flow.case !== 'httpFlow') return false;
+      const httpFlow = response.flow.flow.value;
+      const url = httpFlow.request?.url || '';
+      const filterText = `${url} ${httpFlow.request?.method} ${httpFlow.response?.statusCode}`.toLowerCase();
       return filterText.includes(filter);
     });
   }, [flows, filterText]); // Dependencies: re-run when flows or filter text change
 
   // --- Event Handlers ---
+  const handleDownloadSelectedFlows = (format: 'har' | 'json') => {
+    const selectedFlows = flows.filter(flow => {
+      const flowId = getFlowId(flow.flow);
+      return flow.flow && flow.flow.flow && flowId && selectedFlowIds.has(flowId);
+    });
+
+    let blob: Blob;
+    let filename: string;
+
+    if (format === 'json') {
+      const jsonFlows = selectedFlows.map(flow => toJson(FlowSchema, flow));
+      blob = new Blob([JSON.stringify(jsonFlows, null, 2)], { type: 'application/json;charset=utf-8' });
+      filename = 'flows.json';
+    } else {
+      blob = generateHarBlob(selectedFlows);
+      filename = 'flows.har';
+    }
+
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
   const togglePause = () => setIsPaused(prev => !prev);
   
   const handleClearFlows = () => {
-    setFlows([]);
-    setDetailView(null);
+    setFlows([]); // Clear the main flows array
+    setSelectedFlow(null);
     setSelectedFlowId(null);
+    setSelectedFlowIds(new Set());
+    setRequestFormats(new Map()); // Clear formats when flows are cleared
+    setResponseFormats(new Map()); // Clear formats when flows are cleared
   };
 
-  const handleFlowClick = useCallback((flow: Flow) => {
-    setDetailView({ type: 'flow', data: flow });
-    setSelectedFlowId(flow.id);
-    setIsPanelMinimized(false);
-  }, []); // Memoize with useCallback
+  const handleSetRequestFormat = useCallback((flowId: string, format: ContentFormat) => {
+    setRequestFormats(prev => {
+      const newMap = new Map(prev);
+      newMap.set(flowId, format);
+      return newMap;
+    });
+  }, []);
 
-  const handleLogClick = (log: LogEntry) => {
-    setDetailView({ type: 'log', data: log });
-    setSelectedFlowId(null); // Deselect flow
+  const handleSetResponseFormat = useCallback((flowId: string, format: ContentFormat) => {
+    setResponseFormats(prev => {
+      const newMap = new Map(prev);
+      newMap.set(flowId, format);
+      return newMap;
+    });
+  }, []);
+
+  const handleFlowMouseDown = useCallback((flow: Flow, event?: React.MouseEvent) => {
+    if (event) { // Only set isDragging if it's a mouse event
+      setIsDragging(true);
+    }
+    const newSelectedFlowIds = new Set(selectedFlowIds);
+    const currentFlowId = getFlowId(flow);
+
+    if (!currentFlowId) {
+      return; // Should not happen if filteredFlows is correct
+    }
+
+    if (event?.shiftKey && lastSelectedFlowId.current) {
+      const lastIndex = filteredFlows.findIndex(f => {
+        const fFlowId = getFlowId(f.flow);
+        return fFlowId && fFlowId === lastSelectedFlowId.current;
+      });
+      const currentIndex = filteredFlows.findIndex(f => {
+        const fFlowId = getFlowId(f.flow);
+        return fFlowId && fFlowId === currentFlowId;
+      });
+      const [start, end] = [lastIndex, currentIndex].sort((a, b) => a - b);
+      for (let i = start; i <= end; i++) {
+        const f = filteredFlows[i];
+        if (f && f.flow && f.flow.flow) {
+            const fFlowId = getFlowId(f.flow);
+            if (fFlowId) {
+              newSelectedFlowIds.add(fFlowId);
+            }
+        }
+      }
+    } else if (event?.metaKey || event?.ctrlKey) {
+      if (newSelectedFlowIds.has(currentFlowId)) {
+        newSelectedFlowIds.delete(currentFlowId);
+      } else {
+        newSelectedFlowIds.add(currentFlowId);
+      }
+    } else {
+      newSelectedFlowIds.clear();
+      newSelectedFlowIds.add(currentFlowId);
+    }
+
+    setSelectedFlowIds(newSelectedFlowIds);
+    setSelectedFlow(flow);
+    setSelectedFlowId(currentFlowId);
+    lastSelectedFlowId.current = currentFlowId;
     setIsPanelMinimized(false);
-  };
-  
+  }, [filteredFlows, selectedFlowIds]);
+
   const handleClosePanel = useCallback(() => {
-    setDetailView(null);
+    setSelectedFlow(null);
     setSelectedFlowId(null);
-  }, []); // Memoize with useCallback
-
-  const handleMinimizePanel = useCallback(() => {
-    setIsPanelMinimized(prev => !prev);
+    setDetailsPanelHeight(null); // Reset height when panel is closed
   }, []); // Memoize with useCallback
 
   // --- Keyboard Navigation Effect ---
@@ -431,7 +885,14 @@ const App: React.FC = () => {
         return;
       }
 
-      if (e.key !== 'ArrowUp' && e.key !== 'ArrowDown') {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'a') {
+        e.preventDefault();
+        const allFlowIds = new Set(filteredFlows.map(f => getFlowId(f.flow)).filter((id): id is string => id !== undefined));
+        setSelectedFlowIds(allFlowIds);
+        return;
+      }
+
+      if (e.key !== 'ArrowUp' && e.key !== 'ArrowDown' && e.key !== 'PageUp' && e.key !== 'PageDown') {
         return;
       }
       
@@ -443,15 +904,24 @@ const App: React.FC = () => {
 
       let currentIndex = -1;
       if (selectedFlowId) {
-        currentIndex = filteredFlows.findIndex(f => f.id === selectedFlowId);
+        currentIndex = filteredFlows.findIndex(f => {
+          const flowId = getFlowId(f.flow);
+          return flowId && flowId === selectedFlowId;
+        });
       }
 
       let nextIndex = -1;
       if (e.key === 'ArrowDown') {
         nextIndex = Math.min(currentIndex + 1, filteredFlows.length - 1);
         if (currentIndex === -1) nextIndex = 0; // Start from top if nothing is selected
-      } else { // ArrowUp
+      } else if (e.key === 'ArrowUp') { // ArrowUp
         nextIndex = Math.max(currentIndex - 1, 0);
+        if (currentIndex === -1) nextIndex = 0; // Start from top if nothing is selected
+      } else if (e.key === 'PageDown') {
+        nextIndex = Math.min(currentIndex + 10, filteredFlows.length - 1);
+        if (currentIndex === -1) nextIndex = 0; // Start from top if nothing is selected
+      } else if (e.key === 'PageUp') {
+        nextIndex = Math.max(currentIndex - 10, 0);
         if (currentIndex === -1) nextIndex = 0; // Start from top if nothing is selected
       }
       
@@ -459,10 +929,11 @@ const App: React.FC = () => {
         const nextFlow = filteredFlows[nextIndex];
         if (nextFlow) {
           // This will update selection and open/update the details panel
-          handleFlowClick(nextFlow);
+          handleFlowMouseDown(nextFlow.flow as Flow);
           
           // Scroll the item into view
-          const rowElement = mainTableRef.current?.querySelector(`[data-flow-id="${nextFlow.id}"]`);
+          const nextFlowId = getFlowId(nextFlow.flow);
+          const rowElement = nextFlowId ? mainTableRef.current?.querySelector(`[data-flow-id="${nextFlowId}"]`) : null;
           rowElement?.scrollIntoView({
             behavior: 'smooth',
             block: 'nearest',
@@ -475,7 +946,7 @@ const App: React.FC = () => {
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
     };
-  }, [filteredFlows, selectedFlowId, handleFlowClick]); // Add dependencies
+  }, [filteredFlows, selectedFlowId, handleFlowMouseDown]); // Add dependencies
 
   // --- Close panel on Escape key ---
   useEffect(() => {
@@ -492,47 +963,195 @@ const App: React.FC = () => {
     };
   }, [handleClosePanel]);
 
-  const getLogLevelClass = (level: LogLevel) => {
-    switch (level) {
-      case 'WARN': return 'text-yellow-400';
-      case 'ERRO': return 'text-red-400';
-      case 'DEBUG': return 'text-zinc-500';
-      default: return 'text-zinc-300';
-    }
-  };
-
   return (
-    <div className="bg-zinc-900 text-zinc-300 font-sans h-screen overflow-hidden flex flex-col">
+    <div className="bg-zinc-900 text-zinc-300 font-sans h-screen flex flex-col">
       {/* --- Header --- */}
       <header className="p-4 border-b border-zinc-700 flex items-center gap-4 flex-shrink-0">
-        <h1 className="text-2xl font-semibold text-white">Web Flows</h1>
+        <h1 className="text-2xl font-semibold text-white">Flows</h1>
         
         <div className="flex items-center gap-2 ml-2">
-          {/* Live Indicator */}
-          <div className={`flex items-center gap-2 px-3 py-1 rounded-full text-sm font-medium ${isPaused 
-            ? 'text-yellow-400 bg-yellow-900/50' 
-            : 'text-green-400 bg-green-900/50'}`}
-          >
-            <span className={`w-2 h-2 rounded-full ${isPaused ? 'bg-yellow-400' : 'bg-green-400 animate-pulse'}`} />
-            {isPaused ? 'Paused' : 'Live'}
+          {/* Connection Status Indicator */}
+          <div className={`flex items-center justify-center w-28 gap-2 px-3 py-1 rounded-full text-sm font-medium
+            ${connectionStatus === 'live' ? 'text-green-400 bg-green-900/50' : ''}
+            ${connectionStatus === 'paused' ? 'text-yellow-400 bg-yellow-900/50' : ''}
+            ${connectionStatus === 'connecting' ? 'text-blue-400 bg-blue-900/50' : ''}
+            ${connectionStatus === 'failed' ? 'text-red-400 bg-red-900/50' : ''}
+          `}>
+            <span className={`w-2 h-2 rounded-full
+              ${connectionStatus === 'live' ? 'bg-green-400 animate-pulse' : ''}
+              ${connectionStatus === 'paused' ? 'bg-yellow-400' : ''}
+              ${connectionStatus === 'connecting' ? 'bg-blue-400 animate-pulse' : ''}
+              ${connectionStatus === 'failed' ? 'bg-red-400' : ''}
+            `} />
+            {connectionStatus.charAt(0).toUpperCase() + connectionStatus.slice(1)}
           </div>
-          
-          {/* Pause Button */}
-          <button
-            onClick={togglePause}
-            className="bg-zinc-800 border border-zinc-700 text-zinc-200 px-3 py-1 rounded-full text-sm font-medium flex items-center gap-1.5 hover:bg-zinc-700"
-          >
-            {isPaused ? <Play size={14} /> : <Pause size={14} />}
-            {isPaused ? 'Resume' : 'Pause'}
-          </button>
-          
-          {/* Clear Button */}
-          <button
-            onClick={handleClearFlows}
-            className="bg-zinc-800 border border-zinc-700 text-zinc-200 px-3 py-1 rounded-full text-sm font-medium flex items-center gap-1.5 hover:bg-zinc-700"
-          >
-            Clear Flows
-          </button>
+
+                    <div className="md:hidden relative" ref={menuRef}>
+
+                      <button
+
+                        onClick={() => setIsMenuOpen(!isMenuOpen)}
+
+                        className="bg-zinc-800 border border-zinc-700 text-zinc-200 px-3 py-1 rounded-full text-sm font-medium flex items-center gap-1.5 hover:bg-zinc-700"
+
+                      >
+
+                        <Menu size={14} />
+
+                      </button>
+
+                      {isMenuOpen && (
+
+                        <div className="absolute right-0 mt-2 w-48 bg-zinc-800 border border-zinc-700 rounded-md shadow-lg z-20">
+
+                          <button
+
+                            onClick={() => { togglePause(); setIsMenuOpen(false); }}
+
+                            className="block w-full text-left px-4 py-2 text-sm text-zinc-200 hover:bg-zinc-700 flex items-center gap-1.5"
+
+                          >
+
+                            {isPaused ? <Play size={14} /> : <Pause size={14} />}
+
+                            {isPaused ? 'Resume' : 'Pause'}
+
+                          </button>
+
+                          <button
+
+                            onClick={() => { handleClearFlows(); setIsMenuOpen(false); }}
+
+                            className="block w-full text-left px-4 py-2 text-sm text-zinc-200 hover:bg-zinc-700 flex items-center gap-1.5"
+
+                          >
+
+                            Clear Flows
+
+                          </button>
+
+                          <div className="relative inline-block w-full" ref={bulkDownloadRef}>
+
+                            <button
+
+                              onClick={(e) => { e.stopPropagation(); setIsBulkDownloadOpen(o => !o); }}
+
+                              disabled={selectedFlowIds.size === 0}
+
+                              className="block w-full text-left px-4 py-2 text-sm text-zinc-200 hover:bg-zinc-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5"
+
+                            >
+
+                              <Download size={14} />
+
+                              Download ({selectedFlowIds.size})
+
+                            </button>
+
+                            {isBulkDownloadOpen && (
+
+                              <div className="absolute left-0 bg-zinc-800 border border-zinc-700 rounded shadow-lg z-10 min-w-[180px] top-full mt-2">
+
+                                <a
+
+                                  href="#"
+
+                                  onClick={(e) => { e.preventDefault(); handleDownloadSelectedFlows('har'); setIsBulkDownloadOpen(false); setIsMenuOpen(false); }}
+
+                                  className="flex items-center gap-3 px-4 py-2.5 text-sm text-zinc-200 hover:bg-zinc-700 hover:text-zinc-200"
+
+                                >
+
+                                  <HardDriveDownload size={16} /> Download HAR
+
+                                </a>
+
+                                <a
+
+                                  href="#"
+
+                                  onClick={(e) => { e.preventDefault(); handleDownloadSelectedFlows('json'); setIsBulkDownloadOpen(false); setIsMenuOpen(false); }}
+
+                                  className="flex items-center gap-3 px-4 py-2.5 text-sm text-zinc-200 hover:bg-zinc-700 hover:text-zinc-200"
+
+                                >
+
+                                  <Braces size={16} /> Download Flows (JSON)
+
+                                </a>
+
+                              </div>
+
+                            )}
+
+                          </div>
+
+                        </div>
+
+                      )}
+
+                    </div>
+
+                    <div className="hidden md:flex items-center gap-2">
+
+                      <button
+
+                        onClick={togglePause}
+
+                        className="bg-zinc-800 border border-zinc-700 text-zinc-200 px-3 py-1 rounded-full text-sm font-medium flex items-center gap-1.5 hover:bg-zinc-700"
+
+                      >
+
+                        {isPaused ? <Play size={14} /> : <Pause size={14} />}
+
+                        {isPaused ? 'Resume' : 'Pause'}
+
+                      </button>
+
+                      
+
+                      <button
+
+                        onClick={handleClearFlows}
+
+                        className="bg-zinc-800 border border-zinc-700 text-zinc-200 px-3 py-1 rounded-full text-sm font-medium flex items-center gap-1.5 hover:bg-zinc-700"
+
+                      >
+
+                        Clear Flows
+
+                      </button>
+
+            {/* Bulk Download Button with Dropdown */}
+            <div className="relative inline-block" ref={bulkDownloadRef}>
+              <button
+                onClick={(e) => { e.stopPropagation(); setIsBulkDownloadOpen(o => !o); }}
+                disabled={selectedFlowIds.size === 0}
+                className="bg-zinc-800 border border-zinc-700 text-zinc-200 px-3 py-1 rounded-full text-sm font-medium flex items-center gap-1.5 hover:bg-zinc-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <Download size={14} />
+                Download ({selectedFlowIds.size})
+              </button>
+              {isBulkDownloadOpen && (
+                <div className="absolute right-0 bg-zinc-800 border border-zinc-700 rounded shadow-lg z-50 min-w-[180px] top-full mt-2">
+                  <a
+                    href="#"
+                    onClick={(e) => { e.preventDefault(); handleDownloadSelectedFlows('har'); setIsBulkDownloadOpen(false); }}
+                    className="flex items-center gap-3 px-4 py-2.5 text-sm text-zinc-400 hover:bg-zinc-700 hover:text-zinc-200"
+                  >
+                    <HardDriveDownload size={16} /> Download HAR
+                  </a>
+                  <a
+                    href="#"
+                    onClick={(e) => { e.preventDefault(); handleDownloadSelectedFlows('json'); setIsBulkDownloadOpen(false); }}
+                    className="flex items-center gap-3 px-4 py-2.5 text-sm text-zinc-400 hover:bg-zinc-700 hover:text-zinc-200"
+                  >
+                    <Braces size={16} /> Download Flows (JSON)
+                  </a>
+                </div>
+              )}
+            </div>
+          </div>
         </div>
         
         {/* Filter Input */}
@@ -552,64 +1171,55 @@ const App: React.FC = () => {
       {/* --- Flow Table --- */}
       <main className="flex-grow overflow-y-auto" ref={mainTableRef}> {/* Add ref */}
         <table className="w-full border-collapse text-sm">
-          <thead className="sticky top-0 bg-zinc-800 z-10">
+          <thead className="sticky top-0 bg-zinc-800">
             <tr>
-              <th className="p-3 text-left font-medium text-zinc-500 border-b-2 border-zinc-700 w-[5%]">Proto</th>
-              <th className="p-3 text-left font-medium text-zinc-500 border-b-2 border-zinc-700 w-[5%]">Method</th>
-              <th className="p-3 text-left font-medium text-zinc-500 border-b-2 border-zinc-700 w-[5%]">Status</th>
-              <th className="p-3 text-left font-medium text-zinc-500 border-b-2 border-zinc-700 w-[30%]">Destination</th>
-              <th className="p-3 text-left font-medium text-zinc-500 border-b-2 border-zinc-700 w-[40%]">Path</th>
-              <th className="p-3 text-left font-medium text-zinc-500 border-b-2 border-zinc-700 w-[8%]">Size</th>
-              <th className="p-3 text-left font-medium text-zinc-500 border-b-2 border-zinc-700 w-[7%]">Duration</th>
+              <th className="p-3 text-left font-medium text-zinc-500 border-b-2 border-zinc-700 w-[5%] md:w-[5%]">Status</th>
+              <th className="p-3 text-left font-medium text-zinc-500 border-b-2 border-zinc-700 w-[85%] md:w-[75%]">Request</th>
+              <th className="hidden md:table-cell p-3 text-left font-medium text-zinc-500 border-b-2 border-zinc-700 w-[8%]">Size</th>
+              <th className="hidden md:table-cell p-3 text-left font-medium text-zinc-500 border-b-2 border-zinc-700 w-[7%]">Duration</th>
             </tr>
           </thead>
           <tbody>
             {filteredFlows.map(flow => (
               <FlowRow
-                key={flow.id}
+                key={getFlowId(flow.flow) || 'unknown'}
                 flow={flow}
-                isSelected={flow.id === selectedFlowId}
-                onClick={() => handleFlowClick(flow)}
+                isSelected={(() => {
+                  const flowId = getFlowId(flow.flow);
+                  return flowId ? selectedFlowIds.has(flowId) : false;
+                })()}
+                onMouseDown={handleFlowMouseDown}
+                onMouseEnter={handleRowMouseEnter}
               />
             ))}
           </tbody>
         </table>
       </main>
 
-      {/* --- Event Log --- */}
-      <footer className="flex-shrink-0 border-t border-zinc-700 bg-zinc-800 flex flex-col">
-        <div
-          className="p-2.5 px-4 text-sm font-medium border-b border-zinc-700 bg-zinc-800 cursor-pointer flex items-center"
-          onClick={() => setIsLogExpanded(prev => !prev)}
-        >
-          {isLogExpanded ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
-          <h3 className="ml-2">Event Log</h3>
-        </div>
-        {isLogExpanded && (
-          <div
-            ref={logContentRef}
-            className="h-48 overflow-y-auto p-3 font-mono text-xs leading-relaxed bg-zinc-800/50"
-          >
-            {logEntries.map(log => (
-              <div
-                key={log.id}
-                className={`cursor-pointer hover:bg-zinc-700/50 ${getLogLevelClass(log.level)}`}
-                onClick={() => handleLogClick(log)}
-              >
-                <span className="text-zinc-500 mr-2">[{formatTimestamp(log.timestamp)}]</span>
-                [{log.level}] {log.message}
-              </div>
-            ))}
-          </div>
-        )}
-      </footer>
-
-      {/* --- Details Panel (Portal) --- */}
+      {/* --- Details Panel --- */}
       <DetailsPanel
-        detailView={detailView}
+        flow={selectedFlow}
         isMinimized={isPanelMinimized}
         onClose={handleClosePanel}
-        onMinimize={handleMinimizePanel}
+        panelHeight={detailsPanelHeight}
+        setPanelHeight={setDetailsPanelHeight}
+        requestFormat={(() => {
+          const flowId = getFlowId(selectedFlow);
+          return selectedFlow && flowId ? (requestFormats.get(flowId) || 'auto') : 'auto';
+        })()}
+        setRequestFormat={(format) => {
+          const flowId = getFlowId(selectedFlow);
+          selectedFlow && flowId && handleSetRequestFormat(flowId, format);
+        }}
+        responseFormat={(() => {
+          const flowId = getFlowId(selectedFlow);
+          return selectedFlow && flowId ? (responseFormats.get(flowId) || 'auto') : 'auto';
+        })()}
+        setResponseFormat={(format) => {
+          const flowId = getFlowId(selectedFlow);
+          selectedFlow && flowId && handleSetResponseFormat(flowId, format);
+        }}
+        downloadFlowContent={downloadFlowContent}
       />
     </div>
   );

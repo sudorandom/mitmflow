@@ -1,0 +1,150 @@
+syntax = "proto3";
+
+package mitmflow.v1;
+
+import "buf/validate/validate.proto";
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/sudorandom/mitmflow/gen/go/mitmflow/v1;mitmflowv1";
+
+// The service definition.
+// TODO: fix lint issues
+// TODO: consider two different services, one for receiving flows and one for the web UI
+service Service {
+  rpc ExportFlow(stream ExportFlowRequest) returns (ExportFlowResponse) {}
+  rpc StreamFlows(StreamFlowsRequest) returns (stream StreamFlowsResponse) {}
+}
+
+enum EventType {
+  EVENT_TYPE_UNSPECIFIED = 0;
+  EVENT_TYPE_REQUESTHEADERS = 1;
+  EVENT_TYPE_REQUEST = 2;
+  EVENT_TYPE_RESPONSEHEADERS = 3;
+  EVENT_TYPE_RESPONSE = 4;
+  EVENT_TYPE_ERROR = 5;
+  EVENT_TYPE_HTTP_CONNECT = 6;
+  EVENT_TYPE_HTTP_CONNECT_UPSTREAM = 7;
+  EVENT_TYPE_HTTP_CONNECTED = 8;
+  EVENT_TYPE_HTTP_CONNECT_ERROR = 9;
+  EVENT_TYPE_DNS_REQUEST = 10;
+  EVENT_TYPE_DNS_RESPONSE = 11;
+  EVENT_TYPE_DNS_ERROR = 12;
+  EVENT_TYPE_TCP_START = 13;
+  EVENT_TYPE_TCP_MESSAGE = 14;
+  EVENT_TYPE_TCP_END = 15;
+  EVENT_TYPE_TCP_ERROR = 16;
+  EVENT_TYPE_UDP_START = 17;
+  EVENT_TYPE_UDP_MESSAGE = 18;
+  EVENT_TYPE_UDP_END = 19;
+  EVENT_TYPE_UDP_ERROR = 20;
+  EVENT_TYPE_QUIC_START_CLIENT = 21;
+  EVENT_TYPE_QUIC_START_SERVER = 22;
+  EVENT_TYPE_TLS_CLIENTHELLO = 23;
+  EVENT_TYPE_TLS_START_CLIENT = 24;
+  EVENT_TYPE_TLS_START_SERVER = 25;
+  EVENT_TYPE_TLS_ESTABLISHED_CLIENT = 26;
+  EVENT_TYPE_TLS_ESTABLISHED_SERVER = 27;
+  EVENT_TYPE_TLS_FAILED_CLIENT = 28;
+  EVENT_TYPE_TLS_FAILED_SERVER = 29;
+  EVENT_TYPE_WEBSOCKET_START = 30;
+  EVENT_TYPE_WEBSOCKET_MESSAGE = 31;
+  EVENT_TYPE_WEBSOCKET_END = 32;
+}
+
+message ExportFlowRequest {
+  Flow flow = 1;
+  EventType event_type = 2;
+}
+
+message ExportFlowResponse {
+  string message = 1;
+  bool received = 2;
+  uint64 flows_processed = 3;
+}
+
+message StreamFlowsRequest {}
+
+message StreamFlowsResponse {
+  Flow flow = 1;
+}
+
+message Flow {
+  oneof flow {
+    HTTPFlow http_flow = 1;
+  }
+}
+
+// The response message confirming receipt for streaming flows
+message FlowStreamReply {
+  string message = 1;
+  bool received = 2;
+  uint64 flows_processed = 3;
+}
+
+// A single HTTP Flow (Request/Response pair)
+message HTTPFlow {
+  string id = 1 [(buf.validate.field).string.min_len = 1];
+  Request request = 2;
+  Response response = 3;
+  google.protobuf.Timestamp timestamp_start = 4;
+  double duration_ms = 5;
+  string client_ip = 6 [(buf.validate.field).string.ip = true];
+  string server_conn_address = 7;
+  string error = 8;
+  bool is_websocket = 9;
+  bool live = 10;
+}
+
+message Request {
+  string method = 1 [
+    (buf.validate.field).string.example = "GET",
+    (buf.validate.field).string.example = "POST",
+    (buf.validate.field).string.example = "PUT",
+    (buf.validate.field).string.example = "DELETE",
+    (buf.validate.field).string.example = "OPTIONS"
+  ];
+  string url = 2 [(buf.validate.field).string.uri = true];
+  map<string, string> headers = 3 [
+    (buf.validate.field).map.keys = {
+      string: {
+        example: "Content-Type"
+        example: "User-Agent"
+        example: "Accept"
+        example: "Authorization"
+        example: "Cookie"
+      }
+    },
+    (buf.validate.field).map.values = {
+      string: {
+        example: "application/json"
+        example: "application/proto"
+        example: "text/html"
+        example: "text/plain"
+        example: "application/connect+proto"
+      }
+    }
+  ];
+  bytes content = 4;
+  repeated string content_protoscope_frames = 5;
+  string http_version = 6;
+  map<string, string> trailers = 7;
+}
+
+message Response {
+  int32 status_code = 1 [(buf.validate.field).int32 = {
+    gte: 100
+    lte: 599
+    example: 200
+    example: 201
+    example: 300
+    example: 301
+    example: 401
+    example: 404
+    example: 500
+  }];
+  map<string, string> headers = 2;
+  bytes content = 3;
+  repeated string content_protoscope_frames = 4;
+  string http_version = 5;
+  map<string, string> trailers = 6;
+}
