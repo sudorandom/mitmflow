@@ -2,15 +2,13 @@ import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react'
 import { Search, Pause, Play, X, Download, FileText, Braces, HardDriveDownload, Info, Menu } from 'lucide-react';
 import { createConnectTransport } from "@connectrpc/connect-web";
 import { createClient } from "@connectrpc/connect";
-import { Service, Flow, HTTPFlow, FlowSchema, Request, Response, StreamFlowsResponse } from "./gen/mitmflow/v1/mitmflow_pb";
+import { Service, Flow, FlowSchema, Request, Response } from "./gen/mitmflow/v1/mitmflow_pb";
 import { Light as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { atomOneDark } from 'react-syntax-highlighter/dist/esm/styles/hljs'; // A simple, light theme
 import HexViewer from './HexViewer';
 import { toJson } from "@bufbuild/protobuf";
 
 type ContentFormat = 'auto' | 'text' | 'json' | 'protobuf' | 'grpc' | 'grpc-web' | 'xml' | 'binary' | 'image' | 'dns' | 'javascript';
-
-const client = createClient(Service, createConnectTransport({ baseUrl: "http://localhost:50051" }));
 
 const formatTimestamp = (ts: number): string => {
   const date = new Date(ts);
@@ -112,21 +110,20 @@ const getHarContent = (content: Uint8Array | undefined, contentTypeHeader?: stri
 };
 
 // New function to generate HAR blob
-const generateHarBlob = (flowsToExport: StreamFlowsResponse[]): Blob => {
+const generateHarBlob = (flowsToExport: Flow[]): Blob => {
   const har = {
     log: {
       version: "1.2",
       creator: { name: "mitm-flows", version: "1.0" },
-      entries: flowsToExport.map(response => {
-        const flow = response.flow;
-        const httpFlow = flow?.flow?.case === 'httpFlow' ? flow.flow.value : null;
+      entries: flowsToExport.map(flow => {
+        const httpFlow = flow?.flow?.case === 'httpFlow' ? flow.flow?.value : null;
 
         if (!flow || !httpFlow) {
           return {}; // Skip this entry if httpFlow is not available
         }
 
         return {
-          startedDateTime: new Date(getTimestamp(flow.timestampStart)).toISOString(),
+          startedDateTime: new Date(getTimestamp(httpFlow.timestampStart)).toISOString(),
           time: httpFlow.durationMs,
           request: {
             method: httpFlow.request?.method || '',
@@ -209,52 +206,50 @@ const RequestResponseView: React.FC<RequestResponseViewProps> = ({ title, fullCo
             </pre>
         </>
       )}
-      {bodySize > 0 && !showBodyByDefault && (
-        <div className="mt-2 text-sm">
-          <a href="#" onClick={(e) => { e.preventDefault(); setIsBodyExpanded(!isBodyExpanded); }} className="text-orange-400 hover:underline">
-            {isBodyExpanded ? 'Collapse' : 'Expand'} body ({bodySize} bytes)
-          </a>
+      {flowPart?.contentProtoscopeFrames && flowPart.contentProtoscopeFrames.length > 0 ? (
+        // Render protoscope frames if they exist
+        <div>
+          {flowPart.contentProtoscopeFrames.map((frame, index) => (
+            <div key={index} className="border-b border-zinc-700 py-2">
+              {flowPart.contentProtoscopeFrames.length > 1 && (
+                <h4 className="text-sm font-semibold mb-1">Frame {index + 1}</h4>
+              )}
+              <SyntaxHighlighter
+                language={'protobuf'}
+                style={atomOneDark}
+                customStyle={{
+                  backgroundColor: '#27272a',
+                  padding: '1rem',
+                  borderRadius: '0.25rem',
+                  fontSize: '0.75rem',
+                  fontFamily: 'monospace',
+                  whiteSpace: 'pre-wrap',
+                  wordBreak: 'break-all',
+                  marginTop: '0.5rem',
+                }}
+                showLineNumbers={false}
+              >
+                {frame}
+              </SyntaxHighlighter>
+            </div>
+          ))}
         </div>
-      )}
-      {(showBodyByDefault || isBodyExpanded) && (
-        (() => {
-          if ((effectiveFormat === 'protobuf' || effectiveFormat === 'grpc' || effectiveFormat === 'grpc-web') && flowPart?.contentProtoscopeFrames && flowPart.contentProtoscopeFrames.length > 0) {
-            return (
-              <div>
-                {flowPart.contentProtoscopeFrames.map((frame, index) => (
-                  <div key={index} className="border-b border-zinc-700 py-2">
-                    <h4 className="text-sm font-semibold mb-1">Frame {index + 1}</h4>
-                    <SyntaxHighlighter
-                      language={'protobuf'}
-                      style={atomOneDark}
-                      customStyle={{
-                        backgroundColor: '#27272a',
-                        padding: '1rem',
-                        borderRadius: '0.25rem',
-                        fontSize: '0.75rem',
-                        fontFamily: 'monospace',
-                        whiteSpace: 'pre-wrap',
-                        wordBreak: 'break-all',
-                        marginTop: '0.5rem',
-                      }}
-                      showLineNumbers={false}
-                    >
-                      {frame}
-                    </SyntaxHighlighter>
-                  </div>
-                ))}
-              </div>
-            );
-          }
-
-          if (bodyContent) {
-            if (bodyContent.encoding === 'base64') {
-              return <img src={`data:${(contentTypeHeader || 'application/octet-stream').split(';')[0]};base64,${bodyContent.data}`} alt="Image content" className="max-w-full h-auto" />;
-            }
-            if (bodyContent.encoding === 'binary') {
-              return <HexViewer data={bodyContent.data instanceof Uint8Array ? bodyContent.data : new Uint8Array()} />;
-            }
-            return (
+      ) : (
+        // Otherwise, render the regular body content (expandable)
+        <>
+          {bodySize > 0 && !showBodyByDefault && (
+            <div className="mt-2 text-sm">
+              <a href="#" onClick={(e) => { e.preventDefault(); setIsBodyExpanded(!isBodyExpanded); }} className="text-orange-400 hover:underline">
+                {isBodyExpanded ? 'Collapse' : 'Expand'} body ({bodySize} bytes)
+              </a>
+            </div>
+          )}
+          {(showBodyByDefault || isBodyExpanded) && bodyContent && (
+            bodyContent.encoding === 'base64' ? (
+              <img src={`data:${(contentTypeHeader || 'application/octet-stream').split(';')[0]};base64,${bodyContent.data}`} alt="Image content" className="max-w-full h-auto" />
+            ) : bodyContent.encoding === 'binary' ? (
+              <HexViewer data={bodyContent.data instanceof Uint8Array ? bodyContent.data : new Uint8Array()} />
+            ) : (
               <SyntaxHighlighter
                 language={format === 'json' ? 'json' : (format === 'xml' ? 'xml' : (format === 'javascript' ? 'javascript' : 'text'))}
                 style={atomOneDark}
@@ -272,37 +267,28 @@ const RequestResponseView: React.FC<RequestResponseViewProps> = ({ title, fullCo
               >
                 {bodyContent.data as string}
               </SyntaxHighlighter>
-            );
-          }
-          return null;
-        })()
+            )
+          )}
+        </>
       )}
     </div>
   );
 };
 
-interface TimestampWithToDate {
-  toDate(): Date;
-}
+
 
 interface TimestampWithSecondsNanos {
-  seconds: number | string;
-  nanos: number | string;
+  seconds: bigint;
+  nanos: number;
 }
 
-type TimestampInput = TimestampWithToDate | TimestampWithSecondsNanos | undefined;
+type TimestampInput = TimestampWithSecondsNanos | undefined;
 
 const getTimestamp = (ts: TimestampInput): number => {
   if (!ts) {
     return 0;
   }
-  if (typeof (ts as TimestampWithToDate).toDate === 'function') {
-    return (ts as TimestampWithToDate).toDate().getTime();
-  }
-  if ((ts as TimestampWithSecondsNanos).seconds && (ts as TimestampWithSecondsNanos).nanos) {
-    return Number((ts as TimestampWithSecondsNanos).seconds) * 1000 + Number((ts as TimestampWithSecondsNanos).nanos) / 1000000;
-  }
-  return 0;
+  return Number(ts.seconds) * 1000 + ts.nanos / 1000000;
 }
 
 const getFlowId = (flow: Flow | undefined | null): string | undefined => {
@@ -316,12 +302,11 @@ const getFlowId = (flow: Flow | undefined | null): string | undefined => {
  * Renders a single flow row in the table
  */
 const FlowRow: React.FC<{
-    flow: StreamFlowsResponse;
+    flow: Flow;
     isSelected: boolean;
     onMouseDown: (flow: Flow, event: React.MouseEvent) => void;
     onMouseEnter: (flow: Flow) => void;
-}> = ({ flow: response, isSelected, onMouseDown, onMouseEnter }) => {
-  const flow = response.flow;
+}> = ({ flow: flow, isSelected, onMouseDown, onMouseEnter }) => {
   if (!flow || !flow.flow || flow.flow.case !== 'httpFlow') {
     // For now, we only render HTTP flows.
     return null;
@@ -373,12 +358,13 @@ const DetailsPanel: React.FC <{
   responseFormat: ContentFormat;
   setResponseFormat: (format: ContentFormat) => void;
   downloadFlowContent: (flow: Flow, type: 'har' | 'flow-json' | 'request' | 'response') => void;
-}> = ({ flow, isMinimized, onClose, panelHeight, setPanelHeight, requestFormat, setRequestFormat, responseFormat, setResponseFormat, downloadFlowContent }) => {
-  console.log("DetailsPanel rendering with flow:", flow);
+  isDownloadOpen: boolean;
+  setDownloadOpen: React.Dispatch<React.SetStateAction<boolean>>;
+  isInfoTooltipOpen: boolean;
+  setIsInfoTooltipOpen: React.Dispatch<React.SetStateAction<boolean>>;
+  contentRef: React.RefObject<HTMLDivElement>;
+}> = ({ flow, isMinimized, onClose, panelHeight, setPanelHeight, requestFormat, setRequestFormat, responseFormat, setResponseFormat, downloadFlowContent, isDownloadOpen, setDownloadOpen, isInfoTooltipOpen, setIsInfoTooltipOpen, contentRef }) => {
   const httpFlow = flow?.flow.case === 'httpFlow' ? flow.flow.value : null;
-  console.log("httpFlow.request.content:", httpFlow?.request?.content);
-  console.log("httpFlow.response.content:", httpFlow?.response?.content);
-
 
   if (!flow || !httpFlow) {
     return null;
@@ -450,7 +436,7 @@ const DetailsPanel: React.FC <{
         className="flex items-center p-2.5 px-4 bg-zinc-800 border-b border-zinc-700 flex-shrink-0"
       >
         <h4 className="font-semibold font-mono text-sm text-ellipsis overflow-hidden whitespace-nowrap">
-          {httpFlow && <span className={`mr-2 `}>{httpFlow.response?.statusCode ?? '...'}</span>}
+          {httpFlow && <span className={`mr-2 ${statusClass}`}>{httpFlow.response?.statusCode ?? '...'}</span>}
           {httpFlow ? httpFlow.request?.url : ''}
         </h4>
         <div className="ml-auto flex items-center gap-4">
@@ -572,8 +558,9 @@ const DetailsPanel: React.FC <{
 type ConnectionStatus = 'connecting' | 'live' | 'paused' | 'failed';
 
 const App: React.FC = () => {
+  const client = useMemo(() => createClient(Service, createConnectTransport({ baseUrl: "http://localhost:50051" })), []);
   // --- State ---
-  const [flows, setFlows] = useState<StreamFlowsResponse[]>([]);
+  const [flows, setFlows] = useState<Flow[]>([]);
   const [isPaused, setIsPaused] = useState(false);
   const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>('connecting');
   const [filterText, setFilterText] = useState('');
@@ -586,7 +573,10 @@ const App: React.FC = () => {
   const [isBulkDownloadOpen, setIsBulkDownloadOpen] = useState(false); // New state for bulk download menu
   const [detailsPanelHeight, setDetailsPanelHeight] = useState<number | null>(null);
   const [requestFormats, setRequestFormats] = useState<Map<string, ContentFormat>>(new Map());
-  const [responseFormats, setResponseFormats] = new Map();
+  const [responseFormats, setResponseFormats] = useState<Map<string, ContentFormat>>(new Map());
+  const [isDownloadOpen, setDownloadOpen] = useState(false);
+  const [isInfoTooltipOpen, setIsInfoTooltipOpen] = useState(false);
+  const contentRef = useRef<HTMLDivElement>(null);
   const mainTableRef = useRef<HTMLDivElement>(null); // Ref for the main table scrolling area
   const lastSelectedFlowId = useRef<string | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -615,7 +605,7 @@ const App: React.FC = () => {
 
     switch (type) {
       case 'har':
-        blob = generateHarBlob([{ flow: flow }]);
+        blob = generateHarBlob([flow]);
         filename = `${httpFlow.id}.har`;
         break;
       case 'flow-json':
@@ -651,7 +641,7 @@ const App: React.FC = () => {
   const handleRowMouseEnter = (flow: Flow) => {
     if (isDragging) {
       const newSelectedFlowIds = new Set(selectedFlowIds);
-      if (flow && flow.flow) {
+      if (flow) {
         const flowId = getFlowId(flow);
         if (flowId) {
           newSelectedFlowIds.add(flowId);
@@ -685,17 +675,22 @@ const App: React.FC = () => {
             continue;
           }
           setFlows(prevFlows => {
+            if (!response.flow) {
+              return prevFlows;
+            }
+            const incomingFlow = response.flow;
+
             const existingIndex = prevFlows.findIndex(r => {
-              const rFlowId = getFlowId(r.flow);
-              const responseFlowId = getFlowId(response.flow);
-              return rFlowId && responseFlowId && rFlowId === responseFlowId;
+              const rFlowId = getFlowId(r);
+              const incomingFlowId = getFlowId(incomingFlow);
+              return rFlowId && incomingFlowId && rFlowId === incomingFlowId;
             });
             if (existingIndex !== -1) {
               const newFlows = [...prevFlows];
-              newFlows[existingIndex] = response;
+              newFlows[existingIndex] = incomingFlow;
               return newFlows;
             }
-            return [response, ...prevFlows.slice(0, 499)];
+            return [incomingFlow, ...prevFlows.slice(0, 499)];
           });
         }
         // Stream completed without error, re-attempt after a delay
@@ -754,13 +749,13 @@ const App: React.FC = () => {
   const filteredFlows = useMemo(() => {
     const filter = filterText.toLowerCase();
     if (!filter) {
-      // Ensure all flows have a defined flow.flow before returning
-      return flows.filter(response => response.flow && response.flow.flow);
+      // Ensure all flows have a defined flow before returning
+      return flows.filter(flow => flow.flow && flow.flow.case);
     }
     
-    return flows.filter(response => {
-      if (!response.flow || !response.flow.flow || response.flow.flow.case !== 'httpFlow') return false;
-      const httpFlow = response.flow.flow.value;
+    return flows.filter(flow => {
+      if (!flow.flow || flow.flow.case !== 'httpFlow') return false;
+      const httpFlow = flow.flow.value;
       const url = httpFlow.request?.url || '';
       const filterText = `${url} ${httpFlow.request?.method} ${httpFlow.response?.statusCode}`.toLowerCase();
       return filterText.includes(filter);
@@ -770,8 +765,8 @@ const App: React.FC = () => {
   // --- Event Handlers ---
   const handleDownloadSelectedFlows = (format: 'har' | 'json') => {
     const selectedFlows = flows.filter(flow => {
-      const flowId = getFlowId(flow.flow);
-      return flow.flow && flow.flow.flow && flowId && selectedFlowIds.has(flowId);
+      const flowId = getFlowId(flow);
+      return flowId && selectedFlowIds.has(flowId);
     });
 
     let blob: Blob;
@@ -782,7 +777,8 @@ const App: React.FC = () => {
       blob = new Blob([JSON.stringify(jsonFlows, null, 2)], { type: 'application/json;charset=utf-8' });
       filename = 'flows.json';
     } else {
-      blob = generateHarBlob(selectedFlows);
+      const flowsToExport = selectedFlows.map(response => response.flow).filter((f): f is Flow => f !== undefined);
+      blob = generateHarBlob(flowsToExport);
       filename = 'flows.har';
     }
 
@@ -836,18 +832,18 @@ const App: React.FC = () => {
 
     if (event?.shiftKey && lastSelectedFlowId.current) {
       const lastIndex = filteredFlows.findIndex(f => {
-        const fFlowId = getFlowId(f.flow);
+        const fFlowId = getFlowId(f);
         return fFlowId && fFlowId === lastSelectedFlowId.current;
       });
       const currentIndex = filteredFlows.findIndex(f => {
-        const fFlowId = getFlowId(f.flow);
+        const fFlowId = getFlowId(f);
         return fFlowId && fFlowId === currentFlowId;
       });
       const [start, end] = [lastIndex, currentIndex].sort((a, b) => a - b);
       for (let i = start; i <= end; i++) {
         const f = filteredFlows[i];
-        if (f && f.flow && f.flow.flow) {
-            const fFlowId = getFlowId(f.flow);
+        if (f) {
+            const fFlowId = getFlowId(f);
             if (fFlowId) {
               newSelectedFlowIds.add(fFlowId);
             }
@@ -887,7 +883,7 @@ const App: React.FC = () => {
 
       if ((e.metaKey || e.ctrlKey) && e.key === 'a') {
         e.preventDefault();
-        const allFlowIds = new Set(filteredFlows.map(f => getFlowId(f.flow)).filter((id): id is string => id !== undefined));
+        const allFlowIds = new Set(filteredFlows.map(f => getFlowId(f)).filter((id): id is string => id !== undefined));
         setSelectedFlowIds(allFlowIds);
         return;
       }
@@ -905,7 +901,7 @@ const App: React.FC = () => {
       let currentIndex = -1;
       if (selectedFlowId) {
         currentIndex = filteredFlows.findIndex(f => {
-          const flowId = getFlowId(f.flow);
+          const flowId = getFlowId(f);
           return flowId && flowId === selectedFlowId;
         });
       }
@@ -929,10 +925,10 @@ const App: React.FC = () => {
         const nextFlow = filteredFlows[nextIndex];
         if (nextFlow) {
           // This will update selection and open/update the details panel
-          handleFlowMouseDown(nextFlow.flow as Flow);
+          handleFlowMouseDown(nextFlow);
           
           // Scroll the item into view
-          const nextFlowId = getFlowId(nextFlow.flow);
+          const nextFlowId = getFlowId(nextFlow);
           const rowElement = nextFlowId ? mainTableRef.current?.querySelector(`[data-flow-id="${nextFlowId}"]`) : null;
           rowElement?.scrollIntoView({
             behavior: 'smooth',
@@ -985,142 +981,74 @@ const App: React.FC = () => {
             `} />
             {connectionStatus.charAt(0).toUpperCase() + connectionStatus.slice(1)}
           </div>
-
-                    <div className="md:hidden relative" ref={menuRef}>
-
-                      <button
-
-                        onClick={() => setIsMenuOpen(!isMenuOpen)}
-
-                        className="bg-zinc-800 border border-zinc-700 text-zinc-200 px-3 py-1 rounded-full text-sm font-medium flex items-center gap-1.5 hover:bg-zinc-700"
-
+          <div className="md:hidden relative" ref={menuRef}>
+            <button
+              onClick={() => setIsMenuOpen(!isMenuOpen)}
+              className="bg-zinc-800 border border-zinc-700 text-zinc-200 px-3 py-1 rounded-full text-sm font-medium flex items-center gap-1.5 hover:bg-zinc-700"
+            >
+              <Menu size={14} />
+            </button>
+            {isMenuOpen && (
+              <div className="absolute right-0 mt-2 w-48 bg-zinc-800 border border-zinc-700 rounded-md shadow-lg z-20">
+                <button
+                  onClick={() => { togglePause(); setIsMenuOpen(false); }}
+                  className="block w-full text-left px-4 py-2 text-sm text-zinc-200 hover:bg-zinc-700 flex items-center gap-1.5"
+                >
+                  {isPaused ? <Play size={14} /> : <Pause size={14} />}
+                  {isPaused ? 'Resume' : 'Pause'}
+                </button>
+                <button
+                  onClick={() => { handleClearFlows(); setIsMenuOpen(false); }}
+                  className="block w-full text-left px-4 py-2 text-sm text-zinc-200 hover:bg-zinc-700 flex items-center gap-1.5"
+                >
+                  Clear Flows
+                </button>
+                <div className="relative inline-block w-full" ref={bulkDownloadRef}>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); setIsBulkDownloadOpen(o => !o); }}
+                    disabled={selectedFlowIds.size === 0}
+                    className="block w-full text-left px-4 py-2 text-sm text-zinc-200 hover:bg-zinc-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5"
+                  >
+                    <Download size={14} />
+                    Download ({selectedFlowIds.size})
+                  </button>
+                  {isBulkDownloadOpen && (
+                    <div className="absolute left-0 bg-zinc-800 border border-zinc-700 rounded shadow-lg z-10 min-w-[180px] top-full mt-2">
+                      <a
+                        href="#"
+                        onClick={(e) => { e.preventDefault(); handleDownloadSelectedFlows('har'); setIsBulkDownloadOpen(false); setIsMenuOpen(false); }}
+                        className="flex items-center gap-3 px-4 py-2.5 text-sm text-zinc-200 hover:bg-zinc-700 hover:text-zinc-200"
                       >
-
-                        <Menu size={14} />
-
-                      </button>
-
-                      {isMenuOpen && (
-
-                        <div className="absolute right-0 mt-2 w-48 bg-zinc-800 border border-zinc-700 rounded-md shadow-lg z-20">
-
-                          <button
-
-                            onClick={() => { togglePause(); setIsMenuOpen(false); }}
-
-                            className="block w-full text-left px-4 py-2 text-sm text-zinc-200 hover:bg-zinc-700 flex items-center gap-1.5"
-
-                          >
-
-                            {isPaused ? <Play size={14} /> : <Pause size={14} />}
-
-                            {isPaused ? 'Resume' : 'Pause'}
-
-                          </button>
-
-                          <button
-
-                            onClick={() => { handleClearFlows(); setIsMenuOpen(false); }}
-
-                            className="block w-full text-left px-4 py-2 text-sm text-zinc-200 hover:bg-zinc-700 flex items-center gap-1.5"
-
-                          >
-
-                            Clear Flows
-
-                          </button>
-
-                          <div className="relative inline-block w-full" ref={bulkDownloadRef}>
-
-                            <button
-
-                              onClick={(e) => { e.stopPropagation(); setIsBulkDownloadOpen(o => !o); }}
-
-                              disabled={selectedFlowIds.size === 0}
-
-                              className="block w-full text-left px-4 py-2 text-sm text-zinc-200 hover:bg-zinc-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5"
-
-                            >
-
-                              <Download size={14} />
-
-                              Download ({selectedFlowIds.size})
-
-                            </button>
-
-                            {isBulkDownloadOpen && (
-
-                              <div className="absolute left-0 bg-zinc-800 border border-zinc-700 rounded shadow-lg z-10 min-w-[180px] top-full mt-2">
-
-                                <a
-
-                                  href="#"
-
-                                  onClick={(e) => { e.preventDefault(); handleDownloadSelectedFlows('har'); setIsBulkDownloadOpen(false); setIsMenuOpen(false); }}
-
-                                  className="flex items-center gap-3 px-4 py-2.5 text-sm text-zinc-200 hover:bg-zinc-700 hover:text-zinc-200"
-
-                                >
-
-                                  <HardDriveDownload size={16} /> Download HAR
-
-                                </a>
-
-                                <a
-
-                                  href="#"
-
-                                  onClick={(e) => { e.preventDefault(); handleDownloadSelectedFlows('json'); setIsBulkDownloadOpen(false); setIsMenuOpen(false); }}
-
-                                  className="flex items-center gap-3 px-4 py-2.5 text-sm text-zinc-200 hover:bg-zinc-700 hover:text-zinc-200"
-
-                                >
-
-                                  <Braces size={16} /> Download Flows (JSON)
-
-                                </a>
-
-                              </div>
-
-                            )}
-
-                          </div>
-
-                        </div>
-
-                      )}
-
+                        <HardDriveDownload size={16} /> Download HAR
+                      </a>
+                      <a
+                        href="#"
+                        onClick={(e) => { e.preventDefault(); handleDownloadSelectedFlows('json'); setIsBulkDownloadOpen(false); setIsMenuOpen(false); }}
+                        className="flex items-center gap-3 px-4 py-2.5 text-sm text-zinc-200 hover:bg-zinc-700 hover:text-zinc-200"
+                      >
+                        <Braces size={16} /> Download Flows (JSON)
+                      </a>
                     </div>
-
-                    <div className="hidden md:flex items-center gap-2">
-
-                      <button
-
-                        onClick={togglePause}
-
-                        className="bg-zinc-800 border border-zinc-700 text-zinc-200 px-3 py-1 rounded-full text-sm font-medium flex items-center gap-1.5 hover:bg-zinc-700"
-
-                      >
-
-                        {isPaused ? <Play size={14} /> : <Pause size={14} />}
-
-                        {isPaused ? 'Resume' : 'Pause'}
-
-                      </button>
-
-                      
-
-                      <button
-
-                        onClick={handleClearFlows}
-
-                        className="bg-zinc-800 border border-zinc-700 text-zinc-200 px-3 py-1 rounded-full text-sm font-medium flex items-center gap-1.5 hover:bg-zinc-700"
-
-                      >
-
-                        Clear Flows
-
-                      </button>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+          <div className="hidden md:flex items-center gap-2">
+            <button
+              onClick={togglePause}
+              className="bg-zinc-800 border border-zinc-700 text-zinc-200 px-3 py-1 rounded-full text-sm font-medium flex items-center gap-1.5 hover:bg-zinc-700"
+            >
+              {isPaused ? <Play size={14} /> : <Pause size={14} />}
+              {isPaused ? 'Resume' : 'Pause'}
+            </button>
+            
+            <button
+              onClick={handleClearFlows}
+              className="bg-zinc-800 border border-zinc-700 text-zinc-200 px-3 py-1 rounded-full text-sm font-medium flex items-center gap-1.5 hover:bg-zinc-700"
+            >
+              Clear Flows
+            </button>
 
             {/* Bulk Download Button with Dropdown */}
             <div className="relative inline-block" ref={bulkDownloadRef}>
@@ -1182,10 +1110,10 @@ const App: React.FC = () => {
           <tbody>
             {filteredFlows.map(flow => (
               <FlowRow
-                key={getFlowId(flow.flow) || 'unknown'}
+                key={getFlowId(flow) || 'unknown'}
                 flow={flow}
                 isSelected={(() => {
-                  const flowId = getFlowId(flow.flow);
+                  const flowId = getFlowId(flow);
                   return flowId ? selectedFlowIds.has(flowId) : false;
                 })()}
                 onMouseDown={handleFlowMouseDown}
@@ -1203,23 +1131,28 @@ const App: React.FC = () => {
         onClose={handleClosePanel}
         panelHeight={detailsPanelHeight}
         setPanelHeight={setDetailsPanelHeight}
-        requestFormat={(() => {
-          const flowId = getFlowId(selectedFlow);
-          return selectedFlow && flowId ? (requestFormats.get(flowId) || 'auto') : 'auto';
-        })()}
-        setRequestFormat={(format) => {
-          const flowId = getFlowId(selectedFlow);
-          selectedFlow && flowId && handleSetRequestFormat(flowId, format);
-        }}
-        responseFormat={(() => {
-          const flowId = getFlowId(selectedFlow);
-          return selectedFlow && flowId ? (responseFormats.get(flowId) || 'auto') : 'auto';
-        })()}
-        setResponseFormat={(format) => {
-          const flowId = getFlowId(selectedFlow);
-          selectedFlow && flowId && handleSetResponseFormat(flowId, format);
-        }}
+        requestFormat={
+          selectedFlow && getFlowId(selectedFlow) ? (requestFormats.get(getFlowId(selectedFlow)!) || 'auto') : 'auto'
+        }
+        setRequestFormat={useCallback((format) => {
+          if (selectedFlow && getFlowId(selectedFlow)) {
+            handleSetRequestFormat(getFlowId(selectedFlow)!, format);
+          }
+        }, [selectedFlow, handleSetRequestFormat])}
+        responseFormat={
+          selectedFlow && getFlowId(selectedFlow) ? (responseFormats.get(getFlowId(selectedFlow)!) || 'auto') : 'auto'
+        }
+        setResponseFormat={useCallback((format) => {
+          if (selectedFlow && getFlowId(selectedFlow)) {
+            handleSetResponseFormat(getFlowId(selectedFlow)!, format);
+          }
+        }, [selectedFlow, handleSetResponseFormat])}
         downloadFlowContent={downloadFlowContent}
+        isDownloadOpen={isDownloadOpen}
+        setDownloadOpen={setDownloadOpen}
+        isInfoTooltipOpen={isInfoTooltipOpen}
+        setIsInfoTooltipOpen={setIsInfoTooltipOpen}
+        contentRef={contentRef}
       />
     </div>
   );

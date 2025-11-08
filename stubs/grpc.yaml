@@ -13,6 +13,7 @@ stubs:
             "headers": {
               "User-Agent": fake_user_agent(),
             },
+            "http_version": "HTTP/2",
           },
           "response": {
             "status_code": fake_http_status_code(),
@@ -26,6 +27,7 @@ stubs:
               '1: {\n  1: {"type.googleapis.com/proto3.TestMessage"}\n  2: {`1005420e65787065637465645f76616c756500000000`}\n}',
               '1: {\n  1: {"type.googleapis.com/proto3.TestMessage"}\n  2: {`1005420e65787065637465645f76616c756500000000`}\n}',
             ],
+            "http_version": "HTTP/2",
           },
           "timestamp_start": fake_date(),
           "duration_ms": fake_float32(),
