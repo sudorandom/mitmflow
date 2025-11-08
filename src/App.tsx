@@ -2,15 +2,13 @@ import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react'
 import { Search, Pause, Play, X, Download, FileText, Braces, HardDriveDownload, Info, Menu } from 'lucide-react';
 import { createConnectTransport } from "@connectrpc/connect-web";
 import { createClient } from "@connectrpc/connect";
-import { Service, Flow, HTTPFlow, FlowSchema, Request, Response, StreamFlowsResponse } from "./gen/mitmflow/v1/mitmflow_pb";
+import { Service, Flow, FlowSchema, Request, Response, StreamFlowsResponse } from "./gen/mitmflow/v1/mitmflow_pb";
 import { Light as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { atomOneDark } from 'react-syntax-highlighter/dist/esm/styles/hljs'; // A simple, light theme
 import HexViewer from './HexViewer';
 import { toJson } from "@bufbuild/protobuf";
 
 type ContentFormat = 'auto' | 'text' | 'json' | 'protobuf' | 'grpc' | 'grpc-web' | 'xml' | 'binary' | 'image' | 'dns' | 'javascript';
-
-const client = createClient(Service, createConnectTransport({ baseUrl: "http://localhost:50051" }));
 
 const formatTimestamp = (ts: number): string => {
   const date = new Date(ts);
@@ -373,12 +371,13 @@ const DetailsPanel: React.FC <{
   responseFormat: ContentFormat;
   setResponseFormat: (format: ContentFormat) => void;
   downloadFlowContent: (flow: Flow, type: 'har' | 'flow-json' | 'request' | 'response') => void;
-}> = ({ flow, isMinimized, onClose, panelHeight, setPanelHeight, requestFormat, setRequestFormat, responseFormat, setResponseFormat, downloadFlowContent }) => {
-  console.log("DetailsPanel rendering with flow:", flow);
+  isDownloadOpen: boolean;
+  setDownloadOpen: React.Dispatch<React.SetStateAction<boolean>>;
+  isInfoTooltipOpen: boolean;
+  setIsInfoTooltipOpen: React.Dispatch<React.SetStateAction<boolean>>;
+  contentRef: React.RefObject<HTMLDivElement>;
+}> = ({ flow, isMinimized, onClose, panelHeight, setPanelHeight, requestFormat, setRequestFormat, responseFormat, setResponseFormat, downloadFlowContent, isDownloadOpen, setDownloadOpen, isInfoTooltipOpen, setIsInfoTooltipOpen, contentRef }) => {
   const httpFlow = flow?.flow.case === 'httpFlow' ? flow.flow.value : null;
-  console.log("httpFlow.request.content:", httpFlow?.request?.content);
-  console.log("httpFlow.response.content:", httpFlow?.response?.content);
-
 
   if (!flow || !httpFlow) {
     return null;
@@ -450,7 +449,7 @@ const DetailsPanel: React.FC <{
         className="flex items-center p-2.5 px-4 bg-zinc-800 border-b border-zinc-700 flex-shrink-0"
       >
         <h4 className="font-semibold font-mono text-sm text-ellipsis overflow-hidden whitespace-nowrap">
-          {httpFlow && <span className={`mr-2 `}>{httpFlow.response?.statusCode ?? '...'}</span>}
+          {httpFlow && <span className={`mr-2 ${statusClass}`}>{httpFlow.response?.statusCode ?? '...'}</span>}
           {httpFlow ? httpFlow.request?.url : ''}
         </h4>
         <div className="ml-auto flex items-center gap-4">
@@ -572,6 +571,7 @@ const DetailsPanel: React.FC <{
 type ConnectionStatus = 'connecting' | 'live' | 'paused' | 'failed';
 
 const App: React.FC = () => {
+  const client = useMemo(() => createClient(Service, createConnectTransport({ baseUrl: "http://localhost:50051" })), []);
   // --- State ---
   const [flows, setFlows] = useState<StreamFlowsResponse[]>([]);
   const [isPaused, setIsPaused] = useState(false);
@@ -586,7 +586,10 @@ const App: React.FC = () => {
   const [isBulkDownloadOpen, setIsBulkDownloadOpen] = useState(false); // New state for bulk download menu
   const [detailsPanelHeight, setDetailsPanelHeight] = useState<number | null>(null);
   const [requestFormats, setRequestFormats] = useState<Map<string, ContentFormat>>(new Map());
-  const [responseFormats, setResponseFormats] = new Map();
+  const [responseFormats, setResponseFormats] = useState<Map<string, ContentFormat>>(new Map());
+  const [isDownloadOpen, setDownloadOpen] = useState(false);
+  const [isInfoTooltipOpen, setIsInfoTooltipOpen] = useState(false);
+  const contentRef = useRef<HTMLDivElement>(null);
   const mainTableRef = useRef<HTMLDivElement>(null); // Ref for the main table scrolling area
   const lastSelectedFlowId = useRef<string | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -1203,23 +1206,28 @@ const App: React.FC = () => {
         onClose={handleClosePanel}
         panelHeight={detailsPanelHeight}
         setPanelHeight={setDetailsPanelHeight}
-        requestFormat={(() => {
-          const flowId = getFlowId(selectedFlow);
-          return selectedFlow && flowId ? (requestFormats.get(flowId) || 'auto') : 'auto';
-        })()}
+        requestFormat={
+          selectedFlow && getFlowId(selectedFlow) ? (requestFormats.get(getFlowId(selectedFlow)!) || 'auto') : 'auto'
+        }
         setRequestFormat={(format) => {
-          const flowId = getFlowId(selectedFlow);
-          selectedFlow && flowId && handleSetRequestFormat(flowId, format);
+          if (selectedFlow && getFlowId(selectedFlow)) {
+            handleSetRequestFormat(getFlowId(selectedFlow)!, format);
+          }
         }}
-        responseFormat={(() => {
-          const flowId = getFlowId(selectedFlow);
-          return selectedFlow && flowId ? (responseFormats.get(flowId) || 'auto') : 'auto';
-        })()}
+        responseFormat={
+          selectedFlow && getFlowId(selectedFlow) ? (responseFormats.get(getFlowId(selectedFlow)!) || 'auto') : 'auto'
+        }
         setResponseFormat={(format) => {
-          const flowId = getFlowId(selectedFlow);
-          selectedFlow && flowId && handleSetResponseFormat(flowId, format);
+          if (selectedFlow && getFlowId(selectedFlow)) {
+            handleSetResponseFormat(getFlowId(selectedFlow)!, format);
+          }
         }}
         downloadFlowContent={downloadFlowContent}
+        isDownloadOpen={isDownloadOpen}
+        setDownloadOpen={setDownloadOpen}
+        isInfoTooltipOpen={isInfoTooltipOpen}
+        setIsInfoTooltipOpen={setIsInfoTooltipOpen}
+        contentRef={contentRef}
       />
     </div>
   );
