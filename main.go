@@ -126,12 +126,12 @@ func (s *MITMFlowServer) preprocessFlow(flow *mitmflowv1.Flow) {
 }
 
 func (s *MITMFlowServer) preprocessRequest(req *mitmflowv1.Request) {
-	contentType, ok := req.Headers["content-type"]
-	if !ok {
-		contentType, ok = req.Headers["Content-Type"]
+	contentType, ok := getContentType(req.Headers)
+	if ok {
+		req.EffectiveContentType = contentType
 	}
-	if !ok {
-		return
+	if ct := http.DetectContentType(req.Content); ct != "application/octet-stream" {
+		req.EffectiveContentType = ct
 	}
 
 	if strings.Contains(contentType, "application/proto") {
@@ -163,13 +163,22 @@ func (s *MITMFlowServer) preprocessRequest(req *mitmflowv1.Request) {
 	}
 }
 
-func (s *MITMFlowServer) preprocessResponse(resp *mitmflowv1.Response) {
-	contentType, ok := resp.Headers["content-type"]
-	if !ok {
-		contentType, ok = resp.Headers["Content-Type"]
+func getContentType(headers map[string]string) (string, bool) {
+	for _, v := range headers {
+		if strings.ToLower(v) == "content-type" {
+			return strings.ToLower(v), true
+		}
 	}
-	if !ok {
-		return
+	return "", false
+}
+
+func (s *MITMFlowServer) preprocessResponse(resp *mitmflowv1.Response) {
+	contentType, ok := getContentType(resp.Headers)
+	if ok {
+		resp.EffectiveContentType = contentType
+	}
+	if ct := http.DetectContentType(resp.Content); ct != "application/octet-stream" {
+		resp.EffectiveContentType = ct
 	}
 
 	switch {

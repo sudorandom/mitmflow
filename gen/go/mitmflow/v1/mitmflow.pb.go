@@ -1384,6 +1384,7 @@ type Request struct {
 	ContentProtoscopeFrames []string               `protobuf:"bytes,5,rep,name=content_protoscope_frames,json=contentProtoscopeFrames,proto3" json:"content_protoscope_frames,omitempty"`
 	HttpVersion             string                 `protobuf:"bytes,6,opt,name=http_version,json=httpVersion,proto3" json:"http_version,omitempty"`
 	Trailers                map[string]string      `protobuf:"bytes,7,rep,name=trailers,proto3" json:"trailers,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	EffectiveContentType    string                 `protobuf:"bytes,8,opt,name=effective_content_type,json=effectiveContentType,proto3" json:"effective_content_type,omitempty"`
 	unknownFields           protoimpl.UnknownFields
 	sizeCache               protoimpl.SizeCache
 }
@@ -1467,6 +1468,13 @@ func (x *Request) GetTrailers() map[string]string {
 	return nil
 }
 
+func (x *Request) GetEffectiveContentType() string {
+	if x != nil {
+		return x.EffectiveContentType
+	}
+	return ""
+}
+
 type Response struct {
 	state                   protoimpl.MessageState `protogen:"open.v1"`
 	StatusCode              int32                  `protobuf:"varint,1,opt,name=status_code,json=statusCode,proto3" json:"status_code,omitempty"`
@@ -1475,6 +1483,7 @@ type Response struct {
 	ContentProtoscopeFrames []string               `protobuf:"bytes,4,rep,name=content_protoscope_frames,json=contentProtoscopeFrames,proto3" json:"content_protoscope_frames,omitempty"`
 	HttpVersion             string                 `protobuf:"bytes,5,opt,name=http_version,json=httpVersion,proto3" json:"http_version,omitempty"`
 	Trailers                map[string]string      `protobuf:"bytes,6,rep,name=trailers,proto3" json:"trailers,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	EffectiveContentType    string                 `protobuf:"bytes,7,opt,name=effective_content_type,json=effectiveContentType,proto3" json:"effective_content_type,omitempty"`
 	unknownFields           protoimpl.UnknownFields
 	sizeCache               protoimpl.SizeCache
 }
@@ -1549,6 +1558,13 @@ func (x *Response) GetTrailers() map[string]string {
 		return x.Trailers
 	}
 	return nil
+}
+
+func (x *Response) GetEffectiveContentType() string {
+	if x != nil {
+		return x.EffectiveContentType
+	}
+	return ""
 }
 
 var File_mitmflow_v1_mitmflow_proto protoreflect.FileDescriptor
@@ -1675,7 +1691,7 @@ const file_mitmflow_v1_mitmflow_proto_rawDesc = "" +
 	"\x05error\x18\b \x01(\tR\x05error\x12!\n" +
 	"\fis_websocket\x18\t \x01(\bR\visWebsocket\x12\x12\n" +
 	"\x04live\x18\n" +
-	" \x01(\bR\x04live\"\x87\x05\n" +
+	" \x01(\bR\x04live\"\xbd\x05\n" +
 	"\aRequest\x12C\n" +
 	"\x06method\x18\x01 \x01(\tB+\xbaH(r&\x92\x02\x03GET\x92\x02\x04POST\x92\x02\x03PUT\x92\x02\x06DELETE\x92\x02\aOPTIONSR\x06method\x12\x1a\n" +
 	"\x03url\x18\x02 \x01(\tB\b\xbaH\x05r\x03\x88\x01\x01R\x03url\x12\xe8\x01\n" +
@@ -1685,13 +1701,14 @@ const file_mitmflow_v1_mitmflow_proto_rawDesc = "" +
 	"\acontent\x18\x04 \x01(\fR\acontent\x12:\n" +
 	"\x19content_protoscope_frames\x18\x05 \x03(\tR\x17contentProtoscopeFrames\x12!\n" +
 	"\fhttp_version\x18\x06 \x01(\tR\vhttpVersion\x12>\n" +
-	"\btrailers\x18\a \x03(\v2\".mitmflow.v1.Request.TrailersEntryR\btrailers\x1a:\n" +
+	"\btrailers\x18\a \x03(\v2\".mitmflow.v1.Request.TrailersEntryR\btrailers\x124\n" +
+	"\x16effective_content_type\x18\b \x01(\tR\x14effectiveContentType\x1a:\n" +
 	"\fHeadersEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\x1a;\n" +
 	"\rTrailersEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\xbd\x03\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\xf3\x03\n" +
 	"\bResponse\x12@\n" +
 	"\vstatus_code\x18\x01 \x01(\x05B\x1f\xbaH\x1c\x1a\x1a@\xc8\x01@\xc9\x01@\xac\x02@\xad\x02@\x91\x03@\x94\x03@\xf4\x03\x18\xd7\x04(dR\n" +
 	"statusCode\x12<\n" +
@@ -1699,7 +1716,8 @@ const file_mitmflow_v1_mitmflow_proto_rawDesc = "" +
 	"\acontent\x18\x03 \x01(\fR\acontent\x12:\n" +
 	"\x19content_protoscope_frames\x18\x04 \x03(\tR\x17contentProtoscopeFrames\x12!\n" +
 	"\fhttp_version\x18\x05 \x01(\tR\vhttpVersion\x12?\n" +
-	"\btrailers\x18\x06 \x03(\v2#.mitmflow.v1.Response.TrailersEntryR\btrailers\x1a:\n" +
+	"\btrailers\x18\x06 \x03(\v2#.mitmflow.v1.Response.TrailersEntryR\btrailers\x124\n" +
+	"\x16effective_content_type\x18\a \x01(\tR\x14effectiveContentType\x1a:\n" +
 	"\fHeadersEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\x1a;\n" +

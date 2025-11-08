@@ -524,6 +524,11 @@ export declare type Request = Message<"mitmflow.v1.Request"> & {
    * @generated from field: map<string, string> trailers = 7;
    */
   trailers: { [key: string]: string };
+
+  /**
+   * @generated from field: string effective_content_type = 8;
+   */
+  effectiveContentType: string;
 };
 
 /**
@@ -565,6 +570,11 @@ export declare type Response = Message<"mitmflow.v1.Response"> & {
    * @generated from field: map<string, string> trailers = 6;
    */
   trailers: { [key: string]: string };
+
+  /**
+   * @generated from field: string effective_content_type = 7;
+   */
+  effectiveContentType: string;
 };
 
 /**

@@ -231,6 +231,7 @@ message Request {
   repeated string content_protoscope_frames = 5;
   string http_version = 6;
   map<string, string> trailers = 7;
+  string effective_content_type = 8;
 }
 
 message Response {
@@ -250,4 +251,5 @@ message Response {
   repeated string content_protoscope_frames = 4;
   string http_version = 5;
   map<string, string> trailers = 6;
+  string effective_content_type = 7;
 }

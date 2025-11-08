@@ -43,41 +43,37 @@ type FormattedContent = {
   effectiveFormat: ContentFormat;
 };
 
-const formatContent = (content: Uint8Array | string | undefined, format: ContentFormat, allHeaders?: { [key: string]: string }): FormattedContent => {
-  const actualContentTypeHeader = getContentType(allHeaders);
-
-  console.log('formatContent - Initial:', { contentTypeHeader: actualContentTypeHeader, format });
-  console.log('formatContent - Received contentTypeHeader:', actualContentTypeHeader);
+const formatContent = (content: Uint8Array | string | undefined, format: ContentFormat, contentType: string | undefined): FormattedContent => {
   let effectiveFormat = format;
 
   // Prioritize explicit format selection
   if (format !== 'auto') {
     effectiveFormat = format;
-  } else if (actualContentTypeHeader) {
+  } else if (contentType) {
     // Auto-detect based on content type header
-    if (actualContentTypeHeader.startsWith('application/json') || actualContentTypeHeader.startsWith('application/manifest+json')) {
+    if (contentType.startsWith('application/json') || contentType.startsWith('application/manifest+json')) {
       effectiveFormat = 'json';
-    } else if (actualContentTypeHeader.includes('application/grpc-web')) {
+    } else if (contentType.includes('application/grpc-web')) {
       effectiveFormat = 'grpc-web';
-    } else if (actualContentTypeHeader.includes('application/grpc')) {
+    } else if (contentType.includes('application/grpc')) {
       effectiveFormat = 'grpc';
-    } else if (actualContentTypeHeader.includes('application/proto') || actualContentTypeHeader.includes('application/x-protobuf')) {
+    } else if (contentType.includes('application/proto') || contentType.includes('application/x-protobuf')) {
       effectiveFormat = 'protobuf';
-    } else if (actualContentTypeHeader.includes('text/html')) {
+    } else if (contentType.includes('text/html')) {
       effectiveFormat = 'html';
-    } else if (actualContentTypeHeader.includes('image')) {
+    } else if (contentType.includes('image')) {
       effectiveFormat = 'image';
-    } else if (actualContentTypeHeader.includes('xml')) {
+    } else if (contentType.includes('xml')) {
       effectiveFormat = 'xml';
-    } else if (actualContentTypeHeader.includes('text')) {
+    } else if (contentType.includes('text')) {
       effectiveFormat = 'text';
-    } else if (actualContentTypeHeader.includes('javascript')) {
+    } else if (contentType.includes('javascript')) {
       effectiveFormat = 'javascript';
-    } else if (actualContentTypeHeader.includes('application/octet')) {
+    } else if (contentType.includes('application/octet')) {
       effectiveFormat = 'binary';
-    } else if (actualContentTypeHeader.includes('dns')) {
+    } else if (contentType.includes('dns')) {
       effectiveFormat = 'dns';
-    } else if (actualContentTypeHeader.includes('text')) {
+    } else if (contentType.includes('text')) {
       effectiveFormat = 'text';
     } else {
       // Default to binary if auto-detection doesn't match known types
@@ -119,6 +115,8 @@ const formatContent = (content: Uint8Array | string | undefined, format: Content
         // so SyntaxHighlighter still tries to highlight it as JSON.
         return { data: contentAsString, encoding: 'text', effectiveFormat: 'json' };
       }
+    case 'html':
+      return { data: contentAsString, encoding: 'text', effectiveFormat: effectiveFormat };
     case 'xml':
     case 'javascript':
     case 'dns':
@@ -174,21 +172,19 @@ const formatUrlWithHostname = (originalUrl: string, sniHostname?: string, hostHe
   }
 };
 
-const getHarContent = (content: Uint8Array | undefined, headers?: { [key: string]: string }) => {
-  const contentTypeHeader = getContentType(headers);
+const getHarContent = (content: Uint8Array | undefined, contentType: string | undefined) => {
   if (!content || content.length === 0) {
-    return { text: '', mimeType: contentTypeHeader || 'application/octet-stream' };
+    return { text: '', mimeType: contentType || 'application/octet-stream' };
   }
-
+  contentType = contentType || 'application/octet-stream';
   const contentAsString = new TextDecoder().decode(content);
-  const mimeType = contentTypeHeader || 'application/octet-stream';
 
   // Check for common text-based content types
-  if (mimeType.includes('json') || mimeType.includes('xml') || mimeType.includes('text')) {
-    return { text: contentAsString, mimeType: mimeType };
+  if (contentType.includes('json') || contentType .includes('xml') || contentType  .includes('text')) {
+    return { text: contentAsString, contentType : contentType };
   } else {
     // For other types (binary, image, etc.), base64 encode
-    return { text: btoa(String.fromCharCode(...content)), mimeType: mimeType, encoding: 'base64' };
+    return { text: btoa(String.fromCharCode(...content)), mimeType: contentType, encoding: 'base64' };
   }
 };
 
@@ -212,11 +208,11 @@ const generateHarBlob = (flowsToExport: Flow[]): Blob => {
             method: httpFlow.request?.method || '',
             url: httpFlow.request?.url || '',
             httpVersion: "HTTP/1.1", headers: [], queryString: [], cookies: [],
-            postData: getHarContent(httpFlow.request?.content, httpFlow.request?.headers)
+            postData: getHarContent(httpFlow.request?.content, httpFlow.request?.effectiveContentType)
           },
           response: {
             status: httpFlow.response?.statusCode || 0, statusText: "OK", httpVersion: "HTTP/1.1", headers: [], cookies: [],
-            content: getHarContent(httpFlow.response?.content, httpFlow.response?.headers)
+            content: getHarContent(httpFlow.response?.content, httpFlow.response?.effectiveContentType)
           }
         };
       })
@@ -518,11 +514,7 @@ const DetailsPanel: React.FC <{
             <>
               <div className="hidden md:flex items-center gap-4 text-sm font-mono text-zinc-400">
                 <div><strong className="text-zinc-500">Time:</strong> {formatTimestamp(getTimestamp(httpFlow.timestampStart))}</div>
-                <div><strong className="text-zinc-500">Latency:</strong> {httpFlow.durationMs ? `${httpFlow.durationMs.toFixed(0)} ms` : '...'}</div>
-                {httpFlow.live && <div><strong className="text-zinc-500">Live</strong></div>}
-                {httpFlow.isWebsocket && <div><strong className="text-zinc-500">WebSocket</strong></div>}
-                {httpFlow.server?.addressHost && <div><strong className="text-zinc-500">Server:</strong> {httpFlow.server.addressHost}</div>}
-                {httpFlow.error && <div><strong className="text-red-500">Error:</strong> {httpFlow.error}</div>}
+                {httpFlow.error && <div><strong className="text-red-500">Error</strong></div>}
               </div>
               <div className="relative inline-block">
                 <button
@@ -577,10 +569,8 @@ const DetailsPanel: React.FC <{
                   <div className="absolute right-0 bottom-full mb-2 bg-zinc-800 border border-zinc-700 rounded shadow-lg z-10 p-4 min-w-[250px]">
                     <div className="flex flex-col gap-2 text-sm font-mono text-zinc-400">
                       <div><strong className="text-zinc-500">Time:</strong> {formatTimestamp(getTimestamp(httpFlow.timestampStart))}</div>
-                      <div><strong className="text-zinc-500">Latency:</strong> {httpFlow.durationMs ? `${httpFlow.durationMs.toFixed(0)} ms` : '...'}</div>
-                      {httpFlow.live && <div><strong className="text-zinc-500">Live</strong></div>}
                       {httpFlow.isWebsocket && <div><strong className="text-zinc-500">WebSocket</strong></div>}
-                    {httpFlow.server?.addressHost && <div><strong className="text-zinc-500">Server:</strong> {httpFlow.server.addressHost}</div>}
+                      {httpFlow.server?.addressHost && <div><strong className="text-zinc-500">Server:</strong> {httpFlow.server.addressHost}</div>}
                       {httpFlow.error && <div><strong className="text-red-500">Error:</strong> {httpFlow.error}</div>}
                     </div>
                   </div>
@@ -670,7 +660,7 @@ const DetailsPanel: React.FC <{
               <RequestResponseView
                 title="Request"
                 fullContent={requestAsText}
-                bodyContent={formatContent(httpFlow.request?.content, requestFormat, httpFlow.request?.headers)}
+                bodyContent={formatContent(httpFlow.request?.content, requestFormat, httpFlow.request?.effectiveContentType)}
                 format={requestFormat}
                 setFormat={setRequestFormat}
                 headers={httpFlow.request?.headers}
@@ -682,7 +672,7 @@ const DetailsPanel: React.FC <{
               <RequestResponseView
                 title="Response"
                 fullContent={responseAsText}
-                bodyContent={formatContent(httpFlow.response?.content, responseFormat, httpFlow.response?.headers)}
+                bodyContent={formatContent(httpFlow.response?.content, responseFormat, httpFlow.response?.effectiveContentType)}
                 format={responseFormat}
                 setFormat={setResponseFormat}
                 headers={httpFlow.response?.headers}
