@@ -13,6 +13,7 @@ stubs:
             "headers": {
               "User-Agent": fake_user_agent(),
             },
+            "http_version": "HTTP/3",
           },
           "response": {
             "status_code": fake_http_status_code(),
@@ -21,6 +22,7 @@ stubs:
               "Server": fake_product_name(),
             },
             "content": base64.encode(b'Hello, this is a plain text response.'),
+            "http_version": "HTTP/3",
           },
           "timestamp_start": fake_date(),
           "duration_ms": fake_float32(),

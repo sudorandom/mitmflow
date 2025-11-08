@@ -206,52 +206,50 @@ const RequestResponseView: React.FC<RequestResponseViewProps> = ({ title, fullCo
             </pre>
         </>
       )}
-      {bodySize > 0 && !showBodyByDefault && (
-        <div className="mt-2 text-sm">
-          <a href="#" onClick={(e) => { e.preventDefault(); setIsBodyExpanded(!isBodyExpanded); }} className="text-orange-400 hover:underline">
-            {isBodyExpanded ? 'Collapse' : 'Expand'} body ({bodySize} bytes)
-          </a>
+      {flowPart?.contentProtoscopeFrames && flowPart.contentProtoscopeFrames.length > 0 ? (
+        // Render protoscope frames if they exist
+        <div>
+          {flowPart.contentProtoscopeFrames.map((frame, index) => (
+            <div key={index} className="border-b border-zinc-700 py-2">
+              {flowPart.contentProtoscopeFrames.length > 1 && (
+                <h4 className="text-sm font-semibold mb-1">Frame {index + 1}</h4>
+              )}
+              <SyntaxHighlighter
+                language={'protobuf'}
+                style={atomOneDark}
+                customStyle={{
+                  backgroundColor: '#27272a',
+                  padding: '1rem',
+                  borderRadius: '0.25rem',
+                  fontSize: '0.75rem',
+                  fontFamily: 'monospace',
+                  whiteSpace: 'pre-wrap',
+                  wordBreak: 'break-all',
+                  marginTop: '0.5rem',
+                }}
+                showLineNumbers={false}
+              >
+                {frame}
+              </SyntaxHighlighter>
+            </div>
+          ))}
         </div>
-      )}
-      {(showBodyByDefault || isBodyExpanded) && (
-        (() => {
-          if ((effectiveFormat === 'protobuf' || effectiveFormat === 'grpc' || effectiveFormat === 'grpc-web') && flowPart?.contentProtoscopeFrames && flowPart.contentProtoscopeFrames.length > 0) {
-            return (
-              <div>
-                {flowPart.contentProtoscopeFrames.map((frame, index) => (
-                  <div key={index} className="border-b border-zinc-700 py-2">
-                    <h4 className="text-sm font-semibold mb-1">Frame {index + 1}</h4>
-                    <SyntaxHighlighter
-                      language={'protobuf'}
-                      style={atomOneDark}
-                      customStyle={{
-                        backgroundColor: '#27272a',
-                        padding: '1rem',
-                        borderRadius: '0.25rem',
-                        fontSize: '0.75rem',
-                        fontFamily: 'monospace',
-                        whiteSpace: 'pre-wrap',
-                        wordBreak: 'break-all',
-                        marginTop: '0.5rem',
-                      }}
-                      showLineNumbers={false}
-                    >
-                      {frame}
-                    </SyntaxHighlighter>
-                  </div>
-                ))}
-              </div>
-            );
-          }
-
-          if (bodyContent) {
-            if (bodyContent.encoding === 'base64') {
-              return <img src={`data:${(contentTypeHeader || 'application/octet-stream').split(';')[0]};base64,${bodyContent.data}`} alt="Image content" className="max-w-full h-auto" />;
-            }
-            if (bodyContent.encoding === 'binary') {
-              return <HexViewer data={bodyContent.data instanceof Uint8Array ? bodyContent.data : new Uint8Array()} />;
-            }
-            return (
+      ) : (
+        // Otherwise, render the regular body content (expandable)
+        <>
+          {bodySize > 0 && !showBodyByDefault && (
+            <div className="mt-2 text-sm">
+              <a href="#" onClick={(e) => { e.preventDefault(); setIsBodyExpanded(!isBodyExpanded); }} className="text-orange-400 hover:underline">
+                {isBodyExpanded ? 'Collapse' : 'Expand'} body ({bodySize} bytes)
+              </a>
+            </div>
+          )}
+          {(showBodyByDefault || isBodyExpanded) && bodyContent && (
+            bodyContent.encoding === 'base64' ? (
+              <img src={`data:${(contentTypeHeader || 'application/octet-stream').split(';')[0]};base64,${bodyContent.data}`} alt="Image content" className="max-w-full h-auto" />
+            ) : bodyContent.encoding === 'binary' ? (
+              <HexViewer data={bodyContent.data instanceof Uint8Array ? bodyContent.data : new Uint8Array()} />
+            ) : (
               <SyntaxHighlighter
                 language={format === 'json' ? 'json' : (format === 'xml' ? 'xml' : (format === 'javascript' ? 'javascript' : 'text'))}
                 style={atomOneDark}
@@ -269,10 +267,9 @@ const RequestResponseView: React.FC<RequestResponseViewProps> = ({ title, fullCo
               >
                 {bodyContent.data as string}
               </SyntaxHighlighter>
-            );
-          }
-          return null;
-        })()
+            )
+          )}
+        </>
       )}
     </div>
   );
@@ -752,13 +749,13 @@ const App: React.FC = () => {
   const filteredFlows = useMemo(() => {
     const filter = filterText.toLowerCase();
     if (!filter) {
-      // Ensure all flows have a defined flow.flow before returning
-      return flows.filter(response => response.flow && response.flow.flow);
+      // Ensure all flows have a defined flow before returning
+      return flows.filter(flow => flow.flow && flow.flow.case);
     }
     
-    return flows.filter(response => {
-      if (!response.flow || !response.flow.flow || response.flow.flow.case !== 'httpFlow') return false;
-      const httpFlow = response.flow.flow.value;
+    return flows.filter(flow => {
+      if (!flow.flow || flow.flow.case !== 'httpFlow') return false;
+      const httpFlow = flow.flow.value;
       const url = httpFlow.request?.url || '';
       const filterText = `${url} ${httpFlow.request?.method} ${httpFlow.response?.statusCode}`.toLowerCase();
       return filterText.includes(filter);
