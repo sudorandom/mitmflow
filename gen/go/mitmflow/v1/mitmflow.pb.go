@@ -1136,6 +1136,7 @@ type Flow struct {
 	// Types that are valid to be assigned to Flow:
 	//
 	//	*Flow_HttpFlow
+	//	*Flow_DnsFlow
 	Flow          isFlow_Flow `protobuf_oneof:"flow"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -1187,6 +1188,15 @@ func (x *Flow) GetHttpFlow() *HTTPFlow {
 	return nil
 }
 
+func (x *Flow) GetDnsFlow() *DNSFlow {
+	if x != nil {
+		if x, ok := x.Flow.(*Flow_DnsFlow); ok {
+			return x.DnsFlow
+		}
+	}
+	return nil
+}
+
 type isFlow_Flow interface {
 	isFlow_Flow()
 }
@@ -1195,7 +1205,365 @@ type Flow_HttpFlow struct {
 	HttpFlow *HTTPFlow `protobuf:"bytes,1,opt,name=http_flow,json=httpFlow,proto3,oneof"`
 }
 
+type Flow_DnsFlow struct {
+	DnsFlow *DNSFlow `protobuf:"bytes,2,opt,name=dns_flow,json=dnsFlow,proto3,oneof"`
+}
+
 func (*Flow_HttpFlow) isFlow_Flow() {}
+
+func (*Flow_DnsFlow) isFlow_Flow() {}
+
+type DNSQuestion struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Name          string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	Type          string                 `protobuf:"bytes,2,opt,name=type,proto3" json:"type,omitempty"`
+	Class         string                 `protobuf:"bytes,3,opt,name=class,proto3" json:"class,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DNSQuestion) Reset() {
+	*x = DNSQuestion{}
+	mi := &file_mitmflow_v1_mitmflow_proto_msgTypes[9]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DNSQuestion) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DNSQuestion) ProtoMessage() {}
+
+func (x *DNSQuestion) ProtoReflect() protoreflect.Message {
+	mi := &file_mitmflow_v1_mitmflow_proto_msgTypes[9]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DNSQuestion.ProtoReflect.Descriptor instead.
+func (*DNSQuestion) Descriptor() ([]byte, []int) {
+	return file_mitmflow_v1_mitmflow_proto_rawDescGZIP(), []int{9}
+}
+
+func (x *DNSQuestion) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *DNSQuestion) GetType() string {
+	if x != nil {
+		return x.Type
+	}
+	return ""
+}
+
+func (x *DNSQuestion) GetClass() string {
+	if x != nil {
+		return x.Class
+	}
+	return ""
+}
+
+type DNSResourceRecord struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Name          string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	Type          string                 `protobuf:"bytes,2,opt,name=type,proto3" json:"type,omitempty"`
+	Class         string                 `protobuf:"bytes,3,opt,name=class,proto3" json:"class,omitempty"`
+	Ttl           uint32                 `protobuf:"varint,4,opt,name=ttl,proto3" json:"ttl,omitempty"`
+	Data          []byte                 `protobuf:"bytes,5,opt,name=data,proto3" json:"data,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DNSResourceRecord) Reset() {
+	*x = DNSResourceRecord{}
+	mi := &file_mitmflow_v1_mitmflow_proto_msgTypes[10]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DNSResourceRecord) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DNSResourceRecord) ProtoMessage() {}
+
+func (x *DNSResourceRecord) ProtoReflect() protoreflect.Message {
+	mi := &file_mitmflow_v1_mitmflow_proto_msgTypes[10]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DNSResourceRecord.ProtoReflect.Descriptor instead.
+func (*DNSResourceRecord) Descriptor() ([]byte, []int) {
+	return file_mitmflow_v1_mitmflow_proto_rawDescGZIP(), []int{10}
+}
+
+func (x *DNSResourceRecord) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *DNSResourceRecord) GetType() string {
+	if x != nil {
+		return x.Type
+	}
+	return ""
+}
+
+func (x *DNSResourceRecord) GetClass() string {
+	if x != nil {
+		return x.Class
+	}
+	return ""
+}
+
+func (x *DNSResourceRecord) GetTtl() uint32 {
+	if x != nil {
+		return x.Ttl
+	}
+	return 0
+}
+
+func (x *DNSResourceRecord) GetData() []byte {
+	if x != nil {
+		return x.Data
+	}
+	return nil
+}
+
+type DNSMessage struct {
+	state               protoimpl.MessageState `protogen:"open.v1"`
+	Packed              []byte                 `protobuf:"bytes,1,opt,name=packed,proto3" json:"packed,omitempty"`
+	Questions           []*DNSQuestion         `protobuf:"bytes,2,rep,name=questions,proto3" json:"questions,omitempty"`
+	Answers             []*DNSResourceRecord   `protobuf:"bytes,3,rep,name=answers,proto3" json:"answers,omitempty"`
+	Authorities         []*DNSResourceRecord   `protobuf:"bytes,4,rep,name=authorities,proto3" json:"authorities,omitempty"`
+	Additionals         []*DNSResourceRecord   `protobuf:"bytes,5,rep,name=additionals,proto3" json:"additionals,omitempty"`
+	Id                  uint32                 `protobuf:"varint,6,opt,name=id,proto3" json:"id,omitempty"`
+	Query               bool                   `protobuf:"varint,7,opt,name=query,proto3" json:"query,omitempty"`
+	OpCode              uint32                 `protobuf:"varint,8,opt,name=op_code,json=opCode,proto3" json:"op_code,omitempty"`
+	AuthoritativeAnswer bool                   `protobuf:"varint,9,opt,name=authoritative_answer,json=authoritativeAnswer,proto3" json:"authoritative_answer,omitempty"`
+	unknownFields       protoimpl.UnknownFields
+	sizeCache           protoimpl.SizeCache
+}
+
+func (x *DNSMessage) Reset() {
+	*x = DNSMessage{}
+	mi := &file_mitmflow_v1_mitmflow_proto_msgTypes[11]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DNSMessage) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DNSMessage) ProtoMessage() {}
+
+func (x *DNSMessage) ProtoReflect() protoreflect.Message {
+	mi := &file_mitmflow_v1_mitmflow_proto_msgTypes[11]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DNSMessage.ProtoReflect.Descriptor instead.
+func (*DNSMessage) Descriptor() ([]byte, []int) {
+	return file_mitmflow_v1_mitmflow_proto_rawDescGZIP(), []int{11}
+}
+
+func (x *DNSMessage) GetPacked() []byte {
+	if x != nil {
+		return x.Packed
+	}
+	return nil
+}
+
+func (x *DNSMessage) GetQuestions() []*DNSQuestion {
+	if x != nil {
+		return x.Questions
+	}
+	return nil
+}
+
+func (x *DNSMessage) GetAnswers() []*DNSResourceRecord {
+	if x != nil {
+		return x.Answers
+	}
+	return nil
+}
+
+func (x *DNSMessage) GetAuthorities() []*DNSResourceRecord {
+	if x != nil {
+		return x.Authorities
+	}
+	return nil
+}
+
+func (x *DNSMessage) GetAdditionals() []*DNSResourceRecord {
+	if x != nil {
+		return x.Additionals
+	}
+	return nil
+}
+
+func (x *DNSMessage) GetId() uint32 {
+	if x != nil {
+		return x.Id
+	}
+	return 0
+}
+
+func (x *DNSMessage) GetQuery() bool {
+	if x != nil {
+		return x.Query
+	}
+	return false
+}
+
+func (x *DNSMessage) GetOpCode() uint32 {
+	if x != nil {
+		return x.OpCode
+	}
+	return 0
+}
+
+func (x *DNSMessage) GetAuthoritativeAnswer() bool {
+	if x != nil {
+		return x.AuthoritativeAnswer
+	}
+	return false
+}
+
+type DNSFlow struct {
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	Id             string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Request        *DNSMessage            `protobuf:"bytes,2,opt,name=request,proto3" json:"request,omitempty"`
+	Response       *DNSMessage            `protobuf:"bytes,3,opt,name=response,proto3,oneof" json:"response,omitempty"`
+	TimestampStart *timestamppb.Timestamp `protobuf:"bytes,4,opt,name=timestamp_start,json=timestampStart,proto3" json:"timestamp_start,omitempty"`
+	DurationMs     float64                `protobuf:"fixed64,5,opt,name=duration_ms,json=durationMs,proto3" json:"duration_ms,omitempty"`
+	Client         *ClientConn            `protobuf:"bytes,6,opt,name=client,proto3" json:"client,omitempty"`
+	Server         *ServerConn            `protobuf:"bytes,7,opt,name=server,proto3" json:"server,omitempty"`
+	Error          *string                `protobuf:"bytes,8,opt,name=error,proto3,oneof" json:"error,omitempty"`
+	Live           bool                   `protobuf:"varint,9,opt,name=live,proto3" json:"live,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *DNSFlow) Reset() {
+	*x = DNSFlow{}
+	mi := &file_mitmflow_v1_mitmflow_proto_msgTypes[12]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DNSFlow) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DNSFlow) ProtoMessage() {}
+
+func (x *DNSFlow) ProtoReflect() protoreflect.Message {
+	mi := &file_mitmflow_v1_mitmflow_proto_msgTypes[12]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DNSFlow.ProtoReflect.Descriptor instead.
+func (*DNSFlow) Descriptor() ([]byte, []int) {
+	return file_mitmflow_v1_mitmflow_proto_rawDescGZIP(), []int{12}
+}
+
+func (x *DNSFlow) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *DNSFlow) GetRequest() *DNSMessage {
+	if x != nil {
+		return x.Request
+	}
+	return nil
+}
+
+func (x *DNSFlow) GetResponse() *DNSMessage {
+	if x != nil {
+		return x.Response
+	}
+	return nil
+}
+
+func (x *DNSFlow) GetTimestampStart() *timestamppb.Timestamp {
+	if x != nil {
+		return x.TimestampStart
+	}
+	return nil
+}
+
+func (x *DNSFlow) GetDurationMs() float64 {
+	if x != nil {
+		return x.DurationMs
+	}
+	return 0
+}
+
+func (x *DNSFlow) GetClient() *ClientConn {
+	if x != nil {
+		return x.Client
+	}
+	return nil
+}
+
+func (x *DNSFlow) GetServer() *ServerConn {
+	if x != nil {
+		return x.Server
+	}
+	return nil
+}
+
+func (x *DNSFlow) GetError() string {
+	if x != nil && x.Error != nil {
+		return *x.Error
+	}
+	return ""
+}
+
+func (x *DNSFlow) GetLive() bool {
+	if x != nil {
+		return x.Live
+	}
+	return false
+}
 
 // The response message confirming receipt for streaming flows
 type FlowStreamReply struct {
@@ -1209,7 +1577,7 @@ type FlowStreamReply struct {
 
 func (x *FlowStreamReply) Reset() {
 	*x = FlowStreamReply{}
-	mi := &file_mitmflow_v1_mitmflow_proto_msgTypes[9]
+	mi := &file_mitmflow_v1_mitmflow_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1221,7 +1589,7 @@ func (x *FlowStreamReply) String() string {
 func (*FlowStreamReply) ProtoMessage() {}
 
 func (x *FlowStreamReply) ProtoReflect() protoreflect.Message {
-	mi := &file_mitmflow_v1_mitmflow_proto_msgTypes[9]
+	mi := &file_mitmflow_v1_mitmflow_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1234,7 +1602,7 @@ func (x *FlowStreamReply) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use FlowStreamReply.ProtoReflect.Descriptor instead.
 func (*FlowStreamReply) Descriptor() ([]byte, []int) {
-	return file_mitmflow_v1_mitmflow_proto_rawDescGZIP(), []int{9}
+	return file_mitmflow_v1_mitmflow_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *FlowStreamReply) GetMessage() string {
@@ -1277,7 +1645,7 @@ type HTTPFlow struct {
 
 func (x *HTTPFlow) Reset() {
 	*x = HTTPFlow{}
-	mi := &file_mitmflow_v1_mitmflow_proto_msgTypes[10]
+	mi := &file_mitmflow_v1_mitmflow_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1289,7 +1657,7 @@ func (x *HTTPFlow) String() string {
 func (*HTTPFlow) ProtoMessage() {}
 
 func (x *HTTPFlow) ProtoReflect() protoreflect.Message {
-	mi := &file_mitmflow_v1_mitmflow_proto_msgTypes[10]
+	mi := &file_mitmflow_v1_mitmflow_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1302,7 +1670,7 @@ func (x *HTTPFlow) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use HTTPFlow.ProtoReflect.Descriptor instead.
 func (*HTTPFlow) Descriptor() ([]byte, []int) {
-	return file_mitmflow_v1_mitmflow_proto_rawDescGZIP(), []int{10}
+	return file_mitmflow_v1_mitmflow_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *HTTPFlow) GetId() string {
@@ -1391,7 +1759,7 @@ type Request struct {
 
 func (x *Request) Reset() {
 	*x = Request{}
-	mi := &file_mitmflow_v1_mitmflow_proto_msgTypes[11]
+	mi := &file_mitmflow_v1_mitmflow_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1403,7 +1771,7 @@ func (x *Request) String() string {
 func (*Request) ProtoMessage() {}
 
 func (x *Request) ProtoReflect() protoreflect.Message {
-	mi := &file_mitmflow_v1_mitmflow_proto_msgTypes[11]
+	mi := &file_mitmflow_v1_mitmflow_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1416,7 +1784,7 @@ func (x *Request) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Request.ProtoReflect.Descriptor instead.
 func (*Request) Descriptor() ([]byte, []int) {
-	return file_mitmflow_v1_mitmflow_proto_rawDescGZIP(), []int{11}
+	return file_mitmflow_v1_mitmflow_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *Request) GetMethod() string {
@@ -1490,7 +1858,7 @@ type Response struct {
 
 func (x *Response) Reset() {
 	*x = Response{}
-	mi := &file_mitmflow_v1_mitmflow_proto_msgTypes[12]
+	mi := &file_mitmflow_v1_mitmflow_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1502,7 +1870,7 @@ func (x *Response) String() string {
 func (*Response) ProtoMessage() {}
 
 func (x *Response) ProtoReflect() protoreflect.Message {
-	mi := &file_mitmflow_v1_mitmflow_proto_msgTypes[12]
+	mi := &file_mitmflow_v1_mitmflow_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1515,7 +1883,7 @@ func (x *Response) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Response.ProtoReflect.Descriptor instead.
 func (*Response) Descriptor() ([]byte, []int) {
-	return file_mitmflow_v1_mitmflow_proto_rawDescGZIP(), []int{12}
+	return file_mitmflow_v1_mitmflow_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *Response) GetStatusCode() int32 {
@@ -1671,10 +2039,45 @@ const file_mitmflow_v1_mitmflow_proto_rawDesc = "" +
 	"\x0fflows_processed\x18\x03 \x01(\x04R\x0eflowsProcessed\"\x14\n" +
 	"\x12StreamFlowsRequest\"<\n" +
 	"\x13StreamFlowsResponse\x12%\n" +
-	"\x04flow\x18\x01 \x01(\v2\x11.mitmflow.v1.FlowR\x04flow\"D\n" +
+	"\x04flow\x18\x01 \x01(\v2\x11.mitmflow.v1.FlowR\x04flow\"w\n" +
 	"\x04Flow\x124\n" +
-	"\thttp_flow\x18\x01 \x01(\v2\x15.mitmflow.v1.HTTPFlowH\x00R\bhttpFlowB\x06\n" +
-	"\x04flow\"p\n" +
+	"\thttp_flow\x18\x01 \x01(\v2\x15.mitmflow.v1.HTTPFlowH\x00R\bhttpFlow\x121\n" +
+	"\bdns_flow\x18\x02 \x01(\v2\x14.mitmflow.v1.DNSFlowH\x00R\adnsFlowB\x06\n" +
+	"\x04flow\"K\n" +
+	"\vDNSQuestion\x12\x12\n" +
+	"\x04name\x18\x01 \x01(\tR\x04name\x12\x12\n" +
+	"\x04type\x18\x02 \x01(\tR\x04type\x12\x14\n" +
+	"\x05class\x18\x03 \x01(\tR\x05class\"w\n" +
+	"\x11DNSResourceRecord\x12\x12\n" +
+	"\x04name\x18\x01 \x01(\tR\x04name\x12\x12\n" +
+	"\x04type\x18\x02 \x01(\tR\x04type\x12\x14\n" +
+	"\x05class\x18\x03 \x01(\tR\x05class\x12\x10\n" +
+	"\x03ttl\x18\x04 \x01(\rR\x03ttl\x12\x12\n" +
+	"\x04data\x18\x05 \x01(\fR\x04data\"\x8c\x03\n" +
+	"\n" +
+	"DNSMessage\x12\x16\n" +
+	"\x06packed\x18\x01 \x01(\fR\x06packed\x126\n" +
+	"\tquestions\x18\x02 \x03(\v2\x18.mitmflow.v1.DNSQuestionR\tquestions\x128\n" +
+	"\aanswers\x18\x03 \x03(\v2\x1e.mitmflow.v1.DNSResourceRecordR\aanswers\x12@\n" +
+	"\vauthorities\x18\x04 \x03(\v2\x1e.mitmflow.v1.DNSResourceRecordR\vauthorities\x12@\n" +
+	"\vadditionals\x18\x05 \x03(\v2\x1e.mitmflow.v1.DNSResourceRecordR\vadditionals\x12\x0e\n" +
+	"\x02id\x18\x06 \x01(\rR\x02id\x12\x14\n" +
+	"\x05query\x18\a \x01(\bR\x05query\x12\x17\n" +
+	"\aop_code\x18\b \x01(\rR\x06opCode\x121\n" +
+	"\x14authoritative_answer\x18\t \x01(\bR\x13authoritativeAnswer\"\x9d\x03\n" +
+	"\aDNSFlow\x12\x17\n" +
+	"\x02id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x02id\x121\n" +
+	"\arequest\x18\x02 \x01(\v2\x17.mitmflow.v1.DNSMessageR\arequest\x128\n" +
+	"\bresponse\x18\x03 \x01(\v2\x17.mitmflow.v1.DNSMessageH\x00R\bresponse\x88\x01\x01\x12C\n" +
+	"\x0ftimestamp_start\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\x0etimestampStart\x12\x1f\n" +
+	"\vduration_ms\x18\x05 \x01(\x01R\n" +
+	"durationMs\x12/\n" +
+	"\x06client\x18\x06 \x01(\v2\x17.mitmflow.v1.ClientConnR\x06client\x12/\n" +
+	"\x06server\x18\a \x01(\v2\x17.mitmflow.v1.ServerConnR\x06server\x12\x19\n" +
+	"\x05error\x18\b \x01(\tH\x01R\x05error\x88\x01\x01\x12\x12\n" +
+	"\x04live\x18\t \x01(\bR\x04liveB\v\n" +
+	"\t_responseB\b\n" +
+	"\x06_error\"p\n" +
 	"\x0fFlowStreamReply\x12\x18\n" +
 	"\amessage\x18\x01 \x01(\tR\amessage\x12\x1a\n" +
 	"\breceived\x18\x02 \x01(\bR\breceived\x12'\n" +
@@ -1812,7 +2215,7 @@ func file_mitmflow_v1_mitmflow_proto_rawDescGZIP() []byte {
 }
 
 var file_mitmflow_v1_mitmflow_proto_enumTypes = make([]protoimpl.EnumInfo, 5)
-var file_mitmflow_v1_mitmflow_proto_msgTypes = make([]protoimpl.MessageInfo, 17)
+var file_mitmflow_v1_mitmflow_proto_msgTypes = make([]protoimpl.MessageInfo, 21)
 var file_mitmflow_v1_mitmflow_proto_goTypes = []any{
 	(EventType)(0),                // 0: mitmflow.v1.EventType
 	(ConnectionState)(0),          // 1: mitmflow.v1.ConnectionState
@@ -1828,15 +2231,19 @@ var file_mitmflow_v1_mitmflow_proto_goTypes = []any{
 	(*StreamFlowsRequest)(nil),    // 11: mitmflow.v1.StreamFlowsRequest
 	(*StreamFlowsResponse)(nil),   // 12: mitmflow.v1.StreamFlowsResponse
 	(*Flow)(nil),                  // 13: mitmflow.v1.Flow
-	(*FlowStreamReply)(nil),       // 14: mitmflow.v1.FlowStreamReply
-	(*HTTPFlow)(nil),              // 15: mitmflow.v1.HTTPFlow
-	(*Request)(nil),               // 16: mitmflow.v1.Request
-	(*Response)(nil),              // 17: mitmflow.v1.Response
-	nil,                           // 18: mitmflow.v1.Request.HeadersEntry
-	nil,                           // 19: mitmflow.v1.Request.TrailersEntry
-	nil,                           // 20: mitmflow.v1.Response.HeadersEntry
-	nil,                           // 21: mitmflow.v1.Response.TrailersEntry
-	(*timestamppb.Timestamp)(nil), // 22: google.protobuf.Timestamp
+	(*DNSQuestion)(nil),           // 14: mitmflow.v1.DNSQuestion
+	(*DNSResourceRecord)(nil),     // 15: mitmflow.v1.DNSResourceRecord
+	(*DNSMessage)(nil),            // 16: mitmflow.v1.DNSMessage
+	(*DNSFlow)(nil),               // 17: mitmflow.v1.DNSFlow
+	(*FlowStreamReply)(nil),       // 18: mitmflow.v1.FlowStreamReply
+	(*HTTPFlow)(nil),              // 19: mitmflow.v1.HTTPFlow
+	(*Request)(nil),               // 20: mitmflow.v1.Request
+	(*Response)(nil),              // 21: mitmflow.v1.Response
+	nil,                           // 22: mitmflow.v1.Request.HeadersEntry
+	nil,                           // 23: mitmflow.v1.Request.TrailersEntry
+	nil,                           // 24: mitmflow.v1.Response.HeadersEntry
+	nil,                           // 25: mitmflow.v1.Response.TrailersEntry
+	(*timestamppb.Timestamp)(nil), // 26: google.protobuf.Timestamp
 }
 var file_mitmflow_v1_mitmflow_proto_depIdxs = []int32{
 	4,  // 0: mitmflow.v1.Via.protocol:type_name -> mitmflow.v1.ViaProtocol
@@ -1844,41 +2251,51 @@ var file_mitmflow_v1_mitmflow_proto_depIdxs = []int32{
 	2,  // 2: mitmflow.v1.ClientConn.transport_protocol:type_name -> mitmflow.v1.TransportProtocol
 	5,  // 3: mitmflow.v1.ClientConn.certificate_list:type_name -> mitmflow.v1.Cert
 	3,  // 4: mitmflow.v1.ClientConn.tls_version:type_name -> mitmflow.v1.TLSVersion
-	22, // 5: mitmflow.v1.ClientConn.timestamp_start:type_name -> google.protobuf.Timestamp
-	22, // 6: mitmflow.v1.ClientConn.timestamp_end:type_name -> google.protobuf.Timestamp
-	22, // 7: mitmflow.v1.ClientConn.timestamp_tls_setup:type_name -> google.protobuf.Timestamp
+	26, // 5: mitmflow.v1.ClientConn.timestamp_start:type_name -> google.protobuf.Timestamp
+	26, // 6: mitmflow.v1.ClientConn.timestamp_end:type_name -> google.protobuf.Timestamp
+	26, // 7: mitmflow.v1.ClientConn.timestamp_tls_setup:type_name -> google.protobuf.Timestamp
 	5,  // 8: mitmflow.v1.ClientConn.mitmcert:type_name -> mitmflow.v1.Cert
 	1,  // 9: mitmflow.v1.ServerConn.state:type_name -> mitmflow.v1.ConnectionState
 	2,  // 10: mitmflow.v1.ServerConn.transport_protocol:type_name -> mitmflow.v1.TransportProtocol
 	5,  // 11: mitmflow.v1.ServerConn.certificate_list:type_name -> mitmflow.v1.Cert
 	3,  // 12: mitmflow.v1.ServerConn.tls_version:type_name -> mitmflow.v1.TLSVersion
-	22, // 13: mitmflow.v1.ServerConn.timestamp_start:type_name -> google.protobuf.Timestamp
-	22, // 14: mitmflow.v1.ServerConn.timestamp_end:type_name -> google.protobuf.Timestamp
-	22, // 15: mitmflow.v1.ServerConn.timestamp_tls_setup:type_name -> google.protobuf.Timestamp
-	22, // 16: mitmflow.v1.ServerConn.timestamp_tcp_setup:type_name -> google.protobuf.Timestamp
+	26, // 13: mitmflow.v1.ServerConn.timestamp_start:type_name -> google.protobuf.Timestamp
+	26, // 14: mitmflow.v1.ServerConn.timestamp_end:type_name -> google.protobuf.Timestamp
+	26, // 15: mitmflow.v1.ServerConn.timestamp_tls_setup:type_name -> google.protobuf.Timestamp
+	26, // 16: mitmflow.v1.ServerConn.timestamp_tcp_setup:type_name -> google.protobuf.Timestamp
 	6,  // 17: mitmflow.v1.ServerConn.via:type_name -> mitmflow.v1.Via
 	13, // 18: mitmflow.v1.ExportFlowRequest.flow:type_name -> mitmflow.v1.Flow
 	0,  // 19: mitmflow.v1.ExportFlowRequest.event_type:type_name -> mitmflow.v1.EventType
 	13, // 20: mitmflow.v1.StreamFlowsResponse.flow:type_name -> mitmflow.v1.Flow
-	15, // 21: mitmflow.v1.Flow.http_flow:type_name -> mitmflow.v1.HTTPFlow
-	16, // 22: mitmflow.v1.HTTPFlow.request:type_name -> mitmflow.v1.Request
-	17, // 23: mitmflow.v1.HTTPFlow.response:type_name -> mitmflow.v1.Response
-	22, // 24: mitmflow.v1.HTTPFlow.timestamp_start:type_name -> google.protobuf.Timestamp
-	7,  // 25: mitmflow.v1.HTTPFlow.client:type_name -> mitmflow.v1.ClientConn
-	8,  // 26: mitmflow.v1.HTTPFlow.server:type_name -> mitmflow.v1.ServerConn
-	18, // 27: mitmflow.v1.Request.headers:type_name -> mitmflow.v1.Request.HeadersEntry
-	19, // 28: mitmflow.v1.Request.trailers:type_name -> mitmflow.v1.Request.TrailersEntry
-	20, // 29: mitmflow.v1.Response.headers:type_name -> mitmflow.v1.Response.HeadersEntry
-	21, // 30: mitmflow.v1.Response.trailers:type_name -> mitmflow.v1.Response.TrailersEntry
-	9,  // 31: mitmflow.v1.Service.ExportFlow:input_type -> mitmflow.v1.ExportFlowRequest
-	11, // 32: mitmflow.v1.Service.StreamFlows:input_type -> mitmflow.v1.StreamFlowsRequest
-	10, // 33: mitmflow.v1.Service.ExportFlow:output_type -> mitmflow.v1.ExportFlowResponse
-	12, // 34: mitmflow.v1.Service.StreamFlows:output_type -> mitmflow.v1.StreamFlowsResponse
-	33, // [33:35] is the sub-list for method output_type
-	31, // [31:33] is the sub-list for method input_type
-	31, // [31:31] is the sub-list for extension type_name
-	31, // [31:31] is the sub-list for extension extendee
-	0,  // [0:31] is the sub-list for field type_name
+	19, // 21: mitmflow.v1.Flow.http_flow:type_name -> mitmflow.v1.HTTPFlow
+	17, // 22: mitmflow.v1.Flow.dns_flow:type_name -> mitmflow.v1.DNSFlow
+	14, // 23: mitmflow.v1.DNSMessage.questions:type_name -> mitmflow.v1.DNSQuestion
+	15, // 24: mitmflow.v1.DNSMessage.answers:type_name -> mitmflow.v1.DNSResourceRecord
+	15, // 25: mitmflow.v1.DNSMessage.authorities:type_name -> mitmflow.v1.DNSResourceRecord
+	15, // 26: mitmflow.v1.DNSMessage.additionals:type_name -> mitmflow.v1.DNSResourceRecord
+	16, // 27: mitmflow.v1.DNSFlow.request:type_name -> mitmflow.v1.DNSMessage
+	16, // 28: mitmflow.v1.DNSFlow.response:type_name -> mitmflow.v1.DNSMessage
+	26, // 29: mitmflow.v1.DNSFlow.timestamp_start:type_name -> google.protobuf.Timestamp
+	7,  // 30: mitmflow.v1.DNSFlow.client:type_name -> mitmflow.v1.ClientConn
+	8,  // 31: mitmflow.v1.DNSFlow.server:type_name -> mitmflow.v1.ServerConn
+	20, // 32: mitmflow.v1.HTTPFlow.request:type_name -> mitmflow.v1.Request
+	21, // 33: mitmflow.v1.HTTPFlow.response:type_name -> mitmflow.v1.Response
+	26, // 34: mitmflow.v1.HTTPFlow.timestamp_start:type_name -> google.protobuf.Timestamp
+	7,  // 35: mitmflow.v1.HTTPFlow.client:type_name -> mitmflow.v1.ClientConn
+	8,  // 36: mitmflow.v1.HTTPFlow.server:type_name -> mitmflow.v1.ServerConn
+	22, // 37: mitmflow.v1.Request.headers:type_name -> mitmflow.v1.Request.HeadersEntry
+	23, // 38: mitmflow.v1.Request.trailers:type_name -> mitmflow.v1.Request.TrailersEntry
+	24, // 39: mitmflow.v1.Response.headers:type_name -> mitmflow.v1.Response.HeadersEntry
+	25, // 40: mitmflow.v1.Response.trailers:type_name -> mitmflow.v1.Response.TrailersEntry
+	9,  // 41: mitmflow.v1.Service.ExportFlow:input_type -> mitmflow.v1.ExportFlowRequest
+	11, // 42: mitmflow.v1.Service.StreamFlows:input_type -> mitmflow.v1.StreamFlowsRequest
+	10, // 43: mitmflow.v1.Service.ExportFlow:output_type -> mitmflow.v1.ExportFlowResponse
+	12, // 44: mitmflow.v1.Service.StreamFlows:output_type -> mitmflow.v1.StreamFlowsResponse
+	43, // [43:45] is the sub-list for method output_type
+	41, // [41:43] is the sub-list for method input_type
+	41, // [41:41] is the sub-list for extension type_name
+	41, // [41:41] is the sub-list for extension extendee
+	0,  // [0:41] is the sub-list for field type_name
 }
 
 func init() { file_mitmflow_v1_mitmflow_proto_init() }
@@ -1890,14 +2307,16 @@ func file_mitmflow_v1_mitmflow_proto_init() {
 	file_mitmflow_v1_mitmflow_proto_msgTypes[3].OneofWrappers = []any{}
 	file_mitmflow_v1_mitmflow_proto_msgTypes[8].OneofWrappers = []any{
 		(*Flow_HttpFlow)(nil),
+		(*Flow_DnsFlow)(nil),
 	}
+	file_mitmflow_v1_mitmflow_proto_msgTypes[12].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_mitmflow_v1_mitmflow_proto_rawDesc), len(file_mitmflow_v1_mitmflow_proto_rawDesc)),
 			NumEnums:      5,
-			NumMessages:   17,
+			NumMessages:   21,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

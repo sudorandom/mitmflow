@@ -7,9 +7,6 @@ import "google/protobuf/timestamp.proto";
 
 option go_package = "github.com/sudorandom/mitmflow/gen/go/mitmflow/v1;mitmflowv1";
 
-// The service definition.
-// TODO: fix lint issues
-// TODO: consider two different services, one for receiving flows and one for the web UI
 service Service {
   rpc ExportFlow(stream ExportFlowRequest) returns (ExportFlowResponse) {}
   rpc StreamFlows(StreamFlowsRequest) returns (stream StreamFlowsResponse) {}
@@ -174,7 +171,46 @@ message StreamFlowsResponse {
 message Flow {
   oneof flow {
     HTTPFlow http_flow = 1;
+    DNSFlow dns_flow = 2;
   }
+}
+
+message DNSQuestion {
+  string name = 1;
+  string type = 2;
+  string class = 3;
+}
+
+message DNSResourceRecord {
+  string name = 1;
+  string type = 2;
+  string class = 3;
+  uint32 ttl = 4;
+  bytes data = 5;
+}
+
+message DNSMessage {
+  bytes packed = 1;
+  repeated DNSQuestion questions = 2;
+  repeated DNSResourceRecord answers = 3;
+  repeated DNSResourceRecord authorities = 4;
+  repeated DNSResourceRecord additionals = 5;
+  uint32 id = 6;
+  bool query = 7;
+  uint32 op_code = 8;
+  bool authoritative_answer = 9;
+}
+
+message DNSFlow {
+  string id = 1 [(buf.validate.field).string.min_len = 1];
+  DNSMessage request = 2;
+  optional DNSMessage response = 3;
+  google.protobuf.Timestamp timestamp_start = 4;
+  double duration_ms = 5;
+  ClientConn client = 6;
+  ServerConn server = 7;
+  optional string error = 8;
+  bool live = 9;
 }
 
 // The response message confirming receipt for streaming flows

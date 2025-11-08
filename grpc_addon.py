@@ -5,7 +5,8 @@ from datetime import datetime
 import mitmflow.v1.mitmflow_pb2 as mitmflow_pb2
 import mitmflow.v1.mitmflow_connect as mitmflow_connect
 from mitmflow.v1.mitmflow_pb2 import ConnectionState, TransportProtocol, TLSVersion, Cert
-from google.protobuf.timestamp_pb2 import Timestamp
+from mitmproxy.net.dns import classes
+from mitmproxy.net.dns import types
 
 def _to_grpc_client_conn(conn: mitmproxy.connections.ClientConnection) -> mitmflow_pb2.ClientConn:
     c = mitmflow_pb2.ClientConn()
@@ -150,6 +151,65 @@ def to_grpc_flow(flow: http.HTTPFlow) -> mitmflow_pb2.HTTPFlow:
 
     return f
 
+
+def _to_grpc_dns_question(q: mitmproxy.dns.Question) -> mitmflow_pb2.DNSQuestion:
+    msg = mitmflow_pb2.DNSQuestion(
+        name=q.name,
+        type=types.to_str(q.type),
+    )
+    setattr(msg, 'class', classes.to_str(q.class_))
+    return msg
+
+
+def _to_grpc_dns_resource_record(rr: mitmproxy.dns.ResourceRecord) -> mitmflow_pb2.DNSResourceRecord:
+    msg = mitmflow_pb2.DNSResourceRecord(
+        name=rr.name,
+        type=types.to_str(rr.type),
+        ttl=rr.ttl,
+        data=rr.data,
+    )
+    setattr(msg, 'class', classes.to_str(rr.class_))
+    return msg
+
+
+def _to_grpc_dns_message(msg: mitmproxy.dns.Message) -> mitmflow_pb2.DNSMessage:
+    return mitmflow_pb2.DNSMessage(
+        packed=msg.content,
+        questions=[_to_grpc_dns_question(q) for q in msg.questions],
+        answers=[_to_grpc_dns_resource_record(rr) for rr in msg.answers],
+        authorities=[_to_grpc_dns_resource_record(rr) for rr in msg.authorities],
+        additionals=[_to_grpc_dns_resource_record(rr) for rr in msg.additionals],
+        id=msg.id,
+        query=msg.query,
+        op_code=msg.op_code,
+        authoritative_answer=msg.authoritative_answer,
+    )
+
+
+def to_grpc_dns_flow(flow: mitmproxy.dns.DNSFlow) -> mitmflow_pb2.DNSFlow:
+    f = mitmflow_pb2.DNSFlow()
+    f.id = str(flow.id)
+
+    if flow.request:
+        f.request.CopyFrom(_to_grpc_dns_message(flow.request))
+
+    if flow.response:
+        f.response.CopyFrom(_to_grpc_dns_message(flow.response))
+
+    f.timestamp_start.FromDatetime(datetime.fromtimestamp(flow.timestamp_start))
+
+    if flow.client_conn:
+        f.client.CopyFrom(_to_grpc_client_conn(flow.client_conn))
+    if flow.server_conn:
+        f.server.CopyFrom(_to_grpc_server_conn(flow.server_conn))
+
+    if flow.error:
+        f.error = str(flow.error)
+    f.live = flow.live
+
+    return f
+
+
 class MitmFlowAddon:
     def __init__(self):
         self.flowclient = mitmflow_connect.ServiceClient("http://127.0.0.1:50051")
@@ -222,13 +282,22 @@ class MitmFlowAddon:
         ))
 
     async def dns_request(self, flow: mitmproxy.dns.DNSFlow):
-        pass
-
+        await self.queue.put(mitmflow_pb2.ExportFlowRequest(
+            event_type=mitmflow_pb2.EVENT_TYPE_DNS_REQUEST,
+            flow=mitmflow_pb2.Flow(dns_flow=to_grpc_dns_flow(flow)),
+        ))
+        
     async def dns_response(self, flow: mitmproxy.dns.DNSFlow):
-        pass
+        await self.queue.put(mitmflow_pb2.ExportFlowRequest(
+            event_type=mitmflow_pb2.EVENT_TYPE_DNS_RESPONSE,
+            flow=mitmflow_pb2.Flow(dns_flow=to_grpc_dns_flow(flow)),
+        ))
 
     async def dns_error(self, flow: mitmproxy.dns.DNSFlow):
-        pass
+        await self.queue.put(mitmflow_pb2.ExportFlowRequest(
+            event_type=mitmflow_pb2.EVENT_TYPE_DNS_ERROR,
+            flow=mitmflow_pb2.Flow(dns_flow=to_grpc_dns_flow(flow)),
+        ))
 
     async def tcp_start(self, flow: mitmproxy.tcp.TCPFlow):
         pass

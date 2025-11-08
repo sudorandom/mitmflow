@@ -386,6 +386,12 @@ export declare type Flow = Message<"mitmflow.v1.Flow"> & {
      */
     value: HTTPFlow;
     case: "httpFlow";
+  } | {
+    /**
+     * @generated from field: mitmflow.v1.DNSFlow dns_flow = 2;
+     */
+    value: DNSFlow;
+    case: "dnsFlow";
   } | { case: undefined; value?: undefined };
 };
 
@@ -394,6 +400,180 @@ export declare type Flow = Message<"mitmflow.v1.Flow"> & {
  * Use `create(FlowSchema)` to create a new message.
  */
 export declare const FlowSchema: GenMessage<Flow>;
+
+/**
+ * @generated from message mitmflow.v1.DNSQuestion
+ */
+export declare type DNSQuestion = Message<"mitmflow.v1.DNSQuestion"> & {
+  /**
+   * @generated from field: string name = 1;
+   */
+  name: string;
+
+  /**
+   * @generated from field: string type = 2;
+   */
+  type: string;
+
+  /**
+   * @generated from field: string class = 3;
+   */
+  class: string;
+};
+
+/**
+ * Describes the message mitmflow.v1.DNSQuestion.
+ * Use `create(DNSQuestionSchema)` to create a new message.
+ */
+export declare const DNSQuestionSchema: GenMessage<DNSQuestion>;
+
+/**
+ * @generated from message mitmflow.v1.DNSResourceRecord
+ */
+export declare type DNSResourceRecord = Message<"mitmflow.v1.DNSResourceRecord"> & {
+  /**
+   * @generated from field: string name = 1;
+   */
+  name: string;
+
+  /**
+   * @generated from field: string type = 2;
+   */
+  type: string;
+
+  /**
+   * @generated from field: string class = 3;
+   */
+  class: string;
+
+  /**
+   * @generated from field: uint32 ttl = 4;
+   */
+  ttl: number;
+
+  /**
+   * @generated from field: bytes data = 5;
+   */
+  data: Uint8Array;
+};
+
+/**
+ * Describes the message mitmflow.v1.DNSResourceRecord.
+ * Use `create(DNSResourceRecordSchema)` to create a new message.
+ */
+export declare const DNSResourceRecordSchema: GenMessage<DNSResourceRecord>;
+
+/**
+ * @generated from message mitmflow.v1.DNSMessage
+ */
+export declare type DNSMessage = Message<"mitmflow.v1.DNSMessage"> & {
+  /**
+   * @generated from field: bytes packed = 1;
+   */
+  packed: Uint8Array;
+
+  /**
+   * @generated from field: repeated mitmflow.v1.DNSQuestion questions = 2;
+   */
+  questions: DNSQuestion[];
+
+  /**
+   * @generated from field: repeated mitmflow.v1.DNSResourceRecord answers = 3;
+   */
+  answers: DNSResourceRecord[];
+
+  /**
+   * @generated from field: repeated mitmflow.v1.DNSResourceRecord authorities = 4;
+   */
+  authorities: DNSResourceRecord[];
+
+  /**
+   * @generated from field: repeated mitmflow.v1.DNSResourceRecord additionals = 5;
+   */
+  additionals: DNSResourceRecord[];
+
+  /**
+   * @generated from field: uint32 id = 6;
+   */
+  id: number;
+
+  /**
+   * @generated from field: bool query = 7;
+   */
+  query: boolean;
+
+  /**
+   * @generated from field: uint32 op_code = 8;
+   */
+  opCode: number;
+
+  /**
+   * @generated from field: bool authoritative_answer = 9;
+   */
+  authoritativeAnswer: boolean;
+};
+
+/**
+ * Describes the message mitmflow.v1.DNSMessage.
+ * Use `create(DNSMessageSchema)` to create a new message.
+ */
+export declare const DNSMessageSchema: GenMessage<DNSMessage>;
+
+/**
+ * @generated from message mitmflow.v1.DNSFlow
+ */
+export declare type DNSFlow = Message<"mitmflow.v1.DNSFlow"> & {
+  /**
+   * @generated from field: string id = 1;
+   */
+  id: string;
+
+  /**
+   * @generated from field: mitmflow.v1.DNSMessage request = 2;
+   */
+  request?: DNSMessage;
+
+  /**
+   * @generated from field: optional mitmflow.v1.DNSMessage response = 3;
+   */
+  response?: DNSMessage;
+
+  /**
+   * @generated from field: google.protobuf.Timestamp timestamp_start = 4;
+   */
+  timestampStart?: Timestamp;
+
+  /**
+   * @generated from field: double duration_ms = 5;
+   */
+  durationMs: number;
+
+  /**
+   * @generated from field: mitmflow.v1.ClientConn client = 6;
+   */
+  client?: ClientConn;
+
+  /**
+   * @generated from field: mitmflow.v1.ServerConn server = 7;
+   */
+  server?: ServerConn;
+
+  /**
+   * @generated from field: optional string error = 8;
+   */
+  error?: string;
+
+  /**
+   * @generated from field: bool live = 9;
+   */
+  live: boolean;
+};
+
+/**
+ * Describes the message mitmflow.v1.DNSFlow.
+ * Use `create(DNSFlowSchema)` to create a new message.
+ */
+export declare const DNSFlowSchema: GenMessage<DNSFlow>;
 
 /**
  * The response message confirming receipt for streaming flows
@@ -944,10 +1124,6 @@ export enum ViaProtocol {
 export declare const ViaProtocolSchema: GenEnum<ViaProtocol>;
 
 /**
- * The service definition.
- * TODO: fix lint issues
- * TODO: consider two different services, one for receiving flows and one for the web UI
- *
  * @generated from service mitmflow.v1.Service
  */
 export declare const Service: GenService<{
