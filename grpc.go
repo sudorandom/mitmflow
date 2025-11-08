@@ -10,7 +10,7 @@ import (
 	"github.com/protocolbuffers/protoscope"
 )
 
-func parseGrpcFrames(content []byte, url string) ([]string, error) {
+func parseGrpcFrames(content []byte) ([]string, error) {
 	var frames []string
 	buf := bytes.NewBuffer(content)
 	for buf.Len() > 5 {
@@ -49,7 +49,7 @@ func parseGrpcFrames(content []byte, url string) ([]string, error) {
 	return frames, nil
 }
 
-func parseGrpcWebFrames(content []byte, url string) ([]string, error) {
+func parseGrpcWebFrames(content []byte) ([]string, error) {
 	var frames []string
 	buf := bytes.NewBuffer(content)
 	for buf.Len() > 5 {

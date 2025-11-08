@@ -139,7 +139,7 @@ func (s *MITMFlowServer) preprocessRequest(req *mitmflowv1.Request) {
 		protoscopeOutput := protoscope.Write(req.Content, opts)
 		req.ContentProtoscopeFrames = []string{protoscopeOutput}
 	} else if strings.Contains(contentType, "application/grpc") {
-		frames, err := parseGrpcFrames(req.Content, req.Url)
+		frames, err := parseGrpcFrames(req.Content)
 		if err == nil {
 			req.ContentProtoscopeFrames = frames
 		}
@@ -151,12 +151,12 @@ func (s *MITMFlowServer) preprocessRequest(req *mitmflowv1.Request) {
 		protoscopeOutput := protoscope.Write(req.Content, opts)
 		req.ContentProtoscopeFrames = []string{protoscopeOutput}
 	case strings.Contains(contentType, "application/grpc"):
-		frames, err := parseGrpcFrames(req.Content, "")
+		frames, err := parseGrpcFrames(req.Content)
 		if err == nil {
 			req.ContentProtoscopeFrames = frames
 		}
 	case strings.Contains(contentType, "application/grpc-web"):
-		frames, err := parseGrpcWebFrames(req.Content, "")
+		frames, err := parseGrpcWebFrames(req.Content)
 		if err == nil {
 			req.ContentProtoscopeFrames = frames
 		}
@@ -178,12 +178,12 @@ func (s *MITMFlowServer) preprocessResponse(resp *mitmflowv1.Response) {
 		protoscopeOutput := protoscope.Write(resp.Content, opts)
 		resp.ContentProtoscopeFrames = []string{protoscopeOutput}
 	case strings.Contains(contentType, "application/grpc"):
-		frames, err := parseGrpcFrames(resp.Content, "")
+		frames, err := parseGrpcFrames(resp.Content)
 		if err == nil {
 			resp.ContentProtoscopeFrames = frames
 		}
 	case strings.Contains(contentType, "application/grpc-web"):
-		frames, err := parseGrpcWebFrames(resp.Content, "")
+		frames, err := parseGrpcWebFrames(resp.Content)
 		if err == nil {
 			resp.ContentProtoscopeFrames = frames
 		}

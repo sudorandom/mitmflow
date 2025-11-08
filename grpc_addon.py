@@ -4,6 +4,104 @@ from mitmproxy import ctx, http
 from datetime import datetime
 import mitmflow.v1.mitmflow_pb2 as mitmflow_pb2
 import mitmflow.v1.mitmflow_connect as mitmflow_connect
+from mitmflow.v1.mitmflow_pb2 import ConnectionState, TransportProtocol, TLSVersion, Cert
+from google.protobuf.timestamp_pb2 import Timestamp
+
+def _to_grpc_client_conn(conn: mitmproxy.connections.ClientConnection) -> mitmflow_pb2.ClientConn:
+    c = mitmflow_pb2.ClientConn()
+    if conn.peername:
+        c.peername_host = conn.peername[0]
+        c.peername_port = conn.peername[1]
+    if conn.sockname:
+        c.sockname_host = conn.sockname[0]
+        c.sockname_port = conn.sockname[1]
+    c.state = ConnectionState.CONNECTION_STATE_OPEN # mitmproxy doesn't expose a direct state mapping
+    c.id = str(conn.id)
+    # mitmproxy doesn't expose transport protocol directly, assuming TCP for HTTP flows
+    c.transport_protocol = TransportProtocol.TRANSPORT_PROTOCOL_TCP
+    if conn.error:
+        c.error = str(conn.error)
+    c.tls = conn.tls_established
+    # certificate_list - mitmproxy doesn't expose this directly for client conn
+    if conn.alpn:
+        c.alpn = conn.alpn
+    # alpn_offers - mitmproxy doesn't expose this directly
+    if conn.cipher_list:
+        c.cipher = ",".join(conn.cipher_list)
+    # cipher_list - mitmproxy doesn't expose this directly
+    if conn.tls_version:
+        # Map mitmproxy TLS version string to protobuf enum
+        if conn.tls_version == "TLSv1.3":
+            c.tls_version = TLSVersion.TLS_VERSION_TLSV1_3
+        elif conn.tls_version == "TLSv1.2":
+            c.tls_version = TLSVersion.TLS_VERSION_TLSV1_2
+        elif conn.tls_version == "TLSv1.1":
+            c.tls_version = TLSVersion.TLS_VERSION_TLSV1_1
+        elif conn.tls_version == "TLSv1":
+            c.tls_version = TLSVersion.TLS_VERSION_TLSV1
+        elif conn.tls_version == "SSLv3":
+            c.tls_version = TLSVersion.TLS_VERSION_SSLV3
+    if conn.sni:
+        c.sni = conn.sni
+    if conn.timestamp_start:
+        c.timestamp_start.FromDatetime(datetime.fromtimestamp(conn.timestamp_start))
+    if conn.timestamp_end:
+        c.timestamp_end.FromDatetime(datetime.fromtimestamp(conn.timestamp_end))
+    if conn.timestamp_tls_setup:
+        c.timestamp_tls_setup.FromDatetime(datetime.fromtimestamp(conn.timestamp_tls_setup))
+    # mitmcert - mitmproxy doesn't expose this directly
+    c.proxy_mode = str(conn.proxy_mode) if conn.proxy_mode else ""
+    return c
+
+def _to_grpc_server_conn(conn: mitmproxy.connections.ServerConnection) -> mitmflow_pb2.ServerConn:
+    s = mitmflow_pb2.ServerConn()
+    if conn.peername:
+        s.peername_host = conn.peername[0]
+        s.peername_port = conn.peername[1]
+    if conn.sockname:
+        s.sockname_host = conn.sockname[0]
+        s.sockname_port = conn.sockname[1]
+    s.state = ConnectionState.CONNECTION_STATE_OPEN # mitmproxy doesn't expose a direct state mapping
+    s.id = str(conn.id)
+    # mitmproxy doesn't expose transport protocol directly, assuming TCP for HTTP flows
+    s.transport_protocol = TransportProtocol.TRANSPORT_PROTOCOL_TCP
+    if conn.error:
+        s.error = str(conn.error)
+    s.tls = conn.tls_established
+    # certificate_list - mitmproxy doesn't expose this directly for server conn
+    if conn.alpn:
+        s.alpn = conn.alpn
+    # alpn_offers - mitmproxy doesn't expose this directly
+    if conn.cipher_list:
+        s.cipher = ",".join(conn.cipher_list)
+    # cipher_list - mitmproxy doesn't expose this directly
+    if conn.tls_version:
+        # Map mitmproxy TLS version string to protobuf enum
+        if conn.tls_version == "TLSv1.3":
+            s.tls_version = TLSVersion.TLS_VERSION_TLSV1_3
+        elif conn.tls_version == "TLSv1.2":
+            s.tls_version = TLSVersion.TLS_VERSION_TLSV1_2
+        elif conn.tls_version == "TLSv1.1":
+            s.tls_version = TLSVersion.TLS_VERSION_TLSV1_1
+        elif conn.tls_version == "TLSv1":
+            s.tls_version = TLSVersion.TLS_VERSION_TLSV1
+        elif conn.tls_version == "SSLv3":
+            s.tls_version = TLSVersion.TLS_VERSION_SSLV3
+    if conn.sni:
+        s.sni = conn.sni
+    if conn.timestamp_start:
+        s.timestamp_start.FromDatetime(datetime.fromtimestamp(conn.timestamp_start))
+    if conn.timestamp_end:
+        s.timestamp_end.FromDatetime(datetime.fromtimestamp(conn.timestamp_end))
+    if conn.timestamp_tls_setup:
+        s.timestamp_tls_setup.FromDatetime(datetime.fromtimestamp(conn.timestamp_tls_setup))
+    if conn.address:
+        s.address_host = conn.address[0]
+        s.address_port = conn.address[1]
+    if conn.timestamp_tcp_setup:
+        s.timestamp_tcp_setup.FromDatetime(datetime.fromtimestamp(conn.timestamp_tcp_setup))
+    # via - mitmproxy doesn't expose this directly
+    return s
 
 def to_grpc_flow(flow: http.HTTPFlow) -> mitmflow_pb2.HTTPFlow:
     f = mitmflow_pb2.HTTPFlow()
@@ -40,9 +138,9 @@ def to_grpc_flow(flow: http.HTTPFlow) -> mitmflow_pb2.HTTPFlow:
 
     # Connections
     if flow.client_conn:
-        f.client_ip = flow.client_conn.address[0]
-    if flow.server_conn and flow.server_conn.address:
-        f.server_conn_address = f"{flow.server_conn.address[0]}:{flow.server_conn.address[1]}"
+        f.client.CopyFrom(_to_grpc_client_conn(flow.client_conn))
+    if flow.server_conn:
+        f.server.CopyFrom(_to_grpc_server_conn(flow.server_conn))
 
     # Other attributes
     if flow.error:

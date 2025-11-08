@@ -51,6 +51,109 @@ enum EventType {
   EVENT_TYPE_WEBSOCKET_END = 32;
 }
 
+enum ConnectionState {
+  CONNECTION_STATE_UNSPECIFIED = 0;
+  CONNECTION_STATE_CLOSED = 1;
+  CONNECTION_STATE_OPEN = 2;
+  CONNECTION_STATE_ESTABLISHED = 3;
+  CONNECTION_STATE_CAN_READ = 4;
+  CONNECTION_STATE_CAN_WRITE = 5;
+}
+
+enum TransportProtocol {
+  TRANSPORT_PROTOCOL_UNSPECIFIED = 0;
+  TRANSPORT_PROTOCOL_TCP = 1;
+  TRANSPORT_PROTOCOL_UDP = 2;
+}
+
+enum TLSVersion {
+  TLS_VERSION_UNSPECIFIED = 0;
+  TLS_VERSION_SSLV3 = 1;
+  TLS_VERSION_TLSV1 = 2;
+  TLS_VERSION_TLSV1_1 = 3;
+  TLS_VERSION_TLSV1_2 = 4;
+  TLS_VERSION_TLSV1_3 = 5;
+  TLS_VERSION_DTLSV0_9 = 6;
+  TLS_VERSION_DTLSV1 = 7;
+  TLS_VERSION_DTLSV1_2 = 8;
+  TLS_VERSION_QUICV1 = 9;
+}
+
+enum ViaProtocol {
+  VIA_PROTOCOL_UNSPECIFIED = 0;
+  VIA_PROTOCOL_HTTP = 1;
+  VIA_PROTOCOL_HTTPS = 2;
+  VIA_PROTOCOL_HTTP3 = 3;
+  VIA_PROTOCOL_TLS = 4;
+  VIA_PROTOCOL_DTLS = 5;
+  VIA_PROTOCOL_TCP = 6;
+  VIA_PROTOCOL_UDP = 7;
+  VIA_PROTOCOL_DNS = 8;
+  VIA_PROTOCOL_QUIC = 9;
+}
+
+message Cert {
+  // Simplified for now, just storing the full certificate content as bytes.
+  // In a real scenario, this might be a more structured message.
+  bytes content = 1;
+}
+
+message Via {
+  ViaProtocol protocol = 1;
+  string host = 2;
+  uint32 port = 3;
+}
+
+message ClientConn {
+  string peername_host = 1;
+  uint32 peername_port = 2;
+  string sockname_host = 3;
+  uint32 sockname_port = 4;
+  ConnectionState state = 5;
+  string id = 6;
+  TransportProtocol transport_protocol = 7;
+  optional string error = 8;
+  bool tls = 9;
+  repeated Cert certificate_list = 10;
+  optional bytes alpn = 11;
+  repeated bytes alpn_offers = 12;
+  optional string cipher = 13;
+  repeated string cipher_list = 14;
+  optional TLSVersion tls_version = 15;
+  optional string sni = 16;
+  google.protobuf.Timestamp timestamp_start = 17;
+  optional google.protobuf.Timestamp timestamp_end = 18;
+  optional google.protobuf.Timestamp timestamp_tls_setup = 19;
+  optional Cert mitmcert = 20;
+  string proxy_mode = 21;
+}
+
+message ServerConn {
+  optional string peername_host = 1;
+  optional uint32 peername_port = 2;
+  optional string sockname_host = 3;
+  optional uint32 sockname_port = 4;
+  ConnectionState state = 5;
+  string id = 6;
+  TransportProtocol transport_protocol = 7;
+  optional string error = 8;
+  bool tls = 9;
+  repeated Cert certificate_list = 10;
+  optional bytes alpn = 11;
+  repeated bytes alpn_offers = 12;
+  optional string cipher = 13;
+  repeated string cipher_list = 14;
+  optional TLSVersion tls_version = 15;
+  optional string sni = 16;
+  optional google.protobuf.Timestamp timestamp_start = 17;
+  optional google.protobuf.Timestamp timestamp_end = 18;
+  optional google.protobuf.Timestamp timestamp_tls_setup = 19;
+  optional string address_host = 20;
+  optional uint32 address_port = 21;
+  optional google.protobuf.Timestamp timestamp_tcp_setup = 22;
+  optional Via via = 23;
+}
+
 message ExportFlowRequest {
   Flow flow = 1;
   EventType event_type = 2;
@@ -88,8 +191,8 @@ message HTTPFlow {
   Response response = 3;
   google.protobuf.Timestamp timestamp_start = 4;
   double duration_ms = 5;
-  string client_ip = 6 [(buf.validate.field).string.ip = true];
-  string server_conn_address = 7;
+  ClientConn client = 6;
+  ServerConn server = 7;
   string error = 8;
   bool is_websocket = 9;
   bool live = 10;
