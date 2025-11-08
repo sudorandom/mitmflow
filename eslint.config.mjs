@@ -22,4 +22,7 @@ export default [
     },
   },
   ...tseslint.configs.recommended,
+  {
+    ignores: ["src/gen/**"],
+  }
 ];

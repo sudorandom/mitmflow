@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react'
 import { Search, Pause, Play, X, Download, FileText, Braces, HardDriveDownload, Info, Menu } from 'lucide-react';
 import { createConnectTransport } from "@connectrpc/connect-web";
 import { createClient } from "@connectrpc/connect";
-import { Service, Flow, FlowSchema, Request, Response } from "./gen/mitmflow/v1/mitmflow_pb";
+import { Service, Flow, FlowSchema, Request, Response, ConnectionState, TransportProtocol } from "./gen/mitmflow/v1/mitmflow_pb";
 import { Light as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { atomOneDark } from 'react-syntax-highlighter/dist/esm/styles/hljs'; // A simple, light theme
 import HexViewer from './HexViewer';
@@ -20,6 +20,23 @@ const formatTimestamp = (ts: number): string => {
   }) + '.' + date.getMilliseconds().toString().padStart(3, '0');
 };
 
+const getHeader = (headers: { [key:string]: string } | undefined, name: string): string | undefined => {
+    if (!headers) {
+        return undefined;
+    }
+    const lowerCaseName = name.toLowerCase();
+    for (const key in headers) {
+        if (key.toLowerCase() === lowerCaseName) {
+            return headers[key];
+        }
+    }
+    return undefined;
+}
+
+const getContentType = (headers: { [key: string]: string } | undefined): string | undefined => {
+    return getHeader(headers, 'content-type');
+};
+
 type FormattedContent = {
   data: string | Uint8Array;
   encoding: 'text' | 'base64' | 'binary'; // 'binary' for Uint8Array that HexViewer expects
@@ -27,15 +44,7 @@ type FormattedContent = {
 };
 
 const formatContent = (content: Uint8Array | string | undefined, format: ContentFormat, allHeaders?: { [key: string]: string }): FormattedContent => {
-  let actualContentTypeHeader: string | undefined;
-  if (allHeaders) {
-    for (const key in allHeaders) {
-      if (key.toLowerCase() === 'content-type') {
-        actualContentTypeHeader = allHeaders[key];
-        break;
-      }
-    }
-  }
+  const actualContentTypeHeader = getContentType(allHeaders);
 
   console.log('formatContent - Initial:', { contentTypeHeader: actualContentTypeHeader, format });
   console.log('formatContent - Received contentTypeHeader:', actualContentTypeHeader);
@@ -46,13 +55,13 @@ const formatContent = (content: Uint8Array | string | undefined, format: Content
     effectiveFormat = format;
   } else if (actualContentTypeHeader) {
     // Auto-detect based on content type header
-    if (actualContentTypeHeader.startsWith('application/json')) {
+    if (actualContentTypeHeader.startsWith('application/json') || actualContentTypeHeader.startsWith('application/manifest+json')) {
       effectiveFormat = 'json';
     } else if (actualContentTypeHeader.includes('application/grpc-web')) {
       effectiveFormat = 'grpc-web';
     } else if (actualContentTypeHeader.includes('application/grpc')) {
       effectiveFormat = 'grpc';
-    } else if (actualContentTypeHeader.includes('application/proto')) {
+    } else if (actualContentTypeHeader.includes('application/proto') || actualContentTypeHeader.includes('application/x-protobuf')) {
       effectiveFormat = 'protobuf';
     } else if (actualContentTypeHeader.includes('text/html')) {
       effectiveFormat = 'html';
@@ -68,6 +77,8 @@ const formatContent = (content: Uint8Array | string | undefined, format: Content
       effectiveFormat = 'binary';
     } else if (actualContentTypeHeader.includes('dns')) {
       effectiveFormat = 'dns';
+    } else if (actualContentTypeHeader.includes('text')) {
+      effectiveFormat = 'text';
     } else {
       // Default to binary if auto-detection doesn't match known types
       effectiveFormat = 'binary';
@@ -103,7 +114,7 @@ const formatContent = (content: Uint8Array | string | undefined, format: Content
       try {
         const parsedJson = JSON.parse(contentAsString);
         return { data: JSON.stringify(parsedJson, null, 2), encoding: 'text', effectiveFormat: effectiveFormat };
-      } catch (e) {
+      } catch {
         // If JSON parsing fails, return the raw string content as text, but keep effectiveFormat as 'json'
         // so SyntaxHighlighter still tries to highlight it as JSON.
         return { data: contentAsString, encoding: 'text', effectiveFormat: 'json' };
@@ -127,33 +138,44 @@ const formatContent = (content: Uint8Array | string | undefined, format: Content
   }
 };
 
+const connectionStateToString = (state: ConnectionState): string => {
+    return ConnectionState[state];
+}
+
+const transportProtocolToString = (protocol: TransportProtocol): string => {
+    return TransportProtocol[protocol];
+}
+
 const formatUrlWithHostname = (originalUrl: string, sniHostname?: string, hostHeader?: string): string => {
   try {
     const url = new URL(originalUrl);
-    let effectiveHostname = url.hostname;
-
-    if (sniHostname && sniHostname !== "" && sniHostname !== url.hostname) {
-      effectiveHostname = sniHostname;
-    } else if (hostHeader && hostHeader !== "" && hostHeader !== url.hostname) {
-      effectiveHostname = hostHeader;
+    
+    // Prioritize SNI, then Host header, then original hostname
+    if (sniHostname && sniHostname !== "") {
+      url.hostname = sniHostname;
+    } else if (hostHeader && hostHeader !== "") {
+      // Host header can contain a port, so we need to handle that
+      const hostHeaderParts = hostHeader.split(':');
+      url.hostname = hostHeaderParts[0];
+      if (hostHeaderParts.length > 1) {
+        url.port = hostHeaderParts[1];
+      }
     }
-
-    // Replace the hostname in the URL object
-    url.hostname = effectiveHostname;
 
     // If the port is default for the protocol, remove it for cleaner display
     if ((url.protocol === 'http:' && url.port === '80') || (url.protocol === 'https:' && url.port === '443')) {
       url.port = '';
     }
-
+    
     return url.toString();
-  } catch (e) {
-    console.error("Failed to format URL:", originalUrl, e);
-    return originalUrl; // Return original if parsing fails
+  } catch {
+    // If originalUrl is not a valid URL, just return it as is.
+    return originalUrl;
   }
 };
 
-const getHarContent = (content: Uint8Array | undefined, contentTypeHeader?: string) => {
+const getHarContent = (content: Uint8Array | undefined, headers?: { [key: string]: string }) => {
+  const contentTypeHeader = getContentType(headers);
   if (!content || content.length === 0) {
     return { text: '', mimeType: contentTypeHeader || 'application/octet-stream' };
   }
@@ -190,11 +212,11 @@ const generateHarBlob = (flowsToExport: Flow[]): Blob => {
             method: httpFlow.request?.method || '',
             url: httpFlow.request?.url || '',
             httpVersion: "HTTP/1.1", headers: [], queryString: [], cookies: [],
-            postData: getHarContent(httpFlow.request?.content, httpFlow.request?.headers['Content-Type'])
+            postData: getHarContent(httpFlow.request?.content, httpFlow.request?.headers)
           },
           response: {
             status: httpFlow.response?.statusCode || 0, statusText: "OK", httpVersion: "HTTP/1.1", headers: [], cookies: [],
-            content: getHarContent(httpFlow.response?.content, httpFlow.response?.headers['Content-Type'])
+            content: getHarContent(httpFlow.response?.content, httpFlow.response?.headers)
           }
         };
       })
@@ -217,13 +239,13 @@ type RequestResponseViewProps = {
   bodyContent?: FormattedContent; // Allow Uint8Array for binary
   format: ContentFormat;
   setFormat: (format: ContentFormat) => void;
-  contentTypeHeader?: string; // To help with auto-selection
+  headers?: { [key: string]: string }; // To help with auto-selection
   flowPart?: Request | Response;
 };
 
-const RequestResponseView: React.FC<RequestResponseViewProps> = ({ title, fullContent, bodyContent, format, setFormat, contentTypeHeader, flowPart }) => {
+const RequestResponseView: React.FC<RequestResponseViewProps> = ({ fullContent, bodyContent, format, setFormat, headers, flowPart }) => {
   const [isBodyExpanded, setIsBodyExpanded] = useState(false);
-  const headers = useMemo(() => {
+  const headerText = useMemo(() => {
     if (!fullContent) return 'No content captured.';
     const parts = fullContent.split('\n\n');
     return parts[0];
@@ -236,8 +258,7 @@ const RequestResponseView: React.FC<RequestResponseViewProps> = ({ title, fullCo
 
   return (
     <div>
-      <h3 className="text-lg font-semibold mb-2 pb-2 border-b border-zinc-700 flex items-center justify-between">
-        {title}
+      <div className="flex items-center justify-end mb-2">
         <select
           className="bg-zinc-800 border border-zinc-700 rounded px-2 py-1 text-xs"
           value={format}
@@ -255,9 +276,9 @@ const RequestResponseView: React.FC<RequestResponseViewProps> = ({ title, fullCo
           <option value="dns">DNS</option>
           <option value="javascript">JavaScript</option>
         </select>
-      </h3>
+      </div>
       <pre className="bg-zinc-800 p-3 rounded text-xs font-mono whitespace-pre-wrap break-all">
-        {headers}
+        {headerText}
       </pre>
       {flowPart?.trailers && Object.keys(flowPart.trailers).length > 0 && (
         <>
@@ -307,7 +328,7 @@ const RequestResponseView: React.FC<RequestResponseViewProps> = ({ title, fullCo
           )}
           {(showBodyByDefault || isBodyExpanded) && bodyContent && (
             bodyContent.encoding === 'base64' ? (
-              <img src={`data:${(contentTypeHeader || 'application/octet-stream').split(';')[0]};base64,${bodyContent.data}`} alt="Image content" className="max-w-full h-auto" />
+              <img src={`data:${(getContentType(headers) || 'application/octet-stream').split(';')[0]};base64,${bodyContent.data}`} alt="Image content" className="max-w-full h-auto" />
             ) : bodyContent.encoding === 'binary' ? (
               <HexViewer data={bodyContent.data instanceof Uint8Array ? bodyContent.data : new Uint8Array()} />
             ) : (
@@ -382,14 +403,6 @@ const FlowRow: React.FC<{
     return 'text-green-400';
   }, [httpFlow.response]);
 
-  const url = useMemo(() => {
-    try {
-      return new URL(httpFlow.request?.url || '');
-    } catch {
-      return null;
-    }
-  }, [httpFlow.request?.url]);
-
   return (
     <tr
       className={`border-b border-zinc-800 cursor-pointer select-none ${isSelected ? 'bg-orange-900/30 hover:bg-orange-900/40' : 'hover:bg-zinc-800/50'}`}
@@ -398,7 +411,7 @@ const FlowRow: React.FC<{
       data-flow-id={httpFlow.id} // Add data-attribute for scrolling
     >
       <td className={`p-3 font-mono max-w-xs overflow-hidden text-ellipsis whitespace-nowrap ${statusClass}`}>{httpFlow.response?.statusCode ?? '...'}</td>
-      <td className="p-3 font-mono max-w-xs overflow-hidden text-ellipsis whitespace-nowrap">{httpFlow.request?.method} {formatUrlWithHostname(httpFlow.request?.url || '', httpFlow.clientConn?.sniHostname, httpFlow.request?.headers['Host'])}</td>
+      <td className="p-3 font-mono max-w-xs overflow-hidden text-ellipsis whitespace-nowrap">{httpFlow.request?.method} {formatUrlWithHostname(httpFlow.request?.url || '', httpFlow.client?.sni, getHeader(httpFlow.request?.headers, 'Host'))}</td>
       <td className="hidden md:table-cell p-3 font-mono max-w-xs overflow-hidden text-ellipsis whitespace-nowrap">{httpFlow.response ? `${httpFlow.response.content.length} B` : '...'}</td>
       <td className="hidden md:table-cell p-3 font-mono max-w-xs overflow-hidden text-ellipsis whitespace-nowrap">{httpFlow.durationMs ? `${httpFlow.durationMs.toFixed(0)} ms` : '...'}</td>
     </tr>
@@ -456,9 +469,8 @@ const DetailsPanel: React.FC <{
     return 'text-green-400';
   }, [httpFlow?.response]);
 
-  const handleMouseDown = useCallback((e: React.MouseEvent) => {
+  const handleMouseDown = useCallback(() => {
     setIsResizing(true);
-    e.preventDefault(); // Prevent text selection during drag
   }, []);
 
   const handleMouseMove = useCallback((e: MouseEvent) => {
@@ -499,34 +511,8 @@ const DetailsPanel: React.FC <{
       >
         <h4 className="font-semibold font-mono text-sm text-ellipsis overflow-hidden whitespace-nowrap">
           {httpFlow && <span className={`mr-2 ${statusClass}`}>{httpFlow.response?.statusCode ?? '...'}</span>}
-          {httpFlow ? formatUrlWithHostname(httpFlow.request?.url || '', httpFlow.clientConn?.sniHostname, httpFlow.request?.headers['Host']) : ''}
+          {httpFlow ? formatUrlWithHostname(httpFlow.request?.url || '', httpFlow.client?.sni, getHeader(httpFlow.request?.headers, 'Host')) : ''}
         </h4>
-        <div className="flex items-center ml-4">
-          <button
-            className={`px-3 py-1 text-sm font-medium rounded-l-md ${selectedTab === 'summary' ? 'bg-orange-600 text-white' : 'bg-zinc-700 text-zinc-300 hover:bg-zinc-600'}`}
-            onClick={() => setSelectedTab('summary')}
-          >
-            Summary
-          </button>
-          <button
-            className={`px-3 py-1 text-sm font-medium ${selectedTab === 'request' ? 'bg-orange-600 text-white' : 'bg-zinc-700 text-zinc-300 hover:bg-zinc-600'}`}
-            onClick={() => setSelectedTab('request')}
-          >
-            Request
-          </button>
-          <button
-            className={`px-3 py-1 text-sm font-medium ${selectedTab === 'response' ? 'bg-orange-600 text-white' : 'bg-zinc-700 text-zinc-300 hover:bg-zinc-600'}`}
-            onClick={() => setSelectedTab('response')}
-          >
-            Response
-          </button>
-          <button
-            className={`px-3 py-1 text-sm font-medium rounded-r-md ${selectedTab === 'connection' ? 'bg-orange-600 text-white' : 'bg-zinc-700 text-zinc-300 hover:bg-zinc-600'}`}
-            onClick={() => setSelectedTab('connection')}
-          >
-            Connection
-          </button>
-        </div>
         <div className="ml-auto flex items-center gap-4">
           {httpFlow && (
             <>
@@ -535,7 +521,7 @@ const DetailsPanel: React.FC <{
                 <div><strong className="text-zinc-500">Latency:</strong> {httpFlow.durationMs ? `${httpFlow.durationMs.toFixed(0)} ms` : '...'}</div>
                 {httpFlow.live && <div><strong className="text-zinc-500">Live</strong></div>}
                 {httpFlow.isWebsocket && <div><strong className="text-zinc-500">WebSocket</strong></div>}
-                {httpFlow.serverConnAddress && <div><strong className="text-zinc-500">Server:</strong> {httpFlow.serverConnAddress}</div>}
+                {httpFlow.server?.addressHost && <div><strong className="text-zinc-500">Server:</strong> {httpFlow.server.addressHost}</div>}
                 {httpFlow.error && <div><strong className="text-red-500">Error:</strong> {httpFlow.error}</div>}
               </div>
               <div className="relative inline-block">
@@ -594,7 +580,7 @@ const DetailsPanel: React.FC <{
                       <div><strong className="text-zinc-500">Latency:</strong> {httpFlow.durationMs ? `${httpFlow.durationMs.toFixed(0)} ms` : '...'}</div>
                       {httpFlow.live && <div><strong className="text-zinc-500">Live</strong></div>}
                       {httpFlow.isWebsocket && <div><strong className="text-zinc-500">WebSocket</strong></div>}
-                      {httpFlow.serverConnAddress && <div><strong className="text-zinc-500">Server:</strong> {httpFlow.serverConnAddress}</div>}
+                    {httpFlow.server?.addressHost && <div><strong className="text-zinc-500">Server:</strong> {httpFlow.server.addressHost}</div>}
                       {httpFlow.error && <div><strong className="text-red-500">Error:</strong> {httpFlow.error}</div>}
                     </div>
                   </div>
@@ -613,26 +599,73 @@ const DetailsPanel: React.FC <{
       </div>
 
       {/* Panel Content */}
+      <div className="flex-shrink-0 border-b border-zinc-700">
+        <div className="flex items-center px-4">
+          <button
+            className={`px-3 py-2 text-sm font-medium border-b-2 ${selectedTab === 'summary' ? 'border-orange-500 text-orange-500' : 'border-transparent text-zinc-400 hover:text-white'}`}
+            onClick={() => setSelectedTab('summary')}
+          >
+            Summary
+          </button>
+          <button
+            className={`px-3 py-2 text-sm font-medium border-b-2 ${selectedTab === 'request' ? 'border-orange-500 text-orange-500' : 'border-transparent text-zinc-400 hover:text-white'}`}
+            onClick={() => setSelectedTab('request')}
+          >
+            Request
+          </button>
+          <button
+            className={`px-3 py-2 text-sm font-medium border-b-2 ${selectedTab === 'response' ? 'border-orange-500 text-orange-500' : 'border-transparent text-zinc-400 hover:text-white'}`}
+            onClick={() => setSelectedTab('response')}
+          >
+            Response
+          </button>
+          <button
+            className={`px-3 py-2 text-sm font-medium border-b-2 ${selectedTab === 'connection' ? 'border-orange-500 text-orange-500' : 'border-transparent text-zinc-400 hover:text-white'}`}
+            onClick={() => setSelectedTab('connection')}
+          >
+            Connection
+          </button>
+        </div>
+      </div>
       <div className={`p-5 overflow-y-auto flex-grow ${isMinimized ? 'hidden' : ''}`} ref={contentRef}>
         {flow && (
           <>
             {selectedTab === 'summary' && (
-              <div className="grid grid-cols-1 gap-4 text-sm">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm font-mono">
                 <div className="bg-zinc-800 p-4 rounded">
-                  <h5 className="font-semibold text-zinc-400 mb-2">Summary</h5>
-                  <div className="grid grid-cols-2 gap-2">
-                    <div><strong className="text-zinc-500">Method:</strong> {httpFlow.request?.method}</div>
-                    <div className="col-span-2"><strong className="text-zinc-500">URL:</strong> {formatUrlWithHostname(httpFlow.request?.url || '', httpFlow.clientConn?.sniHostname, httpFlow.request?.headers['Host'])}</div>
-                    <div><strong className="text-zinc-500">Status Code:</strong> <span className={statusClass}>{httpFlow.response?.statusCode ?? '...'}</span></div>
-                    <div><strong className="text-zinc-500">Start Time:</strong> {formatTimestamp(getTimestamp(httpFlow.timestampStart))}</div>
-                    <div><strong className="text-zinc-500">End Time:</strong> {formatTimestamp(getTimestamp(httpFlow.timestampEnd))}</div>
-                    <div><strong className="text-zinc-500">Latency:</strong> {httpFlow.durationMs ? `${httpFlow.durationMs.toFixed(0)} ms` : '...'}</div>
-                    {httpFlow.error && <div className="col-span-2"><strong className="text-red-500">Error:</strong> {httpFlow.error}</div>}
+                  <h5 className="font-semibold text-zinc-400 mb-3 border-b border-zinc-700 pb-2">Flow Details</h5>
+                  <div className="grid grid-cols-2 gap-x-4 gap-y-2">
+                    <div className="text-zinc-500">ID:</div> <div>{httpFlow.id}</div>
+                    <div className="text-zinc-500">Method:</div> <div>{httpFlow.request?.method}</div>
+                    <div className="text-zinc-500">Status:</div> <div className={statusClass}>{httpFlow.response?.statusCode}</div>
+                    {httpFlow.isWebsocket && <><div className="text-zinc-500">WebSocket:</div> <div>Yes</div></>}
+                    <div className="text-zinc-500">URL:</div> <div className="col-span-2 break-all">{formatUrlWithHostname(httpFlow.request?.url || '', httpFlow.client?.sni, getHeader(httpFlow.request?.headers, 'Host'))}</div>
                   </div>
                 </div>
+                <div className="bg-zinc-800 p-4 rounded">
+                  <h5 className="font-semibold text-zinc-400 mb-3 border-b border-zinc-700 pb-2">Body</h5>
+                  <div className="grid grid-cols-2 gap-x-4 gap-y-2">
+                    <div className="text-zinc-500">Request Size:</div> <div>{httpFlow.request?.content?.length ?? 0} B</div>
+                    <div className="text-zinc-500">Request Content-Type:</div> <div className="break-all">{getContentType(httpFlow.request?.headers) || 'N/A'}</div>
+                    <div className="text-zinc-500">Response Size:</div> <div>{httpFlow.response?.content?.length ?? 0} B</div>
+                    <div className="text-zinc-500">Response Content-Type:</div> <div className="break-all">{getContentType(httpFlow.response?.headers) || 'N/A'}</div>
+                  </div>
+                </div>
+                <div className="bg-zinc-800 p-4 rounded">
+                  <h5 className="font-semibold text-zinc-400 mb-3 border-b border-zinc-700 pb-2">Timing</h5>
+                  <div className="grid grid-cols-2 gap-x-4 gap-y-2">
+                    <div className="text-zinc-500">Start Time:</div> <div>{formatTimestamp(getTimestamp(httpFlow.timestampStart))}</div>
+                    <div className="text-zinc-500">Duration:</div> <div>{httpFlow.durationMs ? `${httpFlow.durationMs.toFixed(0)} ms` : '...'}</div>
+                  </div>
+                </div>
+                {httpFlow.error && (
+                    <div className="bg-zinc-800 p-4 rounded col-span-2">
+                        <h5 className="font-semibold text-red-400 mb-3 border-b border-zinc-700 pb-2">Error</h5>
+                        <div className="text-red-400">{httpFlow.error}</div>
+                    </div>
+                )}
               </div>
             )}
-
             {selectedTab === 'request' && (
               <RequestResponseView
                 title="Request"
@@ -640,7 +673,7 @@ const DetailsPanel: React.FC <{
                 bodyContent={formatContent(httpFlow.request?.content, requestFormat, httpFlow.request?.headers)}
                 format={requestFormat}
                 setFormat={setRequestFormat}
-                contentTypeHeader={httpFlow.request?.headers['Content-Type']}
+                headers={httpFlow.request?.headers}
                 flowPart={httpFlow.request}
               />
             )}
@@ -652,29 +685,64 @@ const DetailsPanel: React.FC <{
                 bodyContent={formatContent(httpFlow.response?.content, responseFormat, httpFlow.response?.headers)}
                 format={responseFormat}
                 setFormat={setResponseFormat}
-                contentTypeHeader={httpFlow.response?.headers['Content-Type']}
+                headers={httpFlow.response?.headers}
                 flowPart={httpFlow.response}
               />
             )}
 
             {selectedTab === 'connection' && (
-              <div className="grid grid-cols-1 gap-4 text-sm">
-                <div className="bg-zinc-800 p-4 rounded">
-                  <h5 className="font-semibold text-zinc-400 mb-2">Client Connection</h5>
-                  <div className="grid grid-cols-2 gap-2">
-                    <div><strong className="text-zinc-500">Address:</strong> {httpFlow.clientConn?.address}</div>
-                    <div><strong className="text-zinc-500">TLS:</strong> {httpFlow.clientConn?.tls ? 'Yes' : 'No'}</div>
-                    <div><strong className="text-zinc-500">SNI Hostname:</strong> {httpFlow.clientConn?.sniHostname || 'N/A'}</div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm font-mono">
+                {httpFlow.client && (
+                  <div className="bg-zinc-800 p-4 rounded">
+                    <h5 className="font-semibold text-zinc-400 mb-3 border-b border-zinc-700 pb-2">Client Connection</h5>
+                    <div className="grid grid-cols-2 gap-x-4 gap-y-2">
+                      <div className="text-zinc-500">ID:</div> <div>{httpFlow.client.id}</div>
+                      <div className="text-zinc-500">Peer Host:</div> <div>{httpFlow.client.peernameHost}:{httpFlow.client.peernamePort}</div>
+                      <div className="text-zinc-500">Socket Host:</div> <div>{httpFlow.client.socknameHost}:{httpFlow.client.socknamePort}</div>
+                      <div className="text-zinc-500">State:</div> <div>{connectionStateToString(httpFlow.client.state)}</div>
+                      <div className="text-zinc-500">Protocol:</div> <div>{transportProtocolToString(httpFlow.client.transportProtocol)}</div>
+                      <div className="text-zinc-500">TLS:</div> <div>{httpFlow.client.tls ? 'Yes' : 'No'}</div>
+                      {httpFlow.client.tls && (
+                        <>
+                          <div className="text-zinc-500">SNI:</div> <div>{httpFlow.client.sni || 'N/A'}</div>
+                          <div className="text-zinc-500">Cipher:</div> <div>{httpFlow.client.cipher || 'N/A'}</div>
+                          <div className="text-zinc-500">ALPN:</div> <div>{httpFlow.client.alpn ? new TextDecoder().decode(httpFlow.client.alpn) : 'N/A'}</div>
+                        </>
+                      )}
+                      {httpFlow.client.error && (
+                        <>
+                          <div className="text-zinc-500">Error:</div> <div className="text-red-400">{httpFlow.client.error}</div>
+                        </>
+                      )}
+                    </div>
                   </div>
-                </div>
-                <div className="bg-zinc-800 p-4 rounded">
-                  <h5 className="font-semibold text-zinc-400 mb-2">Server Connection</h5>
-                  <div className="grid grid-cols-2 gap-2">
-                    <div><strong className="text-zinc-500">Address:</strong> {httpFlow.serverConnAddress}</div>
-                    <div><strong className="text-zinc-500">TLS:</strong> {httpFlow.serverConnTls ? 'Yes' : 'No'}</div>
-                    <div><strong className="text-zinc-500">SNI Hostname:</strong> {httpFlow.serverConnSniHostname || 'N/A'}</div>
+                )}
+                {httpFlow.server && (
+                  <div className="bg-zinc-800 p-4 rounded">
+                    <h5 className="font-semibold text-zinc-400 mb-3 border-b border-zinc-700 pb-2">Server Connection</h5>
+                    <div className="grid grid-cols-2 gap-x-4 gap-y-2">
+                      <div className="text-zinc-500">ID:</div> <div>{httpFlow.server.id}</div>
+                      <div className="text-zinc-500">Address:</div> <div>{httpFlow.server.addressHost}:{httpFlow.server.addressPort}</div>
+                      <div className="text-zinc-500">Peer Host:</div> <div>{httpFlow.server.peernameHost}:{httpFlow.server.peernamePort}</div>
+                      <div className="text-zinc-500">Socket Host:</div> <div>{httpFlow.server.socknameHost}:{httpFlow.server.socknamePort}</div>
+                      <div className="text-zinc-500">State:</div> <div>{connectionStateToString(httpFlow.server.state)}</div>
+                      <div className="text-zinc-500">Protocol:</div> <div>{transportProtocolToString(httpFlow.server.transportProtocol)}</div>
+                      <div className="text-zinc-500">TLS:</div> <div>{httpFlow.server.tls ? 'Yes' : 'No'}</div>
+                      {httpFlow.server.tls && (
+                        <>
+                          <div className="text-zinc-500">SNI:</div> <div>{httpFlow.server.sni || 'N/A'}</div>
+                          <div className="text-zinc-500">Cipher:</div> <div>{httpFlow.server.cipher || 'N/A'}</div>
+                          <div className="text-zinc-500">ALPN:</div> <div>{httpFlow.server.alpn ? new TextDecoder().decode(httpFlow.server.alpn) : 'N/A'}</div>
+                        </>
+                      )}
+                      {httpFlow.server.error && (
+                        <>
+                          <div className="text-zinc-500">Error:</div> <div className="text-red-400">{httpFlow.server.error}</div>
+                        </>
+                      )}
+                    </div>
                   </div>
-                </div>
+                )}
               </div>
             )}
           </>
@@ -887,7 +955,8 @@ const App: React.FC = () => {
       if (!flow.flow || flow.flow.case !== 'httpFlow') return false;
       const httpFlow = flow.flow.value;
       const url = httpFlow.request?.url || '';
-      const filterText = `${url} ${httpFlow.request?.method} ${httpFlow.response?.statusCode}`.toLowerCase();
+      const sni = httpFlow.client?.sni || '';
+      const filterText = `${url} ${httpFlow.request?.method} ${httpFlow.response?.statusCode} ${sni}`.toLowerCase();
       return filterText.includes(filter);
     });
   }, [flows, filterText]); // Dependencies: re-run when flows or filter text change
