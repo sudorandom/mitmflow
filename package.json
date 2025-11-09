@@ -14,6 +14,7 @@
     "@bufbuild/protobuf": "2.10.0",
     "@connectrpc/connect": "^2.1.0",
     "@connectrpc/connect-web": "^2.1.0",
+    "@dnspect/dns-ts": "^0.4.0",
     "dns-suite": "^1.2.13",
     "eslint-plugin-react": "^7.37.5",
     "globals": "^16.5.0",

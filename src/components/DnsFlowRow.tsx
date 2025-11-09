@@ -1,5 +1,6 @@
 import React from 'react';
 import { Flow } from "../gen/mitmflow/v1/mitmflow_pb";
+import { StatusPill } from './StatusPill';
 
 export const DnsFlowRow: React.FC<{
     flow: Flow;
@@ -14,7 +15,7 @@ export const DnsFlowRow: React.FC<{
     }
 
     const status = dnsFlow.response ? 'OK' : 'ERROR';
-    const statusClass = dnsFlow.response ? 'bg-green-700' : 'bg-red-700';
+    const statusColor = dnsFlow.response ? 'green' : 'red';
 
     return (
         <tr
@@ -24,7 +25,7 @@ export const DnsFlowRow: React.FC<{
             data-flow-id={dnsFlow.id}
         >
             <td className="p-3 font-mono max-w-xs overflow-hidden text-ellipsis whitespace-nowrap">
-                <span className={`rounded-sm px-2 py-1 text-xs text-white ${statusClass}`}>{status}</span>
+                <StatusPill status={status} color={statusColor} />
             </td>
             <td className="p-3 font-mono max-w-xs overflow-hidden text-ellipsis whitespace-nowrap">dns://{dnsFlow.server?.addressHost}</td>
             <td className="hidden md:table-cell p-3 font-mono max-w-xs overflow-hidden text-ellipsis whitespace-nowrap">{dnsFlow.response ? `${dnsFlow.response.packed.length} B` : '...'}</td>

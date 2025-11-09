@@ -1,49 +1,13 @@
 import { Flow } from "./gen/mitmflow/v1/mitmflow_pb";
-import * as DNSPacket from 'dns-suite';
+import { parse } from 'dns-suite';
+import { Message, stringToBinary } from "@dnspect/dns-ts";
 
 export type ContentFormat = 'auto' | 'text' | 'json' | 'protobuf' | 'grpc' | 'grpc-web' | 'xml' | 'binary' | 'image' | 'dns' | 'javascript' | 'html';
 
 const parseDnsPacket = (content: Uint8Array): string => {
     try {
-        const dnsPacket = DNSPacket.DNSPacket.parse(content);
-        let output = '';
-        output += `ID: ${dnsPacket.header.id}\n`;
-        output += `Type: ${dnsPacket.header.qr ? 'Response' : 'Query'}\n`;
-        output += `Opcode: ${dnsPacket.header.opcode}\n`;
-        output += `Flags: ${dnsPacket.header.aa ? 'AA' : ''} ${dnsPacket.header.tc ? 'TC' : ''} ${dnsPacket.header.rd ? 'RD' : ''} ${dnsPacket.header.ra ? 'RA' : ''}\n`;
-        output += `RCODE: ${dnsPacket.header.rcode}\n\n`;
-
-        if (dnsPacket.question.length > 0) {
-            output += 'Questions:\n';
-            dnsPacket.question.forEach(q => {
-                output += `  ${q.name}  ${q.className}  ${q.typeName}\n`;
-            });
-            output += '\n';
-        }
-
-        if (dnsPacket.answer.length > 0) {
-            output += 'Answers:\n';
-            dnsPacket.answer.forEach(a => {
-                output += `  ${a.name}  ${a.className}  ${a.typeName}  ${a.ttl}  ${a.address || a.data}\n`;
-            });
-            output += '\n';
-        }
-
-        if (dnsPacket.authority.length > 0) {
-            output += 'Authorities:\n';
-            dnsPacket.authority.forEach(a => {
-                output += `  ${a.name}  ${a.className}  ${a.typeName}  ${a.ttl}  ${a.address || a.data}\n`;
-            });
-            output += '\n';
-        }
-
-        if (dnsPacket.additional.length > 0) {
-            output += 'Additional:\n';
-            dnsPacket.additional.forEach(a => {
-                output += `  ${a.name}  ${a.className}  ${a.typeName}  ${a.ttl}  ${a.address || a.data}\n`;
-            });
-        }
-        return output;
+        const dnsPacket = Message.unpack(content);
+        return JSON.stringify(dnsPacket.toJsonObject(), null, 2);
     } catch (e) {
         console.error('Failed to parse DNS packet:', e);
         return 'Failed to parse DNS packet';
@@ -164,7 +128,7 @@ export const formatContent = (content: Uint8Array | string | undefined, format: 
     case 'text':
       return { data: contentAsString, encoding: 'text', effectiveFormat: effectiveFormat };
     case 'dns':
-        return { data: parseDnsPacket(contentAsUint8Array), encoding: 'text', effectiveFormat: 'text' };
+        return { data: parseDnsPacket(contentAsUint8Array), encoding: 'text', effectiveFormat: 'json' };
     case 'image':
       return { data: btoa(String.fromCharCode(...contentAsUint8Array)), encoding: 'base64', effectiveFormat: effectiveFormat };
     case 'binary':
