@@ -180,7 +180,7 @@ def to_grpc_tcp_flow(flow: mitmproxy.tcp.TCPFlow) -> mitmflow_pb2.TCPFlow:
 
     # Timestamps
     f.timestamp_start.FromDatetime(datetime.fromtimestamp(flow.timestamp_start))
-    if flow.timestamp_end:
+    if hasattr(flow, 'timestamp_end') and flow.timestamp_end:
         f.duration_ms = (flow.timestamp_end - flow.timestamp_start) * 1000
 
     # Other attributes
@@ -210,7 +210,7 @@ def to_grpc_udp_flow(flow: mitmproxy.udp.UDPFlow) -> mitmflow_pb2.UDPFlow:
 
     # Timestamps
     f.timestamp_start.FromDatetime(datetime.fromtimestamp(flow.timestamp_start))
-    if flow.timestamp_end:
+    if hasattr(flow, 'timestamp_end') and flow.timestamp_end:
         f.duration_ms = (flow.timestamp_end - flow.timestamp_start) * 1000
 
     # Other attributes
