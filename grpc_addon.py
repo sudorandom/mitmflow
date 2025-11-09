@@ -1,4 +1,5 @@
 import asyncio
+import mitmproxy
 from mitmproxy import ctx, http
 
 from datetime import datetime
@@ -8,7 +9,7 @@ from mitmflow.v1.mitmflow_pb2 import ConnectionState, TransportProtocol, TLSVers
 from mitmproxy.net.dns import classes
 from mitmproxy.net.dns import types
 
-def _to_grpc_client_conn(conn: mitmproxy.connections.ClientConnection) -> mitmflow_pb2.ClientConn:
+def _to_grpc_client_conn(conn: mitmproxy.connection.Client) -> mitmflow_pb2.ClientConn:
     c = mitmflow_pb2.ClientConn()
     if conn.peername:
         c.peername_host = conn.peername[0]
@@ -54,7 +55,7 @@ def _to_grpc_client_conn(conn: mitmproxy.connections.ClientConnection) -> mitmfl
     c.proxy_mode = str(conn.proxy_mode) if conn.proxy_mode else ""
     return c
 
-def _to_grpc_server_conn(conn: mitmproxy.connections.ServerConnection) -> mitmflow_pb2.ServerConn:
+def _to_grpc_server_conn(conn: mitmproxy.connection.Server) -> mitmflow_pb2.ServerConn:
     s = mitmflow_pb2.ServerConn()
     if conn.peername:
         s.peername_host = conn.peername[0]
@@ -172,7 +173,7 @@ def _to_grpc_dns_resource_record(rr: mitmproxy.dns.ResourceRecord) -> mitmflow_p
     return msg
 
 
-def _to_grpc_dns_message(msg: mitmproxy.dns.Message) -> mitmflow_pb2.DNSMessage:
+def _to_grpc_dns_message(msg: mitmproxy.dns.DNSMessage) -> mitmflow_pb2.DNSMessage:
     return mitmflow_pb2.DNSMessage(
         packed=msg.content,
         questions=[_to_grpc_dns_question(q) for q in msg.questions],
