@@ -151,7 +151,34 @@ export const getFlowId = (flow: Flow | undefined | null): string | undefined => 
       return flow.flow.value.id;
     case 'dnsFlow':
       return flow.flow.value.id;
+    case 'tcpFlow':
+        return flow.flow.value.id;
+    case 'udpFlow':
+        return flow.flow.value.id;
     default:
       return undefined;
   }
 };
+
+export const formatDuration = (durationMs: number | undefined): string => {
+    if (durationMs === undefined) {
+        return '...';
+    }
+    if (durationMs < 1000) {
+        return `${durationMs.toFixed(0)} ms`;
+    }
+    return `${(durationMs / 1000).toFixed(2)} s`;
+}
+
+export const formatSize = (size: number | undefined): string => {
+    if (size === undefined) {
+        return '...';
+    }
+    if (size < 1024) {
+        return `${size} B`;
+    }
+    if (size < 1024 * 1024) {
+        return `${(size / 1024).toFixed(2)} KB`;
+    }
+    return `${(size / (1024 * 1024)).toFixed(2)} MB`;
+}

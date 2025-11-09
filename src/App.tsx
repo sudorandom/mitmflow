@@ -8,6 +8,10 @@ import { DnsFlowDetails } from './components/DnsFlowDetails';
 import { DnsFlowRow } from './components/DnsFlowRow';
 import { HttpFlowDetails } from './components/HttpFlowDetails';
 import { HttpFlowRow } from './components/HttpFlowRow';
+import { TcpFlowDetails } from './components/TcpFlowDetails';
+import { TcpFlowRow } from './components/TcpFlowRow';
+import { UdpFlowDetails } from './components/UdpFlowDetails';
+import { UdpFlowRow } from './components/UdpFlowRow';
 import { ContentFormat, getFlowId, getTimestamp } from './utils';
 import { DetailsPanel } from './components/DetailsPanel';
 
@@ -76,6 +80,10 @@ const FlowRow: React.FC<{
             return <HttpFlowRow flow={flow} isSelected={isSelected} onMouseDown={onMouseDown} onMouseEnter={onMouseEnter} />;
         case 'dnsFlow':
             return <DnsFlowRow flow={flow} isSelected={isSelected} onMouseDown={onMouseDown} onMouseEnter={onMouseEnter} />;
+        case 'tcpFlow':
+            return <TcpFlowRow flow={flow} isSelected={isSelected} onMouseDown={onMouseDown} onMouseEnter={onMouseEnter} />;
+        case 'udpFlow':
+            return <UdpFlowRow flow={flow} isSelected={isSelected} onMouseDown={onMouseDown} onMouseEnter={onMouseEnter} />;
         default:
             return null;
     }
@@ -295,6 +303,14 @@ const App: React.FC = () => {
           const dnsFlow = flow.flow.value;
           const domainName = dnsFlow.request?.questions[0]?.name || '';
           return domainName.toLowerCase().includes(filter);
+        case 'tcpFlow':
+            const tcpFlow = flow.flow.value;
+            const tcpServer = tcpFlow.server;
+            return `${tcpServer?.addressHost}:${tcpServer?.addressPort}`.toLowerCase().includes(filter);
+        case 'udpFlow':
+            const udpFlow = flow.flow.value;
+            const udpServer = udpFlow.server;
+            return `${udpServer?.addressHost}:${udpServer?.addressPort}`.toLowerCase().includes(filter);
         default:
           return false;
       }
@@ -687,6 +703,12 @@ const App: React.FC = () => {
         )}
         {selectedFlow?.flow?.case === 'dnsFlow' && (
           <DnsFlowDetails flow={selectedFlow} />
+        )}
+        {selectedFlow?.flow?.case === 'tcpFlow' && (
+            <TcpFlowDetails flow={selectedFlow} />
+        )}
+        {selectedFlow?.flow?.case === 'udpFlow' && (
+            <UdpFlowDetails flow={selectedFlow} />
         )}
       </DetailsPanel>
     </div>

@@ -172,7 +172,49 @@ message Flow {
   oneof flow {
     HTTPFlow http_flow = 1;
     DNSFlow dns_flow = 2;
+    TCPFlow tcp_flow = 3;
+    UDPFlow udp_flow = 4;
   }
+}
+
+message TCPMessage {
+  bytes content = 1;
+  google.protobuf.Timestamp timestamp = 2;
+  bool from_client = 3;
+}
+
+message TCPFlow {
+  string id = 1 [(buf.validate.field).string.min_len = 1];
+  ClientConn client = 2;
+  ServerConn server = 3;
+  repeated TCPMessage messages = 4;
+  google.protobuf.Timestamp timestamp_start = 5;
+  double duration_ms = 6;
+  optional string error = 7;
+  bool live = 8;
+}
+
+message UDPMessage {
+  bytes content = 1;
+  google.protobuf.Timestamp timestamp = 2;
+  bool from_client = 3;
+}
+
+message UDPFlow {
+  string id = 1 [(buf.validate.field).string.min_len = 1];
+  ClientConn client = 2;
+  ServerConn server = 3;
+  repeated UDPMessage messages = 4;
+  google.protobuf.Timestamp timestamp_start = 5;
+  double duration_ms = 6;
+  optional string error = 7;
+  bool live = 8;
+}
+
+message WebSocketMessage {
+  bytes content = 1;
+  google.protobuf.Timestamp timestamp = 2;
+  bool from_client = 3;
 }
 
 message DNSQuestion {
@@ -232,6 +274,7 @@ message HTTPFlow {
   string error = 8;
   bool is_websocket = 9;
   bool live = 10;
+  repeated WebSocketMessage websocket_messages = 11;
 }
 
 message Request {
