@@ -1,11 +1,11 @@
 import { Flow } from "./gen/mitmflow/v1/mitmflow_pb";
-import { DNSPacket } from 'dns-suite';
+import * as DNSPacket from 'dns-suite';
 
 export type ContentFormat = 'auto' | 'text' | 'json' | 'protobuf' | 'grpc' | 'grpc-web' | 'xml' | 'binary' | 'image' | 'dns' | 'javascript' | 'html';
 
 const parseDnsPacket = (content: Uint8Array): string => {
     try {
-        const dnsPacket = DNSPacket.parse(content);
+        const dnsPacket = DNSPacket.DNSPacket.parse(content);
         let output = '';
         output += `ID: ${dnsPacket.header.id}\n`;
         output += `Type: ${dnsPacket.header.qr ? 'Response' : 'Query'}\n`;
