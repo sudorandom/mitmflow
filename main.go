@@ -130,7 +130,7 @@ func (s *MITMFlowServer) preprocessRequest(req *mitmflowv1.Request) {
 	if ok {
 		req.EffectiveContentType = contentType
 	}
-	if ct := http.DetectContentType(req.Content); ct != "application/octet-stream" {
+	if ct := http.DetectContentType(req.Content); ct != "application/octet-stream" && !strings.HasPrefix(ct, "text/plain") {
 		req.EffectiveContentType = ct
 	}
 
@@ -177,7 +177,7 @@ func (s *MITMFlowServer) preprocessResponse(resp *mitmflowv1.Response) {
 	if ok {
 		resp.EffectiveContentType = contentType
 	}
-	if ct := http.DetectContentType(resp.Content); ct != "application/octet-stream" {
+	if ct := http.DetectContentType(resp.Content); ct != "application/octet-stream" && !strings.HasPrefix(ct, "text/plain") {
 		resp.EffectiveContentType = ct
 	}
 
