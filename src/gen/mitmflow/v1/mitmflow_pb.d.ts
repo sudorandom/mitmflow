@@ -392,6 +392,18 @@ export declare type Flow = Message<"mitmflow.v1.Flow"> & {
      */
     value: DNSFlow;
     case: "dnsFlow";
+  } | {
+    /**
+     * @generated from field: mitmflow.v1.TCPFlow tcp_flow = 3;
+     */
+    value: TCPFlow;
+    case: "tcpFlow";
+  } | {
+    /**
+     * @generated from field: mitmflow.v1.UDPFlow udp_flow = 4;
+     */
+    value: UDPFlow;
+    case: "udpFlow";
   } | { case: undefined; value?: undefined };
 };
 
@@ -400,6 +412,186 @@ export declare type Flow = Message<"mitmflow.v1.Flow"> & {
  * Use `create(FlowSchema)` to create a new message.
  */
 export declare const FlowSchema: GenMessage<Flow>;
+
+/**
+ * @generated from message mitmflow.v1.TCPMessage
+ */
+export declare type TCPMessage = Message<"mitmflow.v1.TCPMessage"> & {
+  /**
+   * @generated from field: bytes content = 1;
+   */
+  content: Uint8Array;
+
+  /**
+   * @generated from field: google.protobuf.Timestamp timestamp = 2;
+   */
+  timestamp?: Timestamp;
+
+  /**
+   * @generated from field: bool from_client = 3;
+   */
+  fromClient: boolean;
+};
+
+/**
+ * Describes the message mitmflow.v1.TCPMessage.
+ * Use `create(TCPMessageSchema)` to create a new message.
+ */
+export declare const TCPMessageSchema: GenMessage<TCPMessage>;
+
+/**
+ * @generated from message mitmflow.v1.TCPFlow
+ */
+export declare type TCPFlow = Message<"mitmflow.v1.TCPFlow"> & {
+  /**
+   * @generated from field: string id = 1;
+   */
+  id: string;
+
+  /**
+   * @generated from field: mitmflow.v1.ClientConn client = 2;
+   */
+  client?: ClientConn;
+
+  /**
+   * @generated from field: mitmflow.v1.ServerConn server = 3;
+   */
+  server?: ServerConn;
+
+  /**
+   * @generated from field: repeated mitmflow.v1.TCPMessage messages = 4;
+   */
+  messages: TCPMessage[];
+
+  /**
+   * @generated from field: google.protobuf.Timestamp timestamp_start = 5;
+   */
+  timestampStart?: Timestamp;
+
+  /**
+   * @generated from field: double duration_ms = 6;
+   */
+  durationMs: number;
+
+  /**
+   * @generated from field: optional string error = 7;
+   */
+  error?: string;
+
+  /**
+   * @generated from field: bool live = 8;
+   */
+  live: boolean;
+};
+
+/**
+ * Describes the message mitmflow.v1.TCPFlow.
+ * Use `create(TCPFlowSchema)` to create a new message.
+ */
+export declare const TCPFlowSchema: GenMessage<TCPFlow>;
+
+/**
+ * @generated from message mitmflow.v1.UDPMessage
+ */
+export declare type UDPMessage = Message<"mitmflow.v1.UDPMessage"> & {
+  /**
+   * @generated from field: bytes content = 1;
+   */
+  content: Uint8Array;
+
+  /**
+   * @generated from field: google.protobuf.Timestamp timestamp = 2;
+   */
+  timestamp?: Timestamp;
+
+  /**
+   * @generated from field: bool from_client = 3;
+   */
+  fromClient: boolean;
+};
+
+/**
+ * Describes the message mitmflow.v1.UDPMessage.
+ * Use `create(UDPMessageSchema)` to create a new message.
+ */
+export declare const UDPMessageSchema: GenMessage<UDPMessage>;
+
+/**
+ * @generated from message mitmflow.v1.UDPFlow
+ */
+export declare type UDPFlow = Message<"mitmflow.v1.UDPFlow"> & {
+  /**
+   * @generated from field: string id = 1;
+   */
+  id: string;
+
+  /**
+   * @generated from field: mitmflow.v1.ClientConn client = 2;
+   */
+  client?: ClientConn;
+
+  /**
+   * @generated from field: mitmflow.v1.ServerConn server = 3;
+   */
+  server?: ServerConn;
+
+  /**
+   * @generated from field: repeated mitmflow.v1.UDPMessage messages = 4;
+   */
+  messages: UDPMessage[];
+
+  /**
+   * @generated from field: google.protobuf.Timestamp timestamp_start = 5;
+   */
+  timestampStart?: Timestamp;
+
+  /**
+   * @generated from field: double duration_ms = 6;
+   */
+  durationMs: number;
+
+  /**
+   * @generated from field: optional string error = 7;
+   */
+  error?: string;
+
+  /**
+   * @generated from field: bool live = 8;
+   */
+  live: boolean;
+};
+
+/**
+ * Describes the message mitmflow.v1.UDPFlow.
+ * Use `create(UDPFlowSchema)` to create a new message.
+ */
+export declare const UDPFlowSchema: GenMessage<UDPFlow>;
+
+/**
+ * @generated from message mitmflow.v1.WebSocketMessage
+ */
+export declare type WebSocketMessage = Message<"mitmflow.v1.WebSocketMessage"> & {
+  /**
+   * @generated from field: bytes content = 1;
+   */
+  content: Uint8Array;
+
+  /**
+   * @generated from field: google.protobuf.Timestamp timestamp = 2;
+   */
+  timestamp?: Timestamp;
+
+  /**
+   * @generated from field: bool from_client = 3;
+   */
+  fromClient: boolean;
+};
+
+/**
+ * Describes the message mitmflow.v1.WebSocketMessage.
+ * Use `create(WebSocketMessageSchema)` to create a new message.
+ */
+export declare const WebSocketMessageSchema: GenMessage<WebSocketMessage>;
 
 /**
  * @generated from message mitmflow.v1.DNSQuestion
@@ -658,6 +850,11 @@ export declare type HTTPFlow = Message<"mitmflow.v1.HTTPFlow"> & {
    * @generated from field: bool live = 10;
    */
   live: boolean;
+
+  /**
+   * @generated from field: repeated mitmflow.v1.WebSocketMessage websocket_messages = 11;
+   */
+  websocketMessages: WebSocketMessage[];
 };
 
 /**

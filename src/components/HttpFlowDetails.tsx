@@ -180,6 +180,11 @@ export const HttpFlowDetails: React.FC<{
     responseFormat: ContentFormat;
     setResponseFormat: (format: ContentFormat) => void;
     contentRef: React.RefObject<HTMLDivElement>;
+    downloadFlowContent: (flow: Flow, type: 'har' | 'flow-json' | 'request' | 'response') => void;
+    isDownloadOpen: boolean;
+    setDownloadOpen: (isOpen: boolean) => void;
+    isInfoTooltipOpen: boolean;
+    setIsInfoTooltipOpen: (isOpen: boolean) => void;
 }> = ({ flow, requestFormat, setRequestFormat, responseFormat, setResponseFormat, contentRef }) => {
     const httpFlow = flow.flow.case === 'httpFlow' ? flow.flow.value : null;
 
@@ -201,7 +206,7 @@ export const HttpFlowDetails: React.FC<{
         return `${statusLine}\n${headers}`;
     }, [httpFlow.response]);
 
-    const [selectedTab, setSelectedTab] = useState<'summary' | 'request' | 'response' | 'connection'>('summary');
+    const [selectedTab, setSelectedTab] = useState<'summary' | 'request' | 'response' | 'websocket' | 'connection'>('summary');
 
     const statusClass = useMemo(() => {
         if (!httpFlow?.response) return 'text-zinc-500';
@@ -233,6 +238,14 @@ export const HttpFlowDetails: React.FC<{
                     >
                         Response
                     </button>
+                    {httpFlow.isWebsocket && (
+                        <button
+                            className={`px-3 py-2 text-sm font-medium border-b-2 ${selectedTab === 'websocket' ? 'border-orange-500 text-orange-500' : 'border-transparent text-zinc-400 hover:text-white'}`}
+                            onClick={() => setSelectedTab('websocket')}
+                        >
+                            WebSocket
+                        </button>
+                    )}
                     <button
                         className={`px-3 py-2 text-sm font-medium border-b-2 ${selectedTab === 'connection' ? 'border-orange-500 text-orange-500' : 'border-transparent text-zinc-400 hover:text-white'}`}
                         onClick={() => setSelectedTab('connection')}
@@ -299,6 +312,17 @@ export const HttpFlowDetails: React.FC<{
                         headers={httpFlow.response?.headers}
                         flowPart={httpFlow.response}
                     />
+                )}
+                {selectedTab === 'websocket' && (
+                    <div>
+                        <h3 className="text-lg font-semibold mb-2">WebSocket Messages</h3>
+                        {httpFlow.websocketMessages.map((msg, index) => (
+                            <div key={index} className="mt-2">
+                                <p className="font-semibold">{msg.fromClient ? 'Client -> Server' : 'Server -> Client'}</p>
+                                <HexViewer data={msg.content} />
+                            </div>
+                        ))}
+                    </div>
                 )}
             </div>
         </>
