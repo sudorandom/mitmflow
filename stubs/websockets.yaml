@@ -41,10 +41,18 @@ stubs:
           "timestamp_start": fake_date(),
           "duration_ms": fake_float32(),
           "client": {
-            "peername_host": fake_i_pv4_address()
+            "peername_host": fake_i_pv4_address(),
+            "peername_port": fake_int8(),
+            "sockname_host": fake_i_pv4_address(),
+            "sockname_port": fake_int8(),
+            "id": fake_uuid()
           },
           "server": {
-            "address_host": fake_i_pv4_address()
+            "peername_host": fake_i_pv4_address(),
+            "peername_port": fake_int8(),
+            "sockname_host": fake_i_pv4_address(),
+            "sockname_port": fake_int8(),
+            "id": fake_uuid()
           }
         }
       }

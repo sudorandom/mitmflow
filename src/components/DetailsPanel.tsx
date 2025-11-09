@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { X } from 'lucide-react';
 import { Flow } from '../gen/mitmflow/v1/mitmflow_pb';
+import { getFlowTitle } from '../utils';
 
 interface DetailsPanelProps {
   flow: Flow | null;
@@ -68,6 +69,7 @@ export const DetailsPanel: React.FC<DetailsPanelProps> = ({
         onMouseDown={handleMouseDown}
       />
       <div className="flex items-center p-2.5 px-4 bg-zinc-800 border-b border-zinc-700 flex-shrink-0">
+        <div className="font-mono text-sm truncate">{getFlowTitle(flow)}</div>
         <div className="ml-auto flex items-center gap-4">
           <button
             onClick={(e) => {

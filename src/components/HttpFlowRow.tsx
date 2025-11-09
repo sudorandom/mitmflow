@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react';
 import { Flow } from "../gen/mitmflow/v1/mitmflow_pb";
 import { getHeader } from '../utils';
+import { StatusPill } from './StatusPill';
 
 const formatUrlWithHostname = (originalUrl: string, sniHostname?: string, hostHeader?: string): string => {
     try {
@@ -42,12 +43,12 @@ export const HttpFlowRow: React.FC<{
     }
     const httpFlow = flow.flow.value;
 
-    const statusClass = useMemo(() => {
-        if (!httpFlow.response) return 'text-zinc-500';
-        if (httpFlow.response.statusCode >= 500) return 'text-red-500 font-bold';
-        if (httpFlow.response.statusCode >= 400) return 'text-red-400';
-        if (httpFlow.response.statusCode >= 300) return 'text-yellow-400';
-        return 'text-green-400';
+    const statusColor = useMemo(() => {
+        if (!httpFlow.response) return 'gray';
+        if (httpFlow.response.statusCode >= 500) return 'red';
+        if (httpFlow.response.statusCode >= 400) return 'red';
+        if (httpFlow.response.statusCode >= 300) return 'yellow';
+        return 'green';
     }, [httpFlow.response]);
 
     return (
@@ -57,7 +58,9 @@ export const HttpFlowRow: React.FC<{
             onMouseEnter={() => onMouseEnter(flow)}
             data-flow-id={httpFlow.id} // Add data-attribute for scrolling
         >
-            <td className={`p-3 font-mono max-w-xs overflow-hidden text-ellipsis whitespace-nowrap ${statusClass}`}>{httpFlow.response?.statusCode ?? '...'}</td>
+            <td className="p-3 font-mono max-w-xs overflow-hidden text-ellipsis whitespace-nowrap">
+                <StatusPill status={httpFlow.response?.statusCode ?? '...'} color={statusColor} />
+            </td>
             <td className="p-3 font-mono max-w-xs overflow-hidden text-ellipsis whitespace-nowrap">{httpFlow.request?.method} {formatUrlWithHostname(httpFlow.request?.url || '', httpFlow.client?.sni, getHeader(httpFlow.request?.headers, 'Host'))}</td>
             <td className="hidden md:table-cell p-3 font-mono max-w-xs overflow-hidden text-ellipsis whitespace-nowrap">{httpFlow.response ? `${httpFlow.response.content.length} B` : '...'}</td>
             <td className="hidden md:table-cell p-3 font-mono max-w-xs overflow-hidden text-ellipsis whitespace-nowrap">{httpFlow.durationMs ? `${httpFlow.durationMs.toFixed(0)} ms` : '...'}</td>

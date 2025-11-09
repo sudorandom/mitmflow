@@ -1,5 +1,6 @@
 import React from 'react';
 import { Flow } from "../gen/mitmflow/v1/mitmflow_pb";
+import { StatusPill } from './StatusPill';
 
 export const DnsFlowRow: React.FC<{
     flow: Flow;
@@ -13,9 +14,8 @@ export const DnsFlowRow: React.FC<{
         return null;
     }
 
-    const statusClass = dnsFlow.response ? 'text-green-400' : 'text-zinc-500';
-    const domainName = dnsFlow.request?.questions[0]?.name || 'N/A';
-    const responseCount = dnsFlow.response?.answers.length || 0;
+    const status = dnsFlow.response ? 'OK' : 'ERROR';
+    const statusColor = dnsFlow.response ? 'green' : 'red';
 
     return (
         <tr
@@ -24,9 +24,11 @@ export const DnsFlowRow: React.FC<{
             onMouseEnter={() => onMouseEnter(flow)}
             data-flow-id={dnsFlow.id}
         >
-            <td className={`p-3 font-mono max-w-xs overflow-hidden text-ellipsis whitespace-nowrap ${statusClass}`}>DNS</td>
-            <td className="p-3 font-mono max-w-xs overflow-hidden text-ellipsis whitespace-nowrap">{domainName}</td>
-            <td className="hidden md:table-cell p-3 font-mono max-w-xs overflow-hidden text-ellipsis whitespace-nowrap">{responseCount} answers</td>
+            <td className="p-3 font-mono max-w-xs overflow-hidden text-ellipsis whitespace-nowrap">
+                <StatusPill status={status} color={statusColor} />
+            </td>
+            <td className="p-3 font-mono max-w-xs overflow-hidden text-ellipsis whitespace-nowrap">dns://{dnsFlow.server?.addressHost}</td>
+            <td className="hidden md:table-cell p-3 font-mono max-w-xs overflow-hidden text-ellipsis whitespace-nowrap">{dnsFlow.response ? `${dnsFlow.response.packed.length} B` : '...'}</td>
             <td className="hidden md:table-cell p-3 font-mono max-w-xs overflow-hidden text-ellipsis whitespace-nowrap">{dnsFlow.durationMs ? `${dnsFlow.durationMs.toFixed(0)} ms` : '...'}</td>
         </tr>
     );
