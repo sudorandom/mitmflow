@@ -1,4 +1,5 @@
 import asyncio
+import mitmproxy
 from mitmproxy import ctx, http
 
 from datetime import datetime
@@ -8,7 +9,7 @@ from mitmflow.v1.mitmflow_pb2 import ConnectionState, TransportProtocol, TLSVers
 from mitmproxy.net.dns import classes
 from mitmproxy.net.dns import types
 
-def _to_grpc_client_conn(conn: mitmproxy.connections.ClientConnection) -> mitmflow_pb2.ClientConn:
+def _to_grpc_client_conn(conn: mitmproxy.connection.Client) -> mitmflow_pb2.ClientConn:
     c = mitmflow_pb2.ClientConn()
     if conn.peername:
         c.peername_host = conn.peername[0]
@@ -54,7 +55,7 @@ def _to_grpc_client_conn(conn: mitmproxy.connections.ClientConnection) -> mitmfl
     c.proxy_mode = str(conn.proxy_mode) if conn.proxy_mode else ""
     return c
 
-def _to_grpc_server_conn(conn: mitmproxy.connections.ServerConnection) -> mitmflow_pb2.ServerConn:
+def _to_grpc_server_conn(conn: mitmproxy.connection.Server) -> mitmflow_pb2.ServerConn:
     s = mitmflow_pb2.ServerConn()
     if conn.peername:
         s.peername_host = conn.peername[0]
@@ -149,8 +150,75 @@ def to_grpc_flow(flow: http.HTTPFlow) -> mitmflow_pb2.HTTPFlow:
     f.live = flow.live
     f.is_websocket = flow.websocket is not None
 
+    if flow.websocket:
+        for message in flow.websocket.messages:
+            ws_message = mitmflow_pb2.WebSocketMessage()
+            ws_message.content = message.content
+            ws_message.timestamp.FromDatetime(datetime.fromtimestamp(message.timestamp))
+            ws_message.from_client = message.from_client
+            f.websocket_messages.append(ws_message)
+
     return f
 
+def to_grpc_tcp_flow(flow: mitmproxy.tcp.TCPFlow) -> mitmflow_pb2.TCPFlow:
+    f = mitmflow_pb2.TCPFlow()
+    f.id = str(flow.id)
+
+    # Connections
+    if flow.client_conn:
+        f.client.CopyFrom(_to_grpc_client_conn(flow.client_conn))
+    if flow.server_conn:
+        f.server.CopyFrom(_to_grpc_server_conn(flow.server_conn))
+
+    # Messages
+    for message in flow.messages:
+        tcp_message = mitmflow_pb2.TCPMessage()
+        tcp_message.content = message.content
+        tcp_message.timestamp.FromDatetime(datetime.fromtimestamp(message.timestamp))
+        tcp_message.from_client = message.from_client
+        f.messages.append(tcp_message)
+
+    # Timestamps
+    f.timestamp_start.FromDatetime(datetime.fromtimestamp(flow.timestamp_start))
+    if hasattr(flow, 'timestamp_end') and flow.timestamp_end:
+        f.duration_ms = (flow.timestamp_end - flow.timestamp_start) * 1000
+
+    # Other attributes
+    if flow.error:
+        f.error = str(flow.error)
+    f.live = flow.live
+
+    return f
+
+def to_grpc_udp_flow(flow: mitmproxy.udp.UDPFlow) -> mitmflow_pb2.UDPFlow:
+    f = mitmflow_pb2.UDPFlow()
+    f.id = str(flow.id)
+
+    # Connections
+    if flow.client_conn:
+        f.client.CopyFrom(_to_grpc_client_conn(flow.client_conn))
+    if flow.server_conn:
+        f.server.CopyFrom(_to_grpc_server_conn(flow.server_conn))
+
+    # Messages
+    for message in flow.messages:
+        udp_message = mitmflow_pb2.UDPMessage()
+        udp_message.content = message.content
+        udp_message.timestamp.FromDatetime(datetime.fromtimestamp(message.timestamp))
+        udp_message.from_client = message.from_client
+        f.messages.append(udp_message)
+
+    # Timestamps
+    f.timestamp_start.FromDatetime(datetime.fromtimestamp(flow.timestamp_start))
+    if hasattr(flow, 'timestamp_end') and flow.timestamp_end:
+        f.duration_ms = (flow.timestamp_end - flow.timestamp_start) * 1000
+
+    # Other attributes
+    if flow.error:
+        f.error = str(flow.error)
+    f.live = flow.live
+
+    return f
 
 def _to_grpc_dns_question(q: mitmproxy.dns.Question) -> mitmflow_pb2.DNSQuestion:
     msg = mitmflow_pb2.DNSQuestion(
@@ -172,7 +240,7 @@ def _to_grpc_dns_resource_record(rr: mitmproxy.dns.ResourceRecord) -> mitmflow_p
     return msg
 
 
-def _to_grpc_dns_message(msg: mitmproxy.dns.Message) -> mitmflow_pb2.DNSMessage:
+def _to_grpc_dns_message(msg: mitmproxy.dns.DNSMessage) -> mitmflow_pb2.DNSMessage:
     return mitmflow_pb2.DNSMessage(
         packed=msg.content,
         questions=[_to_grpc_dns_question(q) for q in msg.questions],
@@ -300,28 +368,52 @@ class MitmFlowAddon:
         ))
 
     async def tcp_start(self, flow: mitmproxy.tcp.TCPFlow):
-        pass
+        await self.queue.put(mitmflow_pb2.ExportFlowRequest(
+            event_type=mitmflow_pb2.EVENT_TYPE_TCP_START,
+            flow=mitmflow_pb2.Flow(tcp_flow=to_grpc_tcp_flow(flow)),
+        ))
 
     async def tcp_message(self, flow: mitmproxy.tcp.TCPFlow):
-        pass
+        await self.queue.put(mitmflow_pb2.ExportFlowRequest(
+            event_type=mitmflow_pb2.EVENT_TYPE_TCP_MESSAGE,
+            flow=mitmflow_pb2.Flow(tcp_flow=to_grpc_tcp_flow(flow)),
+        ))
 
     async def tcp_end(self, flow: mitmproxy.tcp.TCPFlow):
-        pass
+        await self.queue.put(mitmflow_pb2.ExportFlowRequest(
+            event_type=mitmflow_pb2.EVENT_TYPE_TCP_END,
+            flow=mitmflow_pb2.Flow(tcp_flow=to_grpc_tcp_flow(flow)),
+        ))
 
     async def tcp_error(self, flow: mitmproxy.tcp.TCPFlow):
-        pass
+        await self.queue.put(mitmflow_pb2.ExportFlowRequest(
+            event_type=mitmflow_pb2.EVENT_TYPE_TCP_ERROR,
+            flow=mitmflow_pb2.Flow(tcp_flow=to_grpc_tcp_flow(flow)),
+        ))
 
     async def udp_start(self, flow: mitmproxy.udp.UDPFlow):
-        pass
+        await self.queue.put(mitmflow_pb2.ExportFlowRequest(
+            event_type=mitmflow_pb2.EVENT_TYPE_UDP_START,
+            flow=mitmflow_pb2.Flow(udp_flow=to_grpc_udp_flow(flow)),
+        ))
 
     async def udp_message(self, flow: mitmproxy.udp.UDPFlow):
-        pass
+        await self.queue.put(mitmflow_pb2.ExportFlowRequest(
+            event_type=mitmflow_pb2.EVENT_TYPE_UDP_MESSAGE,
+            flow=mitmflow_pb2.Flow(udp_flow=to_grpc_udp_flow(flow)),
+        ))
 
     async def udp_end(self, flow: mitmproxy.udp.UDPFlow):
-        pass
+        await self.queue.put(mitmflow_pb2.ExportFlowRequest(
+            event_type=mitmflow_pb2.EVENT_TYPE_UDP_END,
+            flow=mitmflow_pb2.Flow(udp_flow=to_grpc_udp_flow(flow)),
+        ))
 
     async def udp_error(self, flow: mitmproxy.udp.UDPFlow):
-        pass
+        await self.queue.put(mitmflow_pb2.ExportFlowRequest(
+            event_type=mitmflow_pb2.EVENT_TYPE_UDP_ERROR,
+            flow=mitmflow_pb2.Flow(udp_flow=to_grpc_udp_flow(flow)),
+        ))
 
     async def quic_start_client(self, data: mitmproxy.proxy.layers.quic._hooks.QuicTlsData):
         pass
@@ -351,13 +443,22 @@ class MitmFlowAddon:
         pass
 
     async def websocket_start(self, flow: mitmproxy.http.HTTPFlow):
-        pass
+        await self.queue.put(mitmflow_pb2.ExportFlowRequest(
+            event_type=mitmflow_pb2.EVENT_TYPE_WEBSOCKET_START,
+            flow=mitmflow_pb2.Flow(http_flow=to_grpc_flow(flow)),
+        ))
 
     async def websocket_message(self, flow: mitmproxy.http.HTTPFlow):
-        pass
+        await self.queue.put(mitmflow_pb2.ExportFlowRequest(
+            event_type=mitmflow_pb2.EVENT_TYPE_WEBSOCKET_MESSAGE,
+            flow=mitmflow_pb2.Flow(http_flow=to_grpc_flow(flow)),
+        ))
 
     async def websocket_end(self, flow: mitmproxy.http.HTTPFlow):
-        pass
+        await self.queue.put(mitmflow_pb2.ExportFlowRequest(
+            event_type=mitmflow_pb2.EVENT_TYPE_WEBSOCKET_END,
+            flow=mitmflow_pb2.Flow(http_flow=to_grpc_flow(flow)),
+        ))
 
     async def socks5_auth(self, data: mitmproxy.proxy.layers.modes.Socks5AuthData):
         pass

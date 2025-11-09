@@ -1137,6 +1137,8 @@ type Flow struct {
 	//
 	//	*Flow_HttpFlow
 	//	*Flow_DnsFlow
+	//	*Flow_TcpFlow
+	//	*Flow_UdpFlow
 	Flow          isFlow_Flow `protobuf_oneof:"flow"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -1197,6 +1199,24 @@ func (x *Flow) GetDnsFlow() *DNSFlow {
 	return nil
 }
 
+func (x *Flow) GetTcpFlow() *TCPFlow {
+	if x != nil {
+		if x, ok := x.Flow.(*Flow_TcpFlow); ok {
+			return x.TcpFlow
+		}
+	}
+	return nil
+}
+
+func (x *Flow) GetUdpFlow() *UDPFlow {
+	if x != nil {
+		if x, ok := x.Flow.(*Flow_UdpFlow); ok {
+			return x.UdpFlow
+		}
+	}
+	return nil
+}
+
 type isFlow_Flow interface {
 	isFlow_Flow()
 }
@@ -1209,9 +1229,401 @@ type Flow_DnsFlow struct {
 	DnsFlow *DNSFlow `protobuf:"bytes,2,opt,name=dns_flow,json=dnsFlow,proto3,oneof"`
 }
 
+type Flow_TcpFlow struct {
+	TcpFlow *TCPFlow `protobuf:"bytes,3,opt,name=tcp_flow,json=tcpFlow,proto3,oneof"`
+}
+
+type Flow_UdpFlow struct {
+	UdpFlow *UDPFlow `protobuf:"bytes,4,opt,name=udp_flow,json=udpFlow,proto3,oneof"`
+}
+
 func (*Flow_HttpFlow) isFlow_Flow() {}
 
 func (*Flow_DnsFlow) isFlow_Flow() {}
+
+func (*Flow_TcpFlow) isFlow_Flow() {}
+
+func (*Flow_UdpFlow) isFlow_Flow() {}
+
+type TCPMessage struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Content       []byte                 `protobuf:"bytes,1,opt,name=content,proto3" json:"content,omitempty"`
+	Timestamp     *timestamppb.Timestamp `protobuf:"bytes,2,opt,name=timestamp,proto3" json:"timestamp,omitempty"`
+	FromClient    bool                   `protobuf:"varint,3,opt,name=from_client,json=fromClient,proto3" json:"from_client,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *TCPMessage) Reset() {
+	*x = TCPMessage{}
+	mi := &file_mitmflow_v1_mitmflow_proto_msgTypes[9]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *TCPMessage) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*TCPMessage) ProtoMessage() {}
+
+func (x *TCPMessage) ProtoReflect() protoreflect.Message {
+	mi := &file_mitmflow_v1_mitmflow_proto_msgTypes[9]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use TCPMessage.ProtoReflect.Descriptor instead.
+func (*TCPMessage) Descriptor() ([]byte, []int) {
+	return file_mitmflow_v1_mitmflow_proto_rawDescGZIP(), []int{9}
+}
+
+func (x *TCPMessage) GetContent() []byte {
+	if x != nil {
+		return x.Content
+	}
+	return nil
+}
+
+func (x *TCPMessage) GetTimestamp() *timestamppb.Timestamp {
+	if x != nil {
+		return x.Timestamp
+	}
+	return nil
+}
+
+func (x *TCPMessage) GetFromClient() bool {
+	if x != nil {
+		return x.FromClient
+	}
+	return false
+}
+
+type TCPFlow struct {
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	Id             string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Client         *ClientConn            `protobuf:"bytes,2,opt,name=client,proto3" json:"client,omitempty"`
+	Server         *ServerConn            `protobuf:"bytes,3,opt,name=server,proto3" json:"server,omitempty"`
+	Messages       []*TCPMessage          `protobuf:"bytes,4,rep,name=messages,proto3" json:"messages,omitempty"`
+	TimestampStart *timestamppb.Timestamp `protobuf:"bytes,5,opt,name=timestamp_start,json=timestampStart,proto3" json:"timestamp_start,omitempty"`
+	DurationMs     float64                `protobuf:"fixed64,6,opt,name=duration_ms,json=durationMs,proto3" json:"duration_ms,omitempty"`
+	Error          *string                `protobuf:"bytes,7,opt,name=error,proto3,oneof" json:"error,omitempty"`
+	Live           bool                   `protobuf:"varint,8,opt,name=live,proto3" json:"live,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *TCPFlow) Reset() {
+	*x = TCPFlow{}
+	mi := &file_mitmflow_v1_mitmflow_proto_msgTypes[10]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *TCPFlow) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*TCPFlow) ProtoMessage() {}
+
+func (x *TCPFlow) ProtoReflect() protoreflect.Message {
+	mi := &file_mitmflow_v1_mitmflow_proto_msgTypes[10]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use TCPFlow.ProtoReflect.Descriptor instead.
+func (*TCPFlow) Descriptor() ([]byte, []int) {
+	return file_mitmflow_v1_mitmflow_proto_rawDescGZIP(), []int{10}
+}
+
+func (x *TCPFlow) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *TCPFlow) GetClient() *ClientConn {
+	if x != nil {
+		return x.Client
+	}
+	return nil
+}
+
+func (x *TCPFlow) GetServer() *ServerConn {
+	if x != nil {
+		return x.Server
+	}
+	return nil
+}
+
+func (x *TCPFlow) GetMessages() []*TCPMessage {
+	if x != nil {
+		return x.Messages
+	}
+	return nil
+}
+
+func (x *TCPFlow) GetTimestampStart() *timestamppb.Timestamp {
+	if x != nil {
+		return x.TimestampStart
+	}
+	return nil
+}
+
+func (x *TCPFlow) GetDurationMs() float64 {
+	if x != nil {
+		return x.DurationMs
+	}
+	return 0
+}
+
+func (x *TCPFlow) GetError() string {
+	if x != nil && x.Error != nil {
+		return *x.Error
+	}
+	return ""
+}
+
+func (x *TCPFlow) GetLive() bool {
+	if x != nil {
+		return x.Live
+	}
+	return false
+}
+
+type UDPMessage struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Content       []byte                 `protobuf:"bytes,1,opt,name=content,proto3" json:"content,omitempty"`
+	Timestamp     *timestamppb.Timestamp `protobuf:"bytes,2,opt,name=timestamp,proto3" json:"timestamp,omitempty"`
+	FromClient    bool                   `protobuf:"varint,3,opt,name=from_client,json=fromClient,proto3" json:"from_client,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UDPMessage) Reset() {
+	*x = UDPMessage{}
+	mi := &file_mitmflow_v1_mitmflow_proto_msgTypes[11]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UDPMessage) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UDPMessage) ProtoMessage() {}
+
+func (x *UDPMessage) ProtoReflect() protoreflect.Message {
+	mi := &file_mitmflow_v1_mitmflow_proto_msgTypes[11]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UDPMessage.ProtoReflect.Descriptor instead.
+func (*UDPMessage) Descriptor() ([]byte, []int) {
+	return file_mitmflow_v1_mitmflow_proto_rawDescGZIP(), []int{11}
+}
+
+func (x *UDPMessage) GetContent() []byte {
+	if x != nil {
+		return x.Content
+	}
+	return nil
+}
+
+func (x *UDPMessage) GetTimestamp() *timestamppb.Timestamp {
+	if x != nil {
+		return x.Timestamp
+	}
+	return nil
+}
+
+func (x *UDPMessage) GetFromClient() bool {
+	if x != nil {
+		return x.FromClient
+	}
+	return false
+}
+
+type UDPFlow struct {
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	Id             string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Client         *ClientConn            `protobuf:"bytes,2,opt,name=client,proto3" json:"client,omitempty"`
+	Server         *ServerConn            `protobuf:"bytes,3,opt,name=server,proto3" json:"server,omitempty"`
+	Messages       []*UDPMessage          `protobuf:"bytes,4,rep,name=messages,proto3" json:"messages,omitempty"`
+	TimestampStart *timestamppb.Timestamp `protobuf:"bytes,5,opt,name=timestamp_start,json=timestampStart,proto3" json:"timestamp_start,omitempty"`
+	DurationMs     float64                `protobuf:"fixed64,6,opt,name=duration_ms,json=durationMs,proto3" json:"duration_ms,omitempty"`
+	Error          *string                `protobuf:"bytes,7,opt,name=error,proto3,oneof" json:"error,omitempty"`
+	Live           bool                   `protobuf:"varint,8,opt,name=live,proto3" json:"live,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *UDPFlow) Reset() {
+	*x = UDPFlow{}
+	mi := &file_mitmflow_v1_mitmflow_proto_msgTypes[12]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UDPFlow) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UDPFlow) ProtoMessage() {}
+
+func (x *UDPFlow) ProtoReflect() protoreflect.Message {
+	mi := &file_mitmflow_v1_mitmflow_proto_msgTypes[12]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UDPFlow.ProtoReflect.Descriptor instead.
+func (*UDPFlow) Descriptor() ([]byte, []int) {
+	return file_mitmflow_v1_mitmflow_proto_rawDescGZIP(), []int{12}
+}
+
+func (x *UDPFlow) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *UDPFlow) GetClient() *ClientConn {
+	if x != nil {
+		return x.Client
+	}
+	return nil
+}
+
+func (x *UDPFlow) GetServer() *ServerConn {
+	if x != nil {
+		return x.Server
+	}
+	return nil
+}
+
+func (x *UDPFlow) GetMessages() []*UDPMessage {
+	if x != nil {
+		return x.Messages
+	}
+	return nil
+}
+
+func (x *UDPFlow) GetTimestampStart() *timestamppb.Timestamp {
+	if x != nil {
+		return x.TimestampStart
+	}
+	return nil
+}
+
+func (x *UDPFlow) GetDurationMs() float64 {
+	if x != nil {
+		return x.DurationMs
+	}
+	return 0
+}
+
+func (x *UDPFlow) GetError() string {
+	if x != nil && x.Error != nil {
+		return *x.Error
+	}
+	return ""
+}
+
+func (x *UDPFlow) GetLive() bool {
+	if x != nil {
+		return x.Live
+	}
+	return false
+}
+
+type WebSocketMessage struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Content       []byte                 `protobuf:"bytes,1,opt,name=content,proto3" json:"content,omitempty"`
+	Timestamp     *timestamppb.Timestamp `protobuf:"bytes,2,opt,name=timestamp,proto3" json:"timestamp,omitempty"`
+	FromClient    bool                   `protobuf:"varint,3,opt,name=from_client,json=fromClient,proto3" json:"from_client,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *WebSocketMessage) Reset() {
+	*x = WebSocketMessage{}
+	mi := &file_mitmflow_v1_mitmflow_proto_msgTypes[13]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *WebSocketMessage) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*WebSocketMessage) ProtoMessage() {}
+
+func (x *WebSocketMessage) ProtoReflect() protoreflect.Message {
+	mi := &file_mitmflow_v1_mitmflow_proto_msgTypes[13]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use WebSocketMessage.ProtoReflect.Descriptor instead.
+func (*WebSocketMessage) Descriptor() ([]byte, []int) {
+	return file_mitmflow_v1_mitmflow_proto_rawDescGZIP(), []int{13}
+}
+
+func (x *WebSocketMessage) GetContent() []byte {
+	if x != nil {
+		return x.Content
+	}
+	return nil
+}
+
+func (x *WebSocketMessage) GetTimestamp() *timestamppb.Timestamp {
+	if x != nil {
+		return x.Timestamp
+	}
+	return nil
+}
+
+func (x *WebSocketMessage) GetFromClient() bool {
+	if x != nil {
+		return x.FromClient
+	}
+	return false
+}
 
 type DNSQuestion struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
@@ -1224,7 +1636,7 @@ type DNSQuestion struct {
 
 func (x *DNSQuestion) Reset() {
 	*x = DNSQuestion{}
-	mi := &file_mitmflow_v1_mitmflow_proto_msgTypes[9]
+	mi := &file_mitmflow_v1_mitmflow_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1236,7 +1648,7 @@ func (x *DNSQuestion) String() string {
 func (*DNSQuestion) ProtoMessage() {}
 
 func (x *DNSQuestion) ProtoReflect() protoreflect.Message {
-	mi := &file_mitmflow_v1_mitmflow_proto_msgTypes[9]
+	mi := &file_mitmflow_v1_mitmflow_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1249,7 +1661,7 @@ func (x *DNSQuestion) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DNSQuestion.ProtoReflect.Descriptor instead.
 func (*DNSQuestion) Descriptor() ([]byte, []int) {
-	return file_mitmflow_v1_mitmflow_proto_rawDescGZIP(), []int{9}
+	return file_mitmflow_v1_mitmflow_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *DNSQuestion) GetName() string {
@@ -1286,7 +1698,7 @@ type DNSResourceRecord struct {
 
 func (x *DNSResourceRecord) Reset() {
 	*x = DNSResourceRecord{}
-	mi := &file_mitmflow_v1_mitmflow_proto_msgTypes[10]
+	mi := &file_mitmflow_v1_mitmflow_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1298,7 +1710,7 @@ func (x *DNSResourceRecord) String() string {
 func (*DNSResourceRecord) ProtoMessage() {}
 
 func (x *DNSResourceRecord) ProtoReflect() protoreflect.Message {
-	mi := &file_mitmflow_v1_mitmflow_proto_msgTypes[10]
+	mi := &file_mitmflow_v1_mitmflow_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1311,7 +1723,7 @@ func (x *DNSResourceRecord) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DNSResourceRecord.ProtoReflect.Descriptor instead.
 func (*DNSResourceRecord) Descriptor() ([]byte, []int) {
-	return file_mitmflow_v1_mitmflow_proto_rawDescGZIP(), []int{10}
+	return file_mitmflow_v1_mitmflow_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *DNSResourceRecord) GetName() string {
@@ -1366,7 +1778,7 @@ type DNSMessage struct {
 
 func (x *DNSMessage) Reset() {
 	*x = DNSMessage{}
-	mi := &file_mitmflow_v1_mitmflow_proto_msgTypes[11]
+	mi := &file_mitmflow_v1_mitmflow_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1378,7 +1790,7 @@ func (x *DNSMessage) String() string {
 func (*DNSMessage) ProtoMessage() {}
 
 func (x *DNSMessage) ProtoReflect() protoreflect.Message {
-	mi := &file_mitmflow_v1_mitmflow_proto_msgTypes[11]
+	mi := &file_mitmflow_v1_mitmflow_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1391,7 +1803,7 @@ func (x *DNSMessage) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DNSMessage.ProtoReflect.Descriptor instead.
 func (*DNSMessage) Descriptor() ([]byte, []int) {
-	return file_mitmflow_v1_mitmflow_proto_rawDescGZIP(), []int{11}
+	return file_mitmflow_v1_mitmflow_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *DNSMessage) GetPacked() []byte {
@@ -1474,7 +1886,7 @@ type DNSFlow struct {
 
 func (x *DNSFlow) Reset() {
 	*x = DNSFlow{}
-	mi := &file_mitmflow_v1_mitmflow_proto_msgTypes[12]
+	mi := &file_mitmflow_v1_mitmflow_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1486,7 +1898,7 @@ func (x *DNSFlow) String() string {
 func (*DNSFlow) ProtoMessage() {}
 
 func (x *DNSFlow) ProtoReflect() protoreflect.Message {
-	mi := &file_mitmflow_v1_mitmflow_proto_msgTypes[12]
+	mi := &file_mitmflow_v1_mitmflow_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1499,7 +1911,7 @@ func (x *DNSFlow) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DNSFlow.ProtoReflect.Descriptor instead.
 func (*DNSFlow) Descriptor() ([]byte, []int) {
-	return file_mitmflow_v1_mitmflow_proto_rawDescGZIP(), []int{12}
+	return file_mitmflow_v1_mitmflow_proto_rawDescGZIP(), []int{17}
 }
 
 func (x *DNSFlow) GetId() string {
@@ -1577,7 +1989,7 @@ type FlowStreamReply struct {
 
 func (x *FlowStreamReply) Reset() {
 	*x = FlowStreamReply{}
-	mi := &file_mitmflow_v1_mitmflow_proto_msgTypes[13]
+	mi := &file_mitmflow_v1_mitmflow_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1589,7 +2001,7 @@ func (x *FlowStreamReply) String() string {
 func (*FlowStreamReply) ProtoMessage() {}
 
 func (x *FlowStreamReply) ProtoReflect() protoreflect.Message {
-	mi := &file_mitmflow_v1_mitmflow_proto_msgTypes[13]
+	mi := &file_mitmflow_v1_mitmflow_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1602,7 +2014,7 @@ func (x *FlowStreamReply) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use FlowStreamReply.ProtoReflect.Descriptor instead.
 func (*FlowStreamReply) Descriptor() ([]byte, []int) {
-	return file_mitmflow_v1_mitmflow_proto_rawDescGZIP(), []int{13}
+	return file_mitmflow_v1_mitmflow_proto_rawDescGZIP(), []int{18}
 }
 
 func (x *FlowStreamReply) GetMessage() string {
@@ -1628,24 +2040,25 @@ func (x *FlowStreamReply) GetFlowsProcessed() uint64 {
 
 // A single HTTP Flow (Request/Response pair)
 type HTTPFlow struct {
-	state          protoimpl.MessageState `protogen:"open.v1"`
-	Id             string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	Request        *Request               `protobuf:"bytes,2,opt,name=request,proto3" json:"request,omitempty"`
-	Response       *Response              `protobuf:"bytes,3,opt,name=response,proto3" json:"response,omitempty"`
-	TimestampStart *timestamppb.Timestamp `protobuf:"bytes,4,opt,name=timestamp_start,json=timestampStart,proto3" json:"timestamp_start,omitempty"`
-	DurationMs     float64                `protobuf:"fixed64,5,opt,name=duration_ms,json=durationMs,proto3" json:"duration_ms,omitempty"`
-	Client         *ClientConn            `protobuf:"bytes,6,opt,name=client,proto3" json:"client,omitempty"`
-	Server         *ServerConn            `protobuf:"bytes,7,opt,name=server,proto3" json:"server,omitempty"`
-	Error          string                 `protobuf:"bytes,8,opt,name=error,proto3" json:"error,omitempty"`
-	IsWebsocket    bool                   `protobuf:"varint,9,opt,name=is_websocket,json=isWebsocket,proto3" json:"is_websocket,omitempty"`
-	Live           bool                   `protobuf:"varint,10,opt,name=live,proto3" json:"live,omitempty"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
+	state             protoimpl.MessageState `protogen:"open.v1"`
+	Id                string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Request           *Request               `protobuf:"bytes,2,opt,name=request,proto3" json:"request,omitempty"`
+	Response          *Response              `protobuf:"bytes,3,opt,name=response,proto3" json:"response,omitempty"`
+	TimestampStart    *timestamppb.Timestamp `protobuf:"bytes,4,opt,name=timestamp_start,json=timestampStart,proto3" json:"timestamp_start,omitempty"`
+	DurationMs        float64                `protobuf:"fixed64,5,opt,name=duration_ms,json=durationMs,proto3" json:"duration_ms,omitempty"`
+	Client            *ClientConn            `protobuf:"bytes,6,opt,name=client,proto3" json:"client,omitempty"`
+	Server            *ServerConn            `protobuf:"bytes,7,opt,name=server,proto3" json:"server,omitempty"`
+	Error             string                 `protobuf:"bytes,8,opt,name=error,proto3" json:"error,omitempty"`
+	IsWebsocket       bool                   `protobuf:"varint,9,opt,name=is_websocket,json=isWebsocket,proto3" json:"is_websocket,omitempty"`
+	Live              bool                   `protobuf:"varint,10,opt,name=live,proto3" json:"live,omitempty"`
+	WebsocketMessages []*WebSocketMessage    `protobuf:"bytes,11,rep,name=websocket_messages,json=websocketMessages,proto3" json:"websocket_messages,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
 }
 
 func (x *HTTPFlow) Reset() {
 	*x = HTTPFlow{}
-	mi := &file_mitmflow_v1_mitmflow_proto_msgTypes[14]
+	mi := &file_mitmflow_v1_mitmflow_proto_msgTypes[19]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1657,7 +2070,7 @@ func (x *HTTPFlow) String() string {
 func (*HTTPFlow) ProtoMessage() {}
 
 func (x *HTTPFlow) ProtoReflect() protoreflect.Message {
-	mi := &file_mitmflow_v1_mitmflow_proto_msgTypes[14]
+	mi := &file_mitmflow_v1_mitmflow_proto_msgTypes[19]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1670,7 +2083,7 @@ func (x *HTTPFlow) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use HTTPFlow.ProtoReflect.Descriptor instead.
 func (*HTTPFlow) Descriptor() ([]byte, []int) {
-	return file_mitmflow_v1_mitmflow_proto_rawDescGZIP(), []int{14}
+	return file_mitmflow_v1_mitmflow_proto_rawDescGZIP(), []int{19}
 }
 
 func (x *HTTPFlow) GetId() string {
@@ -1743,6 +2156,13 @@ func (x *HTTPFlow) GetLive() bool {
 	return false
 }
 
+func (x *HTTPFlow) GetWebsocketMessages() []*WebSocketMessage {
+	if x != nil {
+		return x.WebsocketMessages
+	}
+	return nil
+}
+
 type Request struct {
 	state                   protoimpl.MessageState `protogen:"open.v1"`
 	Method                  string                 `protobuf:"bytes,1,opt,name=method,proto3" json:"method,omitempty"`
@@ -1759,7 +2179,7 @@ type Request struct {
 
 func (x *Request) Reset() {
 	*x = Request{}
-	mi := &file_mitmflow_v1_mitmflow_proto_msgTypes[15]
+	mi := &file_mitmflow_v1_mitmflow_proto_msgTypes[20]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1771,7 +2191,7 @@ func (x *Request) String() string {
 func (*Request) ProtoMessage() {}
 
 func (x *Request) ProtoReflect() protoreflect.Message {
-	mi := &file_mitmflow_v1_mitmflow_proto_msgTypes[15]
+	mi := &file_mitmflow_v1_mitmflow_proto_msgTypes[20]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1784,7 +2204,7 @@ func (x *Request) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Request.ProtoReflect.Descriptor instead.
 func (*Request) Descriptor() ([]byte, []int) {
-	return file_mitmflow_v1_mitmflow_proto_rawDescGZIP(), []int{15}
+	return file_mitmflow_v1_mitmflow_proto_rawDescGZIP(), []int{20}
 }
 
 func (x *Request) GetMethod() string {
@@ -1858,7 +2278,7 @@ type Response struct {
 
 func (x *Response) Reset() {
 	*x = Response{}
-	mi := &file_mitmflow_v1_mitmflow_proto_msgTypes[16]
+	mi := &file_mitmflow_v1_mitmflow_proto_msgTypes[21]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1870,7 +2290,7 @@ func (x *Response) String() string {
 func (*Response) ProtoMessage() {}
 
 func (x *Response) ProtoReflect() protoreflect.Message {
-	mi := &file_mitmflow_v1_mitmflow_proto_msgTypes[16]
+	mi := &file_mitmflow_v1_mitmflow_proto_msgTypes[21]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1883,7 +2303,7 @@ func (x *Response) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Response.ProtoReflect.Descriptor instead.
 func (*Response) Descriptor() ([]byte, []int) {
-	return file_mitmflow_v1_mitmflow_proto_rawDescGZIP(), []int{16}
+	return file_mitmflow_v1_mitmflow_proto_rawDescGZIP(), []int{21}
 }
 
 func (x *Response) GetStatusCode() int32 {
@@ -2039,11 +2459,52 @@ const file_mitmflow_v1_mitmflow_proto_rawDesc = "" +
 	"\x0fflows_processed\x18\x03 \x01(\x04R\x0eflowsProcessed\"\x14\n" +
 	"\x12StreamFlowsRequest\"<\n" +
 	"\x13StreamFlowsResponse\x12%\n" +
-	"\x04flow\x18\x01 \x01(\v2\x11.mitmflow.v1.FlowR\x04flow\"w\n" +
+	"\x04flow\x18\x01 \x01(\v2\x11.mitmflow.v1.FlowR\x04flow\"\xdd\x01\n" +
 	"\x04Flow\x124\n" +
 	"\thttp_flow\x18\x01 \x01(\v2\x15.mitmflow.v1.HTTPFlowH\x00R\bhttpFlow\x121\n" +
-	"\bdns_flow\x18\x02 \x01(\v2\x14.mitmflow.v1.DNSFlowH\x00R\adnsFlowB\x06\n" +
-	"\x04flow\"K\n" +
+	"\bdns_flow\x18\x02 \x01(\v2\x14.mitmflow.v1.DNSFlowH\x00R\adnsFlow\x121\n" +
+	"\btcp_flow\x18\x03 \x01(\v2\x14.mitmflow.v1.TCPFlowH\x00R\atcpFlow\x121\n" +
+	"\budp_flow\x18\x04 \x01(\v2\x14.mitmflow.v1.UDPFlowH\x00R\audpFlowB\x06\n" +
+	"\x04flow\"\x81\x01\n" +
+	"\n" +
+	"TCPMessage\x12\x18\n" +
+	"\acontent\x18\x01 \x01(\fR\acontent\x128\n" +
+	"\ttimestamp\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\ttimestamp\x12\x1f\n" +
+	"\vfrom_client\x18\x03 \x01(\bR\n" +
+	"fromClient\"\xd8\x02\n" +
+	"\aTCPFlow\x12\x17\n" +
+	"\x02id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x02id\x12/\n" +
+	"\x06client\x18\x02 \x01(\v2\x17.mitmflow.v1.ClientConnR\x06client\x12/\n" +
+	"\x06server\x18\x03 \x01(\v2\x17.mitmflow.v1.ServerConnR\x06server\x123\n" +
+	"\bmessages\x18\x04 \x03(\v2\x17.mitmflow.v1.TCPMessageR\bmessages\x12C\n" +
+	"\x0ftimestamp_start\x18\x05 \x01(\v2\x1a.google.protobuf.TimestampR\x0etimestampStart\x12\x1f\n" +
+	"\vduration_ms\x18\x06 \x01(\x01R\n" +
+	"durationMs\x12\x19\n" +
+	"\x05error\x18\a \x01(\tH\x00R\x05error\x88\x01\x01\x12\x12\n" +
+	"\x04live\x18\b \x01(\bR\x04liveB\b\n" +
+	"\x06_error\"\x81\x01\n" +
+	"\n" +
+	"UDPMessage\x12\x18\n" +
+	"\acontent\x18\x01 \x01(\fR\acontent\x128\n" +
+	"\ttimestamp\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\ttimestamp\x12\x1f\n" +
+	"\vfrom_client\x18\x03 \x01(\bR\n" +
+	"fromClient\"\xd8\x02\n" +
+	"\aUDPFlow\x12\x17\n" +
+	"\x02id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x02id\x12/\n" +
+	"\x06client\x18\x02 \x01(\v2\x17.mitmflow.v1.ClientConnR\x06client\x12/\n" +
+	"\x06server\x18\x03 \x01(\v2\x17.mitmflow.v1.ServerConnR\x06server\x123\n" +
+	"\bmessages\x18\x04 \x03(\v2\x17.mitmflow.v1.UDPMessageR\bmessages\x12C\n" +
+	"\x0ftimestamp_start\x18\x05 \x01(\v2\x1a.google.protobuf.TimestampR\x0etimestampStart\x12\x1f\n" +
+	"\vduration_ms\x18\x06 \x01(\x01R\n" +
+	"durationMs\x12\x19\n" +
+	"\x05error\x18\a \x01(\tH\x00R\x05error\x88\x01\x01\x12\x12\n" +
+	"\x04live\x18\b \x01(\bR\x04liveB\b\n" +
+	"\x06_error\"\x87\x01\n" +
+	"\x10WebSocketMessage\x12\x18\n" +
+	"\acontent\x18\x01 \x01(\fR\acontent\x128\n" +
+	"\ttimestamp\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\ttimestamp\x12\x1f\n" +
+	"\vfrom_client\x18\x03 \x01(\bR\n" +
+	"fromClient\"K\n" +
 	"\vDNSQuestion\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x12\n" +
 	"\x04type\x18\x02 \x01(\tR\x04type\x12\x14\n" +
@@ -2081,7 +2542,7 @@ const file_mitmflow_v1_mitmflow_proto_rawDesc = "" +
 	"\x0fFlowStreamReply\x12\x18\n" +
 	"\amessage\x18\x01 \x01(\tR\amessage\x12\x1a\n" +
 	"\breceived\x18\x02 \x01(\bR\breceived\x12'\n" +
-	"\x0fflows_processed\x18\x03 \x01(\x04R\x0eflowsProcessed\"\x9b\x03\n" +
+	"\x0fflows_processed\x18\x03 \x01(\x04R\x0eflowsProcessed\"\xe9\x03\n" +
 	"\bHTTPFlow\x12\x17\n" +
 	"\x02id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x02id\x12.\n" +
 	"\arequest\x18\x02 \x01(\v2\x14.mitmflow.v1.RequestR\arequest\x121\n" +
@@ -2094,7 +2555,8 @@ const file_mitmflow_v1_mitmflow_proto_rawDesc = "" +
 	"\x05error\x18\b \x01(\tR\x05error\x12!\n" +
 	"\fis_websocket\x18\t \x01(\bR\visWebsocket\x12\x12\n" +
 	"\x04live\x18\n" +
-	" \x01(\bR\x04live\"\xbd\x05\n" +
+	" \x01(\bR\x04live\x12L\n" +
+	"\x12websocket_messages\x18\v \x03(\v2\x1d.mitmflow.v1.WebSocketMessageR\x11websocketMessages\"\xbd\x05\n" +
 	"\aRequest\x12C\n" +
 	"\x06method\x18\x01 \x01(\tB+\xbaH(r&\x92\x02\x03GET\x92\x02\x04POST\x92\x02\x03PUT\x92\x02\x06DELETE\x92\x02\aOPTIONSR\x06method\x12\x1a\n" +
 	"\x03url\x18\x02 \x01(\tB\b\xbaH\x05r\x03\x88\x01\x01R\x03url\x12\xe8\x01\n" +
@@ -2215,7 +2677,7 @@ func file_mitmflow_v1_mitmflow_proto_rawDescGZIP() []byte {
 }
 
 var file_mitmflow_v1_mitmflow_proto_enumTypes = make([]protoimpl.EnumInfo, 5)
-var file_mitmflow_v1_mitmflow_proto_msgTypes = make([]protoimpl.MessageInfo, 21)
+var file_mitmflow_v1_mitmflow_proto_msgTypes = make([]protoimpl.MessageInfo, 26)
 var file_mitmflow_v1_mitmflow_proto_goTypes = []any{
 	(EventType)(0),                // 0: mitmflow.v1.EventType
 	(ConnectionState)(0),          // 1: mitmflow.v1.ConnectionState
@@ -2231,19 +2693,24 @@ var file_mitmflow_v1_mitmflow_proto_goTypes = []any{
 	(*StreamFlowsRequest)(nil),    // 11: mitmflow.v1.StreamFlowsRequest
 	(*StreamFlowsResponse)(nil),   // 12: mitmflow.v1.StreamFlowsResponse
 	(*Flow)(nil),                  // 13: mitmflow.v1.Flow
-	(*DNSQuestion)(nil),           // 14: mitmflow.v1.DNSQuestion
-	(*DNSResourceRecord)(nil),     // 15: mitmflow.v1.DNSResourceRecord
-	(*DNSMessage)(nil),            // 16: mitmflow.v1.DNSMessage
-	(*DNSFlow)(nil),               // 17: mitmflow.v1.DNSFlow
-	(*FlowStreamReply)(nil),       // 18: mitmflow.v1.FlowStreamReply
-	(*HTTPFlow)(nil),              // 19: mitmflow.v1.HTTPFlow
-	(*Request)(nil),               // 20: mitmflow.v1.Request
-	(*Response)(nil),              // 21: mitmflow.v1.Response
-	nil,                           // 22: mitmflow.v1.Request.HeadersEntry
-	nil,                           // 23: mitmflow.v1.Request.TrailersEntry
-	nil,                           // 24: mitmflow.v1.Response.HeadersEntry
-	nil,                           // 25: mitmflow.v1.Response.TrailersEntry
-	(*timestamppb.Timestamp)(nil), // 26: google.protobuf.Timestamp
+	(*TCPMessage)(nil),            // 14: mitmflow.v1.TCPMessage
+	(*TCPFlow)(nil),               // 15: mitmflow.v1.TCPFlow
+	(*UDPMessage)(nil),            // 16: mitmflow.v1.UDPMessage
+	(*UDPFlow)(nil),               // 17: mitmflow.v1.UDPFlow
+	(*WebSocketMessage)(nil),      // 18: mitmflow.v1.WebSocketMessage
+	(*DNSQuestion)(nil),           // 19: mitmflow.v1.DNSQuestion
+	(*DNSResourceRecord)(nil),     // 20: mitmflow.v1.DNSResourceRecord
+	(*DNSMessage)(nil),            // 21: mitmflow.v1.DNSMessage
+	(*DNSFlow)(nil),               // 22: mitmflow.v1.DNSFlow
+	(*FlowStreamReply)(nil),       // 23: mitmflow.v1.FlowStreamReply
+	(*HTTPFlow)(nil),              // 24: mitmflow.v1.HTTPFlow
+	(*Request)(nil),               // 25: mitmflow.v1.Request
+	(*Response)(nil),              // 26: mitmflow.v1.Response
+	nil,                           // 27: mitmflow.v1.Request.HeadersEntry
+	nil,                           // 28: mitmflow.v1.Request.TrailersEntry
+	nil,                           // 29: mitmflow.v1.Response.HeadersEntry
+	nil,                           // 30: mitmflow.v1.Response.TrailersEntry
+	(*timestamppb.Timestamp)(nil), // 31: google.protobuf.Timestamp
 }
 var file_mitmflow_v1_mitmflow_proto_depIdxs = []int32{
 	4,  // 0: mitmflow.v1.Via.protocol:type_name -> mitmflow.v1.ViaProtocol
@@ -2251,51 +2718,65 @@ var file_mitmflow_v1_mitmflow_proto_depIdxs = []int32{
 	2,  // 2: mitmflow.v1.ClientConn.transport_protocol:type_name -> mitmflow.v1.TransportProtocol
 	5,  // 3: mitmflow.v1.ClientConn.certificate_list:type_name -> mitmflow.v1.Cert
 	3,  // 4: mitmflow.v1.ClientConn.tls_version:type_name -> mitmflow.v1.TLSVersion
-	26, // 5: mitmflow.v1.ClientConn.timestamp_start:type_name -> google.protobuf.Timestamp
-	26, // 6: mitmflow.v1.ClientConn.timestamp_end:type_name -> google.protobuf.Timestamp
-	26, // 7: mitmflow.v1.ClientConn.timestamp_tls_setup:type_name -> google.protobuf.Timestamp
+	31, // 5: mitmflow.v1.ClientConn.timestamp_start:type_name -> google.protobuf.Timestamp
+	31, // 6: mitmflow.v1.ClientConn.timestamp_end:type_name -> google.protobuf.Timestamp
+	31, // 7: mitmflow.v1.ClientConn.timestamp_tls_setup:type_name -> google.protobuf.Timestamp
 	5,  // 8: mitmflow.v1.ClientConn.mitmcert:type_name -> mitmflow.v1.Cert
 	1,  // 9: mitmflow.v1.ServerConn.state:type_name -> mitmflow.v1.ConnectionState
 	2,  // 10: mitmflow.v1.ServerConn.transport_protocol:type_name -> mitmflow.v1.TransportProtocol
 	5,  // 11: mitmflow.v1.ServerConn.certificate_list:type_name -> mitmflow.v1.Cert
 	3,  // 12: mitmflow.v1.ServerConn.tls_version:type_name -> mitmflow.v1.TLSVersion
-	26, // 13: mitmflow.v1.ServerConn.timestamp_start:type_name -> google.protobuf.Timestamp
-	26, // 14: mitmflow.v1.ServerConn.timestamp_end:type_name -> google.protobuf.Timestamp
-	26, // 15: mitmflow.v1.ServerConn.timestamp_tls_setup:type_name -> google.protobuf.Timestamp
-	26, // 16: mitmflow.v1.ServerConn.timestamp_tcp_setup:type_name -> google.protobuf.Timestamp
+	31, // 13: mitmflow.v1.ServerConn.timestamp_start:type_name -> google.protobuf.Timestamp
+	31, // 14: mitmflow.v1.ServerConn.timestamp_end:type_name -> google.protobuf.Timestamp
+	31, // 15: mitmflow.v1.ServerConn.timestamp_tls_setup:type_name -> google.protobuf.Timestamp
+	31, // 16: mitmflow.v1.ServerConn.timestamp_tcp_setup:type_name -> google.protobuf.Timestamp
 	6,  // 17: mitmflow.v1.ServerConn.via:type_name -> mitmflow.v1.Via
 	13, // 18: mitmflow.v1.ExportFlowRequest.flow:type_name -> mitmflow.v1.Flow
 	0,  // 19: mitmflow.v1.ExportFlowRequest.event_type:type_name -> mitmflow.v1.EventType
 	13, // 20: mitmflow.v1.StreamFlowsResponse.flow:type_name -> mitmflow.v1.Flow
-	19, // 21: mitmflow.v1.Flow.http_flow:type_name -> mitmflow.v1.HTTPFlow
-	17, // 22: mitmflow.v1.Flow.dns_flow:type_name -> mitmflow.v1.DNSFlow
-	14, // 23: mitmflow.v1.DNSMessage.questions:type_name -> mitmflow.v1.DNSQuestion
-	15, // 24: mitmflow.v1.DNSMessage.answers:type_name -> mitmflow.v1.DNSResourceRecord
-	15, // 25: mitmflow.v1.DNSMessage.authorities:type_name -> mitmflow.v1.DNSResourceRecord
-	15, // 26: mitmflow.v1.DNSMessage.additionals:type_name -> mitmflow.v1.DNSResourceRecord
-	16, // 27: mitmflow.v1.DNSFlow.request:type_name -> mitmflow.v1.DNSMessage
-	16, // 28: mitmflow.v1.DNSFlow.response:type_name -> mitmflow.v1.DNSMessage
-	26, // 29: mitmflow.v1.DNSFlow.timestamp_start:type_name -> google.protobuf.Timestamp
-	7,  // 30: mitmflow.v1.DNSFlow.client:type_name -> mitmflow.v1.ClientConn
-	8,  // 31: mitmflow.v1.DNSFlow.server:type_name -> mitmflow.v1.ServerConn
-	20, // 32: mitmflow.v1.HTTPFlow.request:type_name -> mitmflow.v1.Request
-	21, // 33: mitmflow.v1.HTTPFlow.response:type_name -> mitmflow.v1.Response
-	26, // 34: mitmflow.v1.HTTPFlow.timestamp_start:type_name -> google.protobuf.Timestamp
-	7,  // 35: mitmflow.v1.HTTPFlow.client:type_name -> mitmflow.v1.ClientConn
-	8,  // 36: mitmflow.v1.HTTPFlow.server:type_name -> mitmflow.v1.ServerConn
-	22, // 37: mitmflow.v1.Request.headers:type_name -> mitmflow.v1.Request.HeadersEntry
-	23, // 38: mitmflow.v1.Request.trailers:type_name -> mitmflow.v1.Request.TrailersEntry
-	24, // 39: mitmflow.v1.Response.headers:type_name -> mitmflow.v1.Response.HeadersEntry
-	25, // 40: mitmflow.v1.Response.trailers:type_name -> mitmflow.v1.Response.TrailersEntry
-	9,  // 41: mitmflow.v1.Service.ExportFlow:input_type -> mitmflow.v1.ExportFlowRequest
-	11, // 42: mitmflow.v1.Service.StreamFlows:input_type -> mitmflow.v1.StreamFlowsRequest
-	10, // 43: mitmflow.v1.Service.ExportFlow:output_type -> mitmflow.v1.ExportFlowResponse
-	12, // 44: mitmflow.v1.Service.StreamFlows:output_type -> mitmflow.v1.StreamFlowsResponse
-	43, // [43:45] is the sub-list for method output_type
-	41, // [41:43] is the sub-list for method input_type
-	41, // [41:41] is the sub-list for extension type_name
-	41, // [41:41] is the sub-list for extension extendee
-	0,  // [0:41] is the sub-list for field type_name
+	24, // 21: mitmflow.v1.Flow.http_flow:type_name -> mitmflow.v1.HTTPFlow
+	22, // 22: mitmflow.v1.Flow.dns_flow:type_name -> mitmflow.v1.DNSFlow
+	15, // 23: mitmflow.v1.Flow.tcp_flow:type_name -> mitmflow.v1.TCPFlow
+	17, // 24: mitmflow.v1.Flow.udp_flow:type_name -> mitmflow.v1.UDPFlow
+	31, // 25: mitmflow.v1.TCPMessage.timestamp:type_name -> google.protobuf.Timestamp
+	7,  // 26: mitmflow.v1.TCPFlow.client:type_name -> mitmflow.v1.ClientConn
+	8,  // 27: mitmflow.v1.TCPFlow.server:type_name -> mitmflow.v1.ServerConn
+	14, // 28: mitmflow.v1.TCPFlow.messages:type_name -> mitmflow.v1.TCPMessage
+	31, // 29: mitmflow.v1.TCPFlow.timestamp_start:type_name -> google.protobuf.Timestamp
+	31, // 30: mitmflow.v1.UDPMessage.timestamp:type_name -> google.protobuf.Timestamp
+	7,  // 31: mitmflow.v1.UDPFlow.client:type_name -> mitmflow.v1.ClientConn
+	8,  // 32: mitmflow.v1.UDPFlow.server:type_name -> mitmflow.v1.ServerConn
+	16, // 33: mitmflow.v1.UDPFlow.messages:type_name -> mitmflow.v1.UDPMessage
+	31, // 34: mitmflow.v1.UDPFlow.timestamp_start:type_name -> google.protobuf.Timestamp
+	31, // 35: mitmflow.v1.WebSocketMessage.timestamp:type_name -> google.protobuf.Timestamp
+	19, // 36: mitmflow.v1.DNSMessage.questions:type_name -> mitmflow.v1.DNSQuestion
+	20, // 37: mitmflow.v1.DNSMessage.answers:type_name -> mitmflow.v1.DNSResourceRecord
+	20, // 38: mitmflow.v1.DNSMessage.authorities:type_name -> mitmflow.v1.DNSResourceRecord
+	20, // 39: mitmflow.v1.DNSMessage.additionals:type_name -> mitmflow.v1.DNSResourceRecord
+	21, // 40: mitmflow.v1.DNSFlow.request:type_name -> mitmflow.v1.DNSMessage
+	21, // 41: mitmflow.v1.DNSFlow.response:type_name -> mitmflow.v1.DNSMessage
+	31, // 42: mitmflow.v1.DNSFlow.timestamp_start:type_name -> google.protobuf.Timestamp
+	7,  // 43: mitmflow.v1.DNSFlow.client:type_name -> mitmflow.v1.ClientConn
+	8,  // 44: mitmflow.v1.DNSFlow.server:type_name -> mitmflow.v1.ServerConn
+	25, // 45: mitmflow.v1.HTTPFlow.request:type_name -> mitmflow.v1.Request
+	26, // 46: mitmflow.v1.HTTPFlow.response:type_name -> mitmflow.v1.Response
+	31, // 47: mitmflow.v1.HTTPFlow.timestamp_start:type_name -> google.protobuf.Timestamp
+	7,  // 48: mitmflow.v1.HTTPFlow.client:type_name -> mitmflow.v1.ClientConn
+	8,  // 49: mitmflow.v1.HTTPFlow.server:type_name -> mitmflow.v1.ServerConn
+	18, // 50: mitmflow.v1.HTTPFlow.websocket_messages:type_name -> mitmflow.v1.WebSocketMessage
+	27, // 51: mitmflow.v1.Request.headers:type_name -> mitmflow.v1.Request.HeadersEntry
+	28, // 52: mitmflow.v1.Request.trailers:type_name -> mitmflow.v1.Request.TrailersEntry
+	29, // 53: mitmflow.v1.Response.headers:type_name -> mitmflow.v1.Response.HeadersEntry
+	30, // 54: mitmflow.v1.Response.trailers:type_name -> mitmflow.v1.Response.TrailersEntry
+	9,  // 55: mitmflow.v1.Service.ExportFlow:input_type -> mitmflow.v1.ExportFlowRequest
+	11, // 56: mitmflow.v1.Service.StreamFlows:input_type -> mitmflow.v1.StreamFlowsRequest
+	10, // 57: mitmflow.v1.Service.ExportFlow:output_type -> mitmflow.v1.ExportFlowResponse
+	12, // 58: mitmflow.v1.Service.StreamFlows:output_type -> mitmflow.v1.StreamFlowsResponse
+	57, // [57:59] is the sub-list for method output_type
+	55, // [55:57] is the sub-list for method input_type
+	55, // [55:55] is the sub-list for extension type_name
+	55, // [55:55] is the sub-list for extension extendee
+	0,  // [0:55] is the sub-list for field type_name
 }
 
 func init() { file_mitmflow_v1_mitmflow_proto_init() }
@@ -2308,15 +2789,19 @@ func file_mitmflow_v1_mitmflow_proto_init() {
 	file_mitmflow_v1_mitmflow_proto_msgTypes[8].OneofWrappers = []any{
 		(*Flow_HttpFlow)(nil),
 		(*Flow_DnsFlow)(nil),
+		(*Flow_TcpFlow)(nil),
+		(*Flow_UdpFlow)(nil),
 	}
+	file_mitmflow_v1_mitmflow_proto_msgTypes[10].OneofWrappers = []any{}
 	file_mitmflow_v1_mitmflow_proto_msgTypes[12].OneofWrappers = []any{}
+	file_mitmflow_v1_mitmflow_proto_msgTypes[17].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_mitmflow_v1_mitmflow_proto_rawDesc), len(file_mitmflow_v1_mitmflow_proto_rawDesc)),
 			NumEnums:      5,
-			NumMessages:   21,
+			NumMessages:   26,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

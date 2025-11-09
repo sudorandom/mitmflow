@@ -1,176 +1,19 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
-import { Search, Pause, Play, X, Download, FileText, Braces, HardDriveDownload, Info, Menu } from 'lucide-react';
+import { Search, Pause, Play, Download, Braces, HardDriveDownload, Menu } from 'lucide-react';
 import { createConnectTransport } from "@connectrpc/connect-web";
 import { createClient } from "@connectrpc/connect";
-import { Service, Flow, FlowSchema, Request, Response, ConnectionState, TransportProtocol } from "./gen/mitmflow/v1/mitmflow_pb";
-import { Light as SyntaxHighlighter } from 'react-syntax-highlighter';
-import { atomOneDark } from 'react-syntax-highlighter/dist/esm/styles/hljs'; // A simple, light theme
-import HexViewer from './HexViewer';
+import { Service, Flow, FlowSchema } from "./gen/mitmflow/v1/mitmflow_pb";
 import { toJson } from "@bufbuild/protobuf";
-
-type ContentFormat = 'auto' | 'text' | 'json' | 'protobuf' | 'grpc' | 'grpc-web' | 'xml' | 'binary' | 'image' | 'dns' | 'javascript' | 'html';
-
-const formatTimestamp = (ts: number): string => {
-  const date = new Date(ts);
-  return date.toLocaleTimeString('en-US', {
-    hour12: false,
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit'
-  }) + '.' + date.getMilliseconds().toString().padStart(3, '0');
-};
-
-const getHeader = (headers: { [key:string]: string } | undefined, name: string): string | undefined => {
-    if (!headers) {
-        return undefined;
-    }
-    const lowerCaseName = name.toLowerCase();
-    for (const key in headers) {
-        if (key.toLowerCase() === lowerCaseName) {
-            return headers[key];
-        }
-    }
-    return undefined;
-}
-
-const getContentType = (headers: { [key: string]: string } | undefined): string | undefined => {
-    return getHeader(headers, 'content-type');
-};
-
-type FormattedContent = {
-  data: string | Uint8Array;
-  encoding: 'text' | 'base64' | 'binary'; // 'binary' for Uint8Array that HexViewer expects
-  effectiveFormat: ContentFormat;
-};
-
-const formatContent = (content: Uint8Array | string | undefined, format: ContentFormat, contentType: string | undefined): FormattedContent => {
-  let effectiveFormat = format;
-
-  // Prioritize explicit format selection
-  if (format !== 'auto') {
-    effectiveFormat = format;
-  } else if (contentType) {
-    // Auto-detect based on content type header
-    if (contentType.startsWith('application/json') || contentType.startsWith('application/manifest+json')) {
-      effectiveFormat = 'json';
-    } else if (contentType.includes('application/grpc-web')) {
-      effectiveFormat = 'grpc-web';
-    } else if (contentType.includes('application/grpc')) {
-      effectiveFormat = 'grpc';
-    } else if (contentType.includes('application/proto') || contentType.includes('application/x-protobuf')) {
-      effectiveFormat = 'protobuf';
-    } else if (contentType.includes('text/html')) {
-      effectiveFormat = 'html';
-    } else if (contentType.includes('image')) {
-      effectiveFormat = 'image';
-    } else if (contentType.includes('xml')) {
-      effectiveFormat = 'xml';
-    } else if (contentType.includes('text')) {
-      effectiveFormat = 'text';
-    } else if (contentType.includes('javascript')) {
-      effectiveFormat = 'javascript';
-    } else if (contentType.includes('application/octet')) {
-      effectiveFormat = 'binary';
-    } else if (contentType.includes('dns')) {
-      effectiveFormat = 'dns';
-    } else if (contentType.includes('text')) {
-      effectiveFormat = 'text';
-    } else {
-      // Default to binary if auto-detection doesn't match known types
-      effectiveFormat = 'binary';
-    }
-  } else {
-    // Default to text if no content type header
-    effectiveFormat = 'text';
-  }
-
-  console.log('formatContent - Determined effectiveFormat:', effectiveFormat);
-
-  if (!content) {
-    // If content is empty, but effectiveFormat is json, return empty string as json
-    if (effectiveFormat === 'json') {
-      return { data: '', encoding: 'text', effectiveFormat: 'json' };
-    }
-    switch (effectiveFormat) {
-      case 'binary':
-      case 'protobuf':
-      case 'grpc':
-      case 'grpc-web':
-        return { data: new Uint8Array(), encoding: 'binary', effectiveFormat: effectiveFormat };
-      default:
-        return { data: '', encoding: 'text', effectiveFormat: 'text' };
-    }
-  }
-
-  const contentAsUint8Array = typeof content === 'string' ? new TextEncoder().encode(content) : content;
-  const contentAsString = typeof content === 'string' ? content : new TextDecoder().decode(contentAsUint8Array);
-
-  switch (effectiveFormat) {
-    case 'json':
-      try {
-        const parsedJson = JSON.parse(contentAsString);
-        return { data: JSON.stringify(parsedJson, null, 2), encoding: 'text', effectiveFormat: effectiveFormat };
-      } catch {
-        // If JSON parsing fails, return the raw string content as text, but keep effectiveFormat as 'json'
-        // so SyntaxHighlighter still tries to highlight it as JSON.
-        return { data: contentAsString, encoding: 'text', effectiveFormat: 'json' };
-      }
-    case 'html':
-      return { data: contentAsString, encoding: 'text', effectiveFormat: effectiveFormat };
-    case 'xml':
-    case 'javascript':
-    case 'dns':
-    case 'text':
-      return { data: contentAsString, encoding: 'text', effectiveFormat: effectiveFormat };
-    case 'image':
-      return { data: btoa(String.fromCharCode(...contentAsUint8Array)), encoding: 'base64', effectiveFormat: effectiveFormat };
-    case 'binary':
-    case 'protobuf':
-    case 'grpc':
-    case 'grpc-web':
-      return { data: contentAsUint8Array, encoding: 'binary', effectiveFormat: effectiveFormat };
-    default:
-      // This default should ideally not be reached if effectiveFormat is always set.
-      // Fallback to binary for safety if an unknown effectiveFormat somehow occurs.
-      return { data: contentAsUint8Array, encoding: 'binary', effectiveFormat: effectiveFormat };
-  }
-};
-
-const connectionStateToString = (state: ConnectionState): string => {
-    return ConnectionState[state];
-}
-
-const transportProtocolToString = (protocol: TransportProtocol): string => {
-    return TransportProtocol[protocol];
-}
-
-const formatUrlWithHostname = (originalUrl: string, sniHostname?: string, hostHeader?: string): string => {
-  try {
-    const url = new URL(originalUrl);
-    
-    // Prioritize SNI, then Host header, then original hostname
-    if (sniHostname && sniHostname !== "") {
-      url.hostname = sniHostname;
-    } else if (hostHeader && hostHeader !== "") {
-      // Host header can contain a port, so we need to handle that
-      const hostHeaderParts = hostHeader.split(':');
-      url.hostname = hostHeaderParts[0];
-      if (hostHeaderParts.length > 1) {
-        url.port = hostHeaderParts[1];
-      }
-    }
-
-    // If the port is default for the protocol, remove it for cleaner display
-    if ((url.protocol === 'http:' && url.port === '80') || (url.protocol === 'https:' && url.port === '443')) {
-      url.port = '';
-    }
-    
-    return url.toString();
-  } catch {
-    // If originalUrl is not a valid URL, just return it as is.
-    return originalUrl;
-  }
-};
+import { DnsFlowDetails } from './components/DnsFlowDetails';
+import { DnsFlowRow } from './components/DnsFlowRow';
+import { HttpFlowDetails } from './components/HttpFlowDetails';
+import { HttpFlowRow } from './components/HttpFlowRow';
+import { TcpFlowDetails } from './components/TcpFlowDetails';
+import { TcpFlowRow } from './components/TcpFlowRow';
+import { UdpFlowDetails } from './components/UdpFlowDetails';
+import { UdpFlowRow } from './components/UdpFlowRow';
+import { ContentFormat, getFlowId, getTimestamp } from './utils';
+import { DetailsPanel } from './components/DetailsPanel';
 
 const getHarContent = (content: Uint8Array | undefined, contentType: string | undefined) => {
   if (!content || content.length === 0) {
@@ -194,186 +37,29 @@ const generateHarBlob = (flowsToExport: Flow[]): Blob => {
     log: {
       version: "1.2",
       creator: { name: "mitm-flows", version: "1.0" },
-      entries: flowsToExport.map(flow => {
-        const httpFlow = flow?.flow?.case === 'httpFlow' ? flow.flow?.value : null;
-
-        if (!flow || !httpFlow) {
-          return {}; // Skip this entry if httpFlow is not available
+      entries: flowsToExport.flatMap(flow => {
+        if (flow?.flow?.case === 'httpFlow') {
+          const httpFlow = flow.flow.value;
+          return [{
+            startedDateTime: new Date(getTimestamp(httpFlow.timestampStart)).toISOString(),
+            time: httpFlow.durationMs,
+            request: {
+              method: httpFlow.request?.method || '',
+              url: httpFlow.request?.url || '',
+              httpVersion: "HTTP/1.1", headers: [], queryString: [], cookies: [],
+              postData: getHarContent(httpFlow.request?.content, httpFlow.request?.effectiveContentType)
+            },
+            response: {
+              status: httpFlow.response?.statusCode || 0, statusText: "OK", httpVersion: "HTTP/1.1", headers: [], cookies: [],
+              content: getHarContent(httpFlow.response?.content, httpFlow.response?.effectiveContentType)
+            }
+          }];
         }
-
-        return {
-          startedDateTime: new Date(getTimestamp(httpFlow.timestampStart)).toISOString(),
-          time: httpFlow.durationMs,
-          request: {
-            method: httpFlow.request?.method || '',
-            url: httpFlow.request?.url || '',
-            httpVersion: "HTTP/1.1", headers: [], queryString: [], cookies: [],
-            postData: getHarContent(httpFlow.request?.content, httpFlow.request?.effectiveContentType)
-          },
-          response: {
-            status: httpFlow.response?.statusCode || 0, statusText: "OK", httpVersion: "HTTP/1.1", headers: [], cookies: [],
-            content: getHarContent(httpFlow.response?.content, httpFlow.response?.effectiveContentType)
-          }
-        };
+        return [];
       })
     }
   };
   return new Blob([JSON.stringify(har, null, 2)], { type: 'application/json;charset=utf-8' });
-};
-
-// --- HELPER COMPONENTS ---
-
-const formatHeaders = (headers: { [key: string]: string }): string => {
-  return Object.entries(headers)
-    .map(([key, value]) => `${key}: ${value}`)
-    .join('\n');
-};
-
-type RequestResponseViewProps = {
-  title: string;
-  fullContent?: string;
-  bodyContent?: FormattedContent; // Allow Uint8Array for binary
-  format: ContentFormat;
-  setFormat: (format: ContentFormat) => void;
-  headers?: { [key: string]: string }; // To help with auto-selection
-  flowPart?: Request | Response;
-};
-
-const RequestResponseView: React.FC<RequestResponseViewProps> = ({ fullContent, bodyContent, format, setFormat, headers, flowPart }) => {
-  const [isBodyExpanded, setIsBodyExpanded] = useState(false);
-  const headerText = useMemo(() => {
-    if (!fullContent) return 'No content captured.';
-    const parts = fullContent.split('\n\n');
-    return parts[0];
-  }, [fullContent]);
-
-  const bodySize = bodyContent?.data ? (typeof bodyContent.data === 'string' ? bodyContent.data.length : bodyContent.data.byteLength) : 0;
-  const showBodyByDefault = (bodySize > 0 && bodySize < 1024) || bodyContent?.effectiveFormat === 'image';
-
-  const effectiveFormat = bodyContent?.effectiveFormat || format;
-
-  return (
-    <div>
-      <div className="flex items-center justify-end mb-2">
-        <select
-          className="bg-zinc-800 border border-zinc-700 rounded px-2 py-1 text-xs"
-          value={format}
-          onChange={(e) => setFormat(e.target.value as ContentFormat)}
-        >
-          <option value="auto">Auto</option>
-          <option value="text">Text</option>
-          <option value="json">JSON</option>
-          <option value="protobuf">Protobuf</option>
-          <option value="grpc">gRPC</option>
-          <option value="grpc-web">gRPC-Web</option>
-          <option value="xml">XML</option>
-          <option value="binary">Binary</option>
-          <option value="image">Image</option>
-          <option value="dns">DNS</option>
-          <option value="javascript">JavaScript</option>
-        </select>
-      </div>
-      <pre className="bg-zinc-800 p-3 rounded text-xs font-mono whitespace-pre-wrap break-all">
-        {headerText}
-      </pre>
-      {flowPart?.trailers && Object.keys(flowPart.trailers).length > 0 && (
-        <>
-            <h4 className="text-md font-semibold mt-4 mb-2 pb-2 border-b border-zinc-700">Trailers</h4>
-            <pre className="bg-zinc-800 p-3 rounded text-xs font-mono whitespace-pre-wrap break-all">
-                {Object.entries(flowPart.trailers).map(([k, v]) => `${k}: ${v}`).join('\n')}
-            </pre>
-        </>
-      )}
-      {flowPart?.contentProtoscopeFrames && flowPart.contentProtoscopeFrames.length > 0 ? (
-        // Render protoscope frames if they exist
-        <div>
-          {flowPart.contentProtoscopeFrames.map((frame, index) => (
-            <div key={index} className="border-b border-zinc-700 py-2">
-              {flowPart.contentProtoscopeFrames.length > 1 && (
-                <h4 className="text-sm font-semibold mb-1">Frame {index + 1}</h4>
-              )}
-              <SyntaxHighlighter
-                language={'protobuf'}
-                style={atomOneDark}
-                customStyle={{
-                  backgroundColor: '#27272a',
-                  padding: '1rem',
-                  borderRadius: '0.25rem',
-                  fontSize: '0.75rem',
-                  fontFamily: 'monospace',
-                  whiteSpace: 'pre-wrap',
-                  wordBreak: 'break-all',
-                  marginTop: '0.5rem',
-                }}
-                showLineNumbers={false}
-              >
-                {frame}
-              </SyntaxHighlighter>
-            </div>
-          ))}
-        </div>
-      ) : (
-        // Otherwise, render the regular body content (expandable)
-        <>
-          {bodySize > 0 && !showBodyByDefault && (
-            <div className="mt-2 text-sm">
-              <a href="#" onClick={(e) => { e.preventDefault(); setIsBodyExpanded(!isBodyExpanded); }} className="text-orange-400 hover:underline">
-                {isBodyExpanded ? 'Collapse' : 'Expand'} body ({bodySize} bytes)
-              </a>
-            </div>
-          )}
-          {(showBodyByDefault || isBodyExpanded) && bodyContent && (
-            bodyContent.encoding === 'base64' ? (
-              <img src={`data:${(getContentType(headers) || 'application/octet-stream').split(';')[0]};base64,${bodyContent.data}`} alt="Image content" className="max-w-full h-auto" />
-            ) : bodyContent.encoding === 'binary' ? (
-              <HexViewer data={bodyContent.data instanceof Uint8Array ? bodyContent.data : new Uint8Array()} />
-            ) : (
-              <SyntaxHighlighter
-                language={effectiveFormat === 'json' ? 'json' : (effectiveFormat === 'xml' ? 'xml' : (effectiveFormat === 'javascript' ? 'javascript' : (effectiveFormat === 'html' ? 'html' : 'text')))}
-                style={atomOneDark}
-                customStyle={{
-                  backgroundColor: '#27272a',
-                  padding: '1rem',
-                  borderRadius: '0.25rem',
-                  fontSize: '0.75rem',
-                  fontFamily: 'monospace',
-                  whiteSpace: 'pre-wrap',
-                  wordBreak: 'break-all',
-                  marginTop: '0.5rem',
-                }}
-                showLineNumbers={false}
-              >
-                {bodyContent.data as string}
-              </SyntaxHighlighter>
-            )
-          )}
-        </>
-      )}
-    </div>
-  );
-};
-
-
-
-interface TimestampWithSecondsNanos {
-  seconds: bigint;
-  nanos: number;
-}
-
-type TimestampInput = TimestampWithSecondsNanos | undefined;
-
-const getTimestamp = (ts: TimestampInput): number => {
-  if (!ts) {
-    return 0;
-  }
-  return Number(ts.seconds) * 1000 + ts.nanos / 1000000;
-}
-
-const getFlowId = (flow: Flow | undefined | null): string | undefined => {
-  if (flow?.flow?.case === 'httpFlow' && flow.flow.value) {
-    return flow.flow.value.id;
-  }
-  return undefined;
 };
 
 /**
@@ -384,363 +70,25 @@ const FlowRow: React.FC<{
     isSelected: boolean;
     onMouseDown: (flow: Flow, event: React.MouseEvent) => void;
     onMouseEnter: (flow: Flow) => void;
-}> = ({ flow: flow, isSelected, onMouseDown, onMouseEnter }) => {
-  if (!flow || !flow.flow || flow.flow.case !== 'httpFlow') {
-    // For now, we only render HTTP flows.
-    return null;
-  }
-  const httpFlow = flow.flow.value;
-
-  const statusClass = useMemo(() => {
-    if (!httpFlow.response) return 'text-zinc-500';
-    if (httpFlow.response.statusCode >= 500) return 'text-red-500 font-bold';
-    if (httpFlow.response.statusCode >= 400) return 'text-red-400';
-    if (httpFlow.response.statusCode >= 300) return 'text-yellow-400';
-    return 'text-green-400';
-  }, [httpFlow.response]);
-
-  return (
-    <tr
-      className={`border-b border-zinc-800 cursor-pointer select-none ${isSelected ? 'bg-orange-900/30 hover:bg-orange-900/40' : 'hover:bg-zinc-800/50'}`}
-      onMouseDown={(event) => onMouseDown(flow, event)}
-      onMouseEnter={() => onMouseEnter(flow)}
-      data-flow-id={httpFlow.id} // Add data-attribute for scrolling
-    >
-      <td className={`p-3 font-mono max-w-xs overflow-hidden text-ellipsis whitespace-nowrap ${statusClass}`}>{httpFlow.response?.statusCode ?? '...'}</td>
-      <td className="p-3 font-mono max-w-xs overflow-hidden text-ellipsis whitespace-nowrap">{httpFlow.request?.method} {formatUrlWithHostname(httpFlow.request?.url || '', httpFlow.client?.sni, getHeader(httpFlow.request?.headers, 'Host'))}</td>
-      <td className="hidden md:table-cell p-3 font-mono max-w-xs overflow-hidden text-ellipsis whitespace-nowrap">{httpFlow.response ? `${httpFlow.response.content.length} B` : '...'}</td>
-      <td className="hidden md:table-cell p-3 font-mono max-w-xs overflow-hidden text-ellipsis whitespace-nowrap">{httpFlow.durationMs ? `${httpFlow.durationMs.toFixed(0)} ms` : '...'}</td>
-    </tr>
-  );
-};
-
-/**
- * Renders the slide-up details panel
- */
-const DetailsPanel: React.FC <{
-  flow: Flow | null;
-  isMinimized: boolean;
-  onClose: () => void;
-  panelHeight: number | null;
-  setPanelHeight: (height: number) => void;
-  requestFormat: ContentFormat;
-  setRequestFormat: (format: ContentFormat) => void;
-  responseFormat: ContentFormat;
-  setResponseFormat: (format: ContentFormat) => void;
-  downloadFlowContent: (flow: Flow, type: 'har' | 'flow-json' | 'request' | 'response') => void;
-  isDownloadOpen: boolean;
-  setDownloadOpen: React.Dispatch<React.SetStateAction<boolean>>;
-  isInfoTooltipOpen: boolean;
-  setIsInfoTooltipOpen: React.Dispatch<React.SetStateAction<boolean>>;
-  contentRef: React.RefObject<HTMLDivElement>;
-}> = ({ flow, isMinimized, onClose, panelHeight, setPanelHeight, requestFormat, setRequestFormat, responseFormat, setResponseFormat, downloadFlowContent, isDownloadOpen, setDownloadOpen, isInfoTooltipOpen, setIsInfoTooltipOpen, contentRef }) => {
-  const httpFlow = flow?.flow.case === 'httpFlow' ? flow.flow.value : null;
-
-  if (!flow || !httpFlow) {
-    return null;
-  }
-
-  const requestAsText = useMemo(() => {
-    if (!httpFlow.request) return '';
-    const requestLine = `${httpFlow.request.method} ${httpFlow.request.url} ${httpFlow.request.httpVersion}`;
-    const headers = formatHeaders(httpFlow.request.headers);
-    return `${requestLine}\n${headers}`;
-  }, [httpFlow.request]);
-
-  const responseAsText = useMemo(() => {
-    if (!httpFlow.response) return '';
-    const statusLine = `${httpFlow.response.httpVersion} ${httpFlow.response.statusCode}`;
-    const headers = formatHeaders(httpFlow.response.headers);
-    return `${statusLine}\n${headers}`;
-  }, [httpFlow.response]);
-
-  const [isResizing, setIsResizing] = useState(false);
-  const [selectedTab, setSelectedTab] = useState<'summary' | 'request' | 'response' | 'connection'>('summary');
-
-  const statusClass = useMemo(() => {
-    if (!httpFlow?.response) return 'text-zinc-500';
-    if (httpFlow.response.statusCode >= 500) return 'text-red-500 font-bold';
-    if (httpFlow.response.statusCode >= 400) return 'text-red-400';
-    if (httpFlow.response.statusCode >= 300) return 'text-yellow-400';
-    return 'text-green-400';
-  }, [httpFlow?.response]);
-
-  const handleMouseDown = useCallback(() => {
-    setIsResizing(true);
-  }, []);
-
-  const handleMouseMove = useCallback((e: MouseEvent) => {
-    if (!isResizing) return;
-    const newHeight = window.innerHeight - e.clientY;
-    setPanelHeight(Math.max(50, newHeight)); // Minimum height of 50px
-  }, [isResizing, setPanelHeight]);
-
-  const handleMouseUp = useCallback(() => {
-    setIsResizing(false);
-  }, []);
-
-  useEffect(() => {
-    if (isResizing) {
-      window.addEventListener('mousemove', handleMouseMove);
-      window.addEventListener('mouseup', handleMouseUp);
-    } else {
-      window.removeEventListener('mousemove', handleMouseMove);
-      window.removeEventListener('mouseup', handleMouseUp);
+}> = ({ flow, isSelected, onMouseDown, onMouseEnter }) => {
+    if (!flow.flow) {
+        return null;
     }
-    return () => {
-      window.removeEventListener('mousemove', handleMouseMove);
-      window.removeEventListener('mouseup', handleMouseUp);
-    };
-  }, [isResizing, handleMouseMove, handleMouseUp]);
 
-  return (
-    <div
-      className={`relative bg-zinc-900 border-t border-zinc-700 flex flex-col flex-shrink-0 transition-all duration-200 ease-out ${isMinimized ? 'h-0' : ''}`}
-      style={{ height: isMinimized ? '0px' : `${panelHeight}px` }}
-    >
-      <div
-        className="absolute top-0 left-0 right-0 h-2 -mt-1 cursor-ns-resize z-50"
-        onMouseDown={handleMouseDown}
-      />
-      <div
-        className="flex items-center p-2.5 px-4 bg-zinc-800 border-b border-zinc-700 flex-shrink-0"
-      >
-        <h4 className="font-semibold font-mono text-sm text-ellipsis overflow-hidden whitespace-nowrap">
-          {httpFlow && <span className={`mr-2 ${statusClass}`}>{httpFlow.response?.statusCode ?? '...'}</span>}
-          {httpFlow ? formatUrlWithHostname(httpFlow.request?.url || '', httpFlow.client?.sni, getHeader(httpFlow.request?.headers, 'Host')) : ''}
-        </h4>
-        <div className="ml-auto flex items-center gap-4">
-          {httpFlow && (
-            <>
-              <div className="hidden md:flex items-center gap-4 text-sm font-mono text-zinc-400">
-                <div><strong className="text-zinc-500">Time:</strong> {formatTimestamp(getTimestamp(httpFlow.timestampStart))}</div>
-                {httpFlow.error && <div><strong className="text-red-500">Error</strong></div>}
-              </div>
-              <div className="relative inline-block">
-                <button
-                  onClick={(e) => { e.stopPropagation(); setDownloadOpen(o => !o); }}
-                  className="p-1.5 bg-zinc-700 rounded text-sm font-medium hover:bg-zinc-600"
-                  title="Download"
-                >
-                  <Download size={14} />
-                </button>
-                {isDownloadOpen && (
-                  <div className={`absolute right-0 bg-zinc-800 border border-zinc-700 rounded shadow-lg z-10 min-w-[180px] ${isMinimized ? 'bottom-full mb-2' : 'top-full mt-2'}`}>
-                    <a
-                      href="#"
-                      onClick={(e) => { e.preventDefault(); downloadFlowContent(flow, 'har'); }}
-                      className="flex items-center gap-3 px-4 py-2.5 text-sm text-zinc-400 hover:bg-zinc-700 hover:text-zinc-200"
-                    >
-                      <HardDriveDownload size={16} /> Download HAR
-                    </a>
-                    <a
-                      href="#"
-                      onClick={(e) => { e.preventDefault(); downloadFlowContent(flow, 'flow-json'); }}
-                      className="flex items-center gap-3 px-4 py-2.5 text-sm text-zinc-400 hover:bg-zinc-700 hover:text-zinc-200"
-                    >
-                      <Braces size={16} /> Download Flow (JSON)
-                    </a>
-                    <a
-                      href="#"
-                      onClick={(e) => { e.preventDefault(); downloadFlowContent(flow, 'request'); }}
-                      className="flex items-center gap-3 px-4 py-2.5 text-sm text-zinc-400 hover:bg-zinc-700 hover:text-zinc-200"
-                    >
-                      <FileText size={16} /> Download Request
-                    </a>
-                    <a
-                      href="#"
-                      onClick={(e) => { e.preventDefault(); downloadFlowContent(flow, 'response'); }}
-                      className="flex items-center gap-3 px-4 py-2.5 text-sm text-zinc-400 hover:bg-zinc-700 hover:text-zinc-200"
-                    >
-                      <Braces size={16} /> Download Response
-                    </a>
-                  </div>
-                )}
-              </div>
-              <div className="relative md:hidden">
-                <button
-                  onMouseEnter={() => setIsInfoTooltipOpen(true)}
-                  onMouseLeave={() => setIsInfoTooltipOpen(false)}
-                  className="p-1.5 bg-zinc-700 rounded text-sm font-medium hover:bg-zinc-600"
-                >
-                  <Info size={14} />
-                </button>
-                {isInfoTooltipOpen && (
-                  <div className="absolute right-0 bottom-full mb-2 bg-zinc-800 border border-zinc-700 rounded shadow-lg z-10 p-4 min-w-[250px]">
-                    <div className="flex flex-col gap-2 text-sm font-mono text-zinc-400">
-                      <div><strong className="text-zinc-500">Time:</strong> {formatTimestamp(getTimestamp(httpFlow.timestampStart))}</div>
-                      {httpFlow.isWebsocket && <div><strong className="text-zinc-500">WebSocket</strong></div>}
-                      {httpFlow.server?.addressHost && <div><strong className="text-zinc-500">Server:</strong> {httpFlow.server.addressHost}</div>}
-                      {httpFlow.error && <div><strong className="text-red-500">Error:</strong> {httpFlow.error}</div>}
-                    </div>
-                  </div>
-                )}
-              </div>
-            </>
-          )}
-          <button
-            onClick={(e) => { e.stopPropagation(); onClose(); }}
-            className="p-1 text-zinc-500 hover:text-zinc-200"
-            title="Close"
-          >
-            <X size={20} />
-          </button>
-        </div>
-      </div>
-
-      {/* Panel Content */}
-      <div className="flex-shrink-0 border-b border-zinc-700">
-        <div className="flex items-center px-4">
-          <button
-            className={`px-3 py-2 text-sm font-medium border-b-2 ${selectedTab === 'summary' ? 'border-orange-500 text-orange-500' : 'border-transparent text-zinc-400 hover:text-white'}`}
-            onClick={() => setSelectedTab('summary')}
-          >
-            Summary
-          </button>
-          <button
-            className={`px-3 py-2 text-sm font-medium border-b-2 ${selectedTab === 'request' ? 'border-orange-500 text-orange-500' : 'border-transparent text-zinc-400 hover:text-white'}`}
-            onClick={() => setSelectedTab('request')}
-          >
-            Request
-          </button>
-          <button
-            className={`px-3 py-2 text-sm font-medium border-b-2 ${selectedTab === 'response' ? 'border-orange-500 text-orange-500' : 'border-transparent text-zinc-400 hover:text-white'}`}
-            onClick={() => setSelectedTab('response')}
-          >
-            Response
-          </button>
-          <button
-            className={`px-3 py-2 text-sm font-medium border-b-2 ${selectedTab === 'connection' ? 'border-orange-500 text-orange-500' : 'border-transparent text-zinc-400 hover:text-white'}`}
-            onClick={() => setSelectedTab('connection')}
-          >
-            Connection
-          </button>
-        </div>
-      </div>
-      <div className={`p-5 overflow-y-auto flex-grow ${isMinimized ? 'hidden' : ''}`} ref={contentRef}>
-        {flow && (
-          <>
-            {selectedTab === 'summary' && (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm font-mono">
-                <div className="bg-zinc-800 p-4 rounded">
-                  <h5 className="font-semibold text-zinc-400 mb-3 border-b border-zinc-700 pb-2">Flow Details</h5>
-                  <div className="grid grid-cols-2 gap-x-4 gap-y-2">
-                    <div className="text-zinc-500">ID:</div> <div>{httpFlow.id}</div>
-                    <div className="text-zinc-500">Method:</div> <div>{httpFlow.request?.method}</div>
-                    <div className="text-zinc-500">Status:</div> <div className={statusClass}>{httpFlow.response?.statusCode}</div>
-                    {httpFlow.isWebsocket && <><div className="text-zinc-500">WebSocket:</div> <div>Yes</div></>}
-                    <div className="text-zinc-500">URL:</div> <div className="col-span-2 break-all">{formatUrlWithHostname(httpFlow.request?.url || '', httpFlow.client?.sni, getHeader(httpFlow.request?.headers, 'Host'))}</div>
-                  </div>
-                </div>
-                <div className="bg-zinc-800 p-4 rounded">
-                  <h5 className="font-semibold text-zinc-400 mb-3 border-b border-zinc-700 pb-2">Body</h5>
-                  <div className="grid grid-cols-2 gap-x-4 gap-y-2">
-                    <div className="text-zinc-500">Request Size:</div> <div>{httpFlow.request?.content?.length ?? 0} B</div>
-                    <div className="text-zinc-500">Request Content-Type:</div> <div className="break-all">{getContentType(httpFlow.request?.headers) || 'N/A'}</div>
-                    <div className="text-zinc-500">Response Size:</div> <div>{httpFlow.response?.content?.length ?? 0} B</div>
-                    <div className="text-zinc-500">Response Content-Type:</div> <div className="break-all">{getContentType(httpFlow.response?.headers) || 'N/A'}</div>
-                  </div>
-                </div>
-                <div className="bg-zinc-800 p-4 rounded">
-                  <h5 className="font-semibold text-zinc-400 mb-3 border-b border-zinc-700 pb-2">Timing</h5>
-                  <div className="grid grid-cols-2 gap-x-4 gap-y-2">
-                    <div className="text-zinc-500">Start Time:</div> <div>{formatTimestamp(getTimestamp(httpFlow.timestampStart))}</div>
-                    <div className="text-zinc-500">Duration:</div> <div>{httpFlow.durationMs ? `${httpFlow.durationMs.toFixed(0)} ms` : '...'}</div>
-                  </div>
-                </div>
-                {httpFlow.error && (
-                    <div className="bg-zinc-800 p-4 rounded col-span-2">
-                        <h5 className="font-semibold text-red-400 mb-3 border-b border-zinc-700 pb-2">Error</h5>
-                        <div className="text-red-400">{httpFlow.error}</div>
-                    </div>
-                )}
-              </div>
-            )}
-            {selectedTab === 'request' && (
-              <RequestResponseView
-                title="Request"
-                fullContent={requestAsText}
-                bodyContent={formatContent(httpFlow.request?.content, requestFormat, httpFlow.request?.effectiveContentType)}
-                format={requestFormat}
-                setFormat={setRequestFormat}
-                headers={httpFlow.request?.headers}
-                flowPart={httpFlow.request}
-              />
-            )}
-
-            {selectedTab === 'response' && (
-              <RequestResponseView
-                title="Response"
-                fullContent={responseAsText}
-                bodyContent={formatContent(httpFlow.response?.content, responseFormat, httpFlow.response?.effectiveContentType)}
-                format={responseFormat}
-                setFormat={setResponseFormat}
-                headers={httpFlow.response?.headers}
-                flowPart={httpFlow.response}
-              />
-            )}
-
-            {selectedTab === 'connection' && (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm font-mono">
-                {httpFlow.client && (
-                  <div className="bg-zinc-800 p-4 rounded">
-                    <h5 className="font-semibold text-zinc-400 mb-3 border-b border-zinc-700 pb-2">Client Connection</h5>
-                    <div className="grid grid-cols-2 gap-x-4 gap-y-2">
-                      <div className="text-zinc-500">ID:</div> <div>{httpFlow.client.id}</div>
-                      <div className="text-zinc-500">Peer Host:</div> <div>{httpFlow.client.peernameHost}:{httpFlow.client.peernamePort}</div>
-                      <div className="text-zinc-500">Socket Host:</div> <div>{httpFlow.client.socknameHost}:{httpFlow.client.socknamePort}</div>
-                      <div className="text-zinc-500">State:</div> <div>{connectionStateToString(httpFlow.client.state)}</div>
-                      <div className="text-zinc-500">Protocol:</div> <div>{transportProtocolToString(httpFlow.client.transportProtocol)}</div>
-                      <div className="text-zinc-500">TLS:</div> <div>{httpFlow.client.tls ? 'Yes' : 'No'}</div>
-                      {httpFlow.client.tls && (
-                        <>
-                          <div className="text-zinc-500">SNI:</div> <div>{httpFlow.client.sni || 'N/A'}</div>
-                          <div className="text-zinc-500">Cipher:</div> <div>{httpFlow.client.cipher || 'N/A'}</div>
-                          <div className="text-zinc-500">ALPN:</div> <div>{httpFlow.client.alpn ? new TextDecoder().decode(httpFlow.client.alpn) : 'N/A'}</div>
-                        </>
-                      )}
-                      {httpFlow.client.error && (
-                        <>
-                          <div className="text-zinc-500">Error:</div> <div className="text-red-400">{httpFlow.client.error}</div>
-                        </>
-                      )}
-                    </div>
-                  </div>
-                )}
-                {httpFlow.server && (
-                  <div className="bg-zinc-800 p-4 rounded">
-                    <h5 className="font-semibold text-zinc-400 mb-3 border-b border-zinc-700 pb-2">Server Connection</h5>
-                    <div className="grid grid-cols-2 gap-x-4 gap-y-2">
-                      <div className="text-zinc-500">ID:</div> <div>{httpFlow.server.id}</div>
-                      <div className="text-zinc-500">Address:</div> <div>{httpFlow.server.addressHost}:{httpFlow.server.addressPort}</div>
-                      <div className="text-zinc-500">Peer Host:</div> <div>{httpFlow.server.peernameHost}:{httpFlow.server.peernamePort}</div>
-                      <div className="text-zinc-500">Socket Host:</div> <div>{httpFlow.server.socknameHost}:{httpFlow.server.socknamePort}</div>
-                      <div className="text-zinc-500">State:</div> <div>{connectionStateToString(httpFlow.server.state)}</div>
-                      <div className="text-zinc-500">Protocol:</div> <div>{transportProtocolToString(httpFlow.server.transportProtocol)}</div>
-                      <div className="text-zinc-500">TLS:</div> <div>{httpFlow.server.tls ? 'Yes' : 'No'}</div>
-                      {httpFlow.server.tls && (
-                        <>
-                          <div className="text-zinc-500">SNI:</div> <div>{httpFlow.server.sni || 'N/A'}</div>
-                          <div className="text-zinc-500">Cipher:</div> <div>{httpFlow.server.cipher || 'N/A'}</div>
-                          <div className="text-zinc-500">ALPN:</div> <div>{httpFlow.server.alpn ? new TextDecoder().decode(httpFlow.server.alpn) : 'N/A'}</div>
-                        </>
-                      )}
-                      {httpFlow.server.error && (
-                        <>
-                          <div className="text-zinc-500">Error:</div> <div className="text-red-400">{httpFlow.server.error}</div>
-                        </>
-                      )}
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
-          </>
-        )}
-      </div>
-    </div>
-  );
+    switch (flow.flow.case) {
+        case 'httpFlow':
+            return <HttpFlowRow flow={flow} isSelected={isSelected} onMouseDown={onMouseDown} onMouseEnter={onMouseEnter} />;
+        case 'dnsFlow':
+            return <DnsFlowRow flow={flow} isSelected={isSelected} onMouseDown={onMouseDown} onMouseEnter={onMouseEnter} />;
+        case 'tcpFlow':
+            return <TcpFlowRow flow={flow} isSelected={isSelected} onMouseDown={onMouseDown} onMouseEnter={onMouseEnter} />;
+        case 'udpFlow':
+            return <UdpFlowRow flow={flow} isSelected={isSelected} onMouseDown={onMouseDown} onMouseEnter={onMouseEnter} />;
+        default:
+            return null;
+    }
 };
+
 // --- MAIN APP COMPONENT ---
 
 type ConnectionStatus = 'connecting' | 'live' | 'paused' | 'failed';
@@ -780,14 +128,14 @@ const App: React.FC = () => {
     const requestAsText = (() => {
       if (!httpFlow.request) return '';
       const requestLine = `${httpFlow.request.method} ${httpFlow.request.url} ${httpFlow.request.httpVersion}`;
-      const headers = formatHeaders(httpFlow.request.headers);
+      const headers = Object.entries(httpFlow.request.headers).map(([k, v]) => `${k}: ${v}`).join('\n');
       return `${requestLine}\n${headers}`;
     })();
 
     const responseAsText = (() => {
       if (!httpFlow.response) return '';
       const statusLine = `${httpFlow.response.httpVersion} ${httpFlow.response.statusCode}`;
-      const headers = formatHeaders(httpFlow.response.headers);
+      const headers = Object.entries(httpFlow.response.headers).map(([k, v]) => `${k}: ${v}`).join('\n');
       return `${statusLine}\n${headers}`;
     })();
 
@@ -942,12 +290,30 @@ const App: React.FC = () => {
     }
     
     return flows.filter(flow => {
-      if (!flow.flow || flow.flow.case !== 'httpFlow') return false;
-      const httpFlow = flow.flow.value;
-      const url = httpFlow.request?.url || '';
-      const sni = httpFlow.client?.sni || '';
-      const filterText = `${url} ${httpFlow.request?.method} ${httpFlow.response?.statusCode} ${sni}`.toLowerCase();
-      return filterText.includes(filter);
+      if (!flow.flow) return false;
+
+      switch (flow.flow.case) {
+        case 'httpFlow':
+          const httpFlow = flow.flow.value;
+          const url = httpFlow.request?.url || '';
+          const sni = httpFlow.client?.sni || '';
+          const filterTextHttp = `${url} ${httpFlow.request?.method} ${httpFlow.response?.statusCode} ${sni}`.toLowerCase();
+          return filterTextHttp.includes(filter);
+        case 'dnsFlow':
+          const dnsFlow = flow.flow.value;
+          const domainName = dnsFlow.request?.questions[0]?.name || '';
+          return domainName.toLowerCase().includes(filter);
+        case 'tcpFlow':
+            const tcpFlow = flow.flow.value;
+            const tcpServer = tcpFlow.server;
+            return `${tcpServer?.addressHost}:${tcpServer?.addressPort}`.toLowerCase().includes(filter);
+        case 'udpFlow':
+            const udpFlow = flow.flow.value;
+            const udpServer = udpFlow.server;
+            return `${udpServer?.addressHost}:${udpServer?.addressPort}`.toLowerCase().includes(filter);
+        default:
+          return false;
+      }
     });
   }, [flows, filterText]); // Dependencies: re-run when flows or filter text change
 
@@ -1319,29 +685,32 @@ const App: React.FC = () => {
         onClose={handleClosePanel}
         panelHeight={detailsPanelHeight}
         setPanelHeight={setDetailsPanelHeight}
-        requestFormat={
-          selectedFlow && getFlowId(selectedFlow) ? (requestFormats.get(getFlowId(selectedFlow)!) || 'auto') : 'auto'
-        }
-        setRequestFormat={useCallback((format) => {
-          if (selectedFlow && getFlowId(selectedFlow)) {
-            handleSetRequestFormat(getFlowId(selectedFlow)!, format);
-          }
-        }, [selectedFlow, handleSetRequestFormat])}
-        responseFormat={
-          selectedFlow && getFlowId(selectedFlow) ? (responseFormats.get(getFlowId(selectedFlow)!) || 'auto') : 'auto'
-        }
-        setResponseFormat={useCallback((format) => {
-          if (selectedFlow && getFlowId(selectedFlow)) {
-            handleSetResponseFormat(getFlowId(selectedFlow)!, format);
-          }
-        }, [selectedFlow, handleSetResponseFormat])}
-        downloadFlowContent={downloadFlowContent}
-        isDownloadOpen={isDownloadOpen}
-        setDownloadOpen={setDownloadOpen}
-        isInfoTooltipOpen={isInfoTooltipOpen}
-        setIsInfoTooltipOpen={setIsInfoTooltipOpen}
-        contentRef={contentRef}
-      />
+      >
+        {selectedFlow?.flow?.case === 'httpFlow' && (
+          <HttpFlowDetails
+            flow={selectedFlow}
+            requestFormat={requestFormats.get(selectedFlowId!) || 'auto'}
+            setRequestFormat={(format) => handleSetRequestFormat(selectedFlowId!, format)}
+            responseFormat={responseFormats.get(selectedFlowId!) || 'auto'}
+            setResponseFormat={(format) => handleSetResponseFormat(selectedFlowId!, format)}
+            downloadFlowContent={downloadFlowContent}
+            isDownloadOpen={isDownloadOpen}
+            setDownloadOpen={setDownloadOpen}
+            isInfoTooltipOpen={isInfoTooltipOpen}
+            setIsInfoTooltipOpen={setIsInfoTooltipOpen}
+            contentRef={contentRef}
+          />
+        )}
+        {selectedFlow?.flow?.case === 'dnsFlow' && (
+          <DnsFlowDetails flow={selectedFlow} />
+        )}
+        {selectedFlow?.flow?.case === 'tcpFlow' && (
+            <TcpFlowDetails flow={selectedFlow} />
+        )}
+        {selectedFlow?.flow?.case === 'udpFlow' && (
+            <UdpFlowDetails flow={selectedFlow} />
+        )}
+      </DetailsPanel>
     </div>
   );
 };
