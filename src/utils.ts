@@ -1,11 +1,11 @@
 import { Flow } from "./gen/mitmflow/v1/mitmflow_pb";
-import dns from 'dns-js';
+import { DNSPacket } from 'dns-suite';
 
 export type ContentFormat = 'auto' | 'text' | 'json' | 'protobuf' | 'grpc' | 'grpc-web' | 'xml' | 'binary' | 'image' | 'dns' | 'javascript' | 'html';
 
 const parseDnsPacket = (content: Uint8Array): string => {
     try {
-        const dnsPacket = dns.DNSPacket.parse(Buffer.from(content));
+        const dnsPacket = DNSPacket.parse(content);
         let output = '';
         output += `ID: ${dnsPacket.header.id}\n`;
         output += `Type: ${dnsPacket.header.qr ? 'Response' : 'Query'}\n`;
@@ -16,7 +16,7 @@ const parseDnsPacket = (content: Uint8Array): string => {
         if (dnsPacket.question.length > 0) {
             output += 'Questions:\n';
             dnsPacket.question.forEach(q => {
-                output += `  ${q.name}  ${q.class}  ${q.type}\n`;
+                output += `  ${q.name}  ${q.className}  ${q.typeName}\n`;
             });
             output += '\n';
         }
@@ -24,7 +24,7 @@ const parseDnsPacket = (content: Uint8Array): string => {
         if (dnsPacket.answer.length > 0) {
             output += 'Answers:\n';
             dnsPacket.answer.forEach(a => {
-                output += `  ${a.name}  ${a.class}  ${a.type}  ${a.ttl}  ${a.address || a.data}\n`;
+                output += `  ${a.name}  ${a.className}  ${a.typeName}  ${a.ttl}  ${a.address || a.data}\n`;
             });
             output += '\n';
         }
@@ -32,7 +32,7 @@ const parseDnsPacket = (content: Uint8Array): string => {
         if (dnsPacket.authority.length > 0) {
             output += 'Authorities:\n';
             dnsPacket.authority.forEach(a => {
-                output += `  ${a.name}  ${a.class}  ${a.type}  ${a.ttl}  ${a.address || a.data}\n`;
+                output += `  ${a.name}  ${a.className}  ${a.typeName}  ${a.ttl}  ${a.address || a.data}\n`;
             });
             output += '\n';
         }
@@ -40,7 +40,7 @@ const parseDnsPacket = (content: Uint8Array): string => {
         if (dnsPacket.additional.length > 0) {
             output += 'Additional:\n';
             dnsPacket.additional.forEach(a => {
-                output += `  ${a.name}  ${a.class}  ${a.type}  ${a.ttl}  ${a.address || a.data}\n`;
+                output += `  ${a.name}  ${a.className}  ${a.typeName}  ${a.ttl}  ${a.address || a.data}\n`;
             });
         }
         return output;
