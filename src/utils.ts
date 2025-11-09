@@ -1,6 +1,54 @@
 import { Flow } from "./gen/mitmflow/v1/mitmflow_pb";
+import dns from 'dns-js';
 
 export type ContentFormat = 'auto' | 'text' | 'json' | 'protobuf' | 'grpc' | 'grpc-web' | 'xml' | 'binary' | 'image' | 'dns' | 'javascript' | 'html';
+
+const parseDnsPacket = (content: Uint8Array): string => {
+    try {
+        const dnsPacket = dns.DNSPacket.parse(Buffer.from(content));
+        let output = '';
+        output += `ID: ${dnsPacket.header.id}\n`;
+        output += `Type: ${dnsPacket.header.qr ? 'Response' : 'Query'}\n`;
+        output += `Opcode: ${dnsPacket.header.opcode}\n`;
+        output += `Flags: ${dnsPacket.header.aa ? 'AA' : ''} ${dnsPacket.header.tc ? 'TC' : ''} ${dnsPacket.header.rd ? 'RD' : ''} ${dnsPacket.header.ra ? 'RA' : ''}\n`;
+        output += `RCODE: ${dnsPacket.header.rcode}\n\n`;
+
+        if (dnsPacket.question.length > 0) {
+            output += 'Questions:\n';
+            dnsPacket.question.forEach(q => {
+                output += `  ${q.name}  ${q.class}  ${q.type}\n`;
+            });
+            output += '\n';
+        }
+
+        if (dnsPacket.answer.length > 0) {
+            output += 'Answers:\n';
+            dnsPacket.answer.forEach(a => {
+                output += `  ${a.name}  ${a.class}  ${a.type}  ${a.ttl}  ${a.address || a.data}\n`;
+            });
+            output += '\n';
+        }
+
+        if (dnsPacket.authority.length > 0) {
+            output += 'Authorities:\n';
+            dnsPacket.authority.forEach(a => {
+                output += `  ${a.name}  ${a.class}  ${a.type}  ${a.ttl}  ${a.address || a.data}\n`;
+            });
+            output += '\n';
+        }
+
+        if (dnsPacket.additional.length > 0) {
+            output += 'Additional:\n';
+            dnsPacket.additional.forEach(a => {
+                output += `  ${a.name}  ${a.class}  ${a.type}  ${a.ttl}  ${a.address || a.data}\n`;
+            });
+        }
+        return output;
+    } catch (e) {
+        console.error('Failed to parse DNS packet:', e);
+        return 'Failed to parse DNS packet';
+    }
+}
 
 export const formatTimestamp = (ts: number): string => {
   const date = new Date(ts);
@@ -35,37 +83,39 @@ export type FormattedContent = {
   effectiveFormat: ContentFormat;
 };
 
-export const formatContent = (content: Uint8Array | string | undefined, format: ContentFormat, contentType: string | undefined): FormattedContent => {
+export const formatContent = (content: Uint8Array | string | undefined, format: ContentFormat, contentType: string | undefined, effectiveContentType?: string): FormattedContent => {
   let effectiveFormat = format;
+
+  const typeToCheck = effectiveContentType || contentType;
 
   // Prioritize explicit format selection
   if (format !== 'auto') {
     effectiveFormat = format;
-  } else if (contentType) {
+  } else if (typeToCheck) {
     // Auto-detect based on content type header
-    if (contentType.startsWith('application/json') || contentType.startsWith('application/manifest+json')) {
+    if (typeToCheck.startsWith('application/json') || typeToCheck.startsWith('application/manifest+json')) {
       effectiveFormat = 'json';
-    } else if (contentType.includes('application/grpc-web')) {
+    } else if (typeToCheck.includes('application/grpc-web')) {
       effectiveFormat = 'grpc-web';
-    } else if (contentType.includes('application/grpc')) {
+    } else if (typeToCheck.includes('application/grpc')) {
       effectiveFormat = 'grpc';
-    } else if (contentType.includes('application/proto') || contentType.includes('application/x-protobuf')) {
+    } else if (typeToCheck.includes('application/proto') || typeToCheck.includes('application/x-protobuf')) {
       effectiveFormat = 'protobuf';
-    } else if (contentType.includes('text/html')) {
+    } else if (typeToCheck.includes('text/html')) {
       effectiveFormat = 'html';
-    } else if (contentType.includes('image')) {
+    } else if (typeToCheck.includes('image')) {
       effectiveFormat = 'image';
-    } else if (contentType.includes('xml')) {
+    } else if (typeToCheck.includes('xml')) {
       effectiveFormat = 'xml';
-    } else if (contentType.includes('text')) {
+    } else if (typeToCheck.includes('text')) {
       effectiveFormat = 'text';
-    } else if (contentType.includes('javascript')) {
+    } else if (typeToCheck.includes('javascript')) {
       effectiveFormat = 'javascript';
-    } else if (contentType.includes('application/octet')) {
+    } else if (typeToCheck.includes('application/octet')) {
       effectiveFormat = 'binary';
-    } else if (contentType.includes('dns')) {
+    } else if (typeToCheck.includes('application/dns-message')) {
       effectiveFormat = 'dns';
-    } else if (contentType.includes('text')) {
+    } else if (typeToCheck.includes('text')) {
       effectiveFormat = 'text';
     } else {
       // Default to binary if auto-detection doesn't match known types
@@ -111,9 +161,10 @@ export const formatContent = (content: Uint8Array | string | undefined, format: 
       return { data: contentAsString, encoding: 'text', effectiveFormat: effectiveFormat };
     case 'xml':
     case 'javascript':
-    case 'dns':
     case 'text':
       return { data: contentAsString, encoding: 'text', effectiveFormat: effectiveFormat };
+    case 'dns':
+        return { data: parseDnsPacket(contentAsUint8Array), encoding: 'text', effectiveFormat: 'text' };
     case 'image':
       return { data: btoa(String.fromCharCode(...contentAsUint8Array)), encoding: 'base64', effectiveFormat: effectiveFormat };
     case 'binary':
@@ -181,4 +232,26 @@ export const formatSize = (size: number | undefined): string => {
         return `${(size / 1024).toFixed(2)} KB`;
     }
     return `${(size / (1024 * 1024)).toFixed(2)} MB`;
+}
+
+export const getFlowTitle = (flow: Flow): string => {
+    if (!flow.flow) {
+        return '';
+    }
+    switch (flow.flow.case) {
+        case 'httpFlow':
+            const httpFlow = flow.flow.value;
+            return `${httpFlow.response?.statusCode ?? '...'} ${httpFlow.request?.method} ${httpFlow.request?.url}`;
+        case 'dnsFlow':
+            const dnsFlow = flow.flow.value;
+            return `${dnsFlow.response ? 'OK' : 'ERROR'} dns://${dnsFlow.server?.addressHost}`;
+        case 'tcpFlow':
+            const tcpFlow = flow.flow.value;
+            return `TCP ${tcpFlow.client?.peernameHost}:${tcpFlow.client?.peernamePort} -> ${tcpFlow.server?.addressHost}:${tcpFlow.server?.addressPort}`;
+        case 'udpFlow':
+            const udpFlow = flow.flow.value;
+            return `UDP ${udpFlow.client?.peernameHost}:${udpFlow.client?.peernamePort} -> ${udpFlow.server?.addressHost}:${udpFlow.server?.addressPort}`;
+        default:
+            return '';
+    }
 }

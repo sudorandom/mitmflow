@@ -24,7 +24,20 @@ stubs:
           },
           "timestamp_start": fake_date(),
           "duration_ms": fake_float32(),
-          "client_ip": fake_i_pv4_address(),
+          "client": {
+            "peername_host": fake_i_pv4_address(),
+            "peername_port": fake_port(),
+            "sockname_host": fake_i_pv4_address(),
+            "sockname_port": fake_port(),
+            "id": fake_uuid()
+          },
+          "server": {
+            "peername_host": fake_i_pv4_address(),
+            "peername_port": fake_port(),
+            "sockname_host": fake_i_pv4_address(),
+            "sockname_port": fake_port(),
+            "id": fake_uuid()
+          }
         },
       },
     }
@@ -53,7 +66,20 @@ stubs:
           },
           "timestamp_start": fake_date(),
           "duration_ms": fake_float32(),
-          "client_ip": fake_i_pv4_address(),
+          "client": {
+            "peername_host": fake_i_pv4_address(),
+            "peername_port": fake_port(),
+            "sockname_host": fake_i_pv4_address(),
+            "sockname_port": fake_port(),
+            "id": fake_uuid()
+          },
+          "server": {
+            "peername_host": fake_i_pv4_address(),
+            "peername_port": fake_port(),
+            "sockname_host": fake_i_pv4_address(),
+            "sockname_port": fake_port(),
+            "id": fake_uuid()
+          }
         },
       },
     }
@@ -83,7 +109,20 @@ stubs:
           },
           "timestamp_start": fake_date(),
           "duration_ms": fake_float32(),
-          "client_ip": fake_i_pv4_address(),
+          "client": {
+            "peername_host": fake_i_pv4_address(),
+            "peername_port": fake_port(),
+            "sockname_host": fake_i_pv4_address(),
+            "sockname_port": fake_port(),
+            "id": fake_uuid()
+          },
+          "server": {
+            "peername_host": fake_i_pv4_address(),
+            "peername_port": fake_port(),
+            "sockname_host": fake_i_pv4_address(),
+            "sockname_port": fake_port(),
+            "id": fake_uuid()
+          }
         },
       },
     }

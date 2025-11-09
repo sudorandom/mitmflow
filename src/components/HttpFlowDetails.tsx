@@ -4,6 +4,8 @@ import { Light as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { atomOneDark } from 'react-syntax-highlighter/dist/esm/styles/hljs'; // A simple, light theme
 import HexViewer from '../HexViewer';
 import { ContentFormat, FormattedContent, formatContent, getContentType, getHeader, getTimestamp } from '../utils';
+import { ConnectionTab } from './ConnectionTab';
+import { Badge } from "@/components/ui/badge";
 
 const formatTimestamp = (ts: number): string => {
     const date = new Date(ts);
@@ -268,12 +270,29 @@ export const HttpFlowDetails: React.FC<{
                             </div>
                         </div>
                         <div className="bg-zinc-800 p-4 rounded">
-                            <h5 className="font-semibold text-zinc-400 mb-3 border-b border-zinc-700 pb-2">Body</h5>
+                            <h5 className="font-semibold text-zinc-400 mb-3 border-b border-zinc-700 pb-2">Request Body</h5>
                             <div className="grid grid-cols-2 gap-x-4 gap-y-2">
-                                <div className="text-zinc-500">Request Size:</div> <div>{httpFlow.request?.content?.length ?? 0} B</div>
-                                <div className="text-zinc-500">Request Content-Type:</div> <div className="break-all">{getContentType(httpFlow.request?.headers) || 'N/A'}</div>
-                                <div className="text-zinc-500">Response Size:</div> <div>{httpFlow.response?.content?.length ?? 0} B</div>
-                                <div className="text-zinc-500">Response Content-Type:</div> <div className="break-all">{getContentType(httpFlow.response?.headers) || 'N/A'}</div>
+                                <div className="text-zinc-500">Size:</div> <div>{httpFlow.request?.content?.length ?? 0} B</div>
+                                <div className="text-zinc-500">Content-Type:</div> <div className="break-all">{getContentType(httpFlow.request?.headers) || 'N/A'}</div>
+                                {httpFlow.request?.effectiveContentType && getContentType(httpFlow.request?.headers) !== httpFlow.request?.effectiveContentType && (
+                                    <>
+                                        <div className="text-zinc-500">Detected Content-Type:</div>
+                                        <div className="break-all">{httpFlow.request?.effectiveContentType}</div>
+                                    </>
+                                )}
+                            </div>
+                        </div>
+                        <div className="bg-zinc-800 p-4 rounded">
+                            <h5 className="font-semibold text-zinc-400 mb-3 border-b border-zinc-700 pb-2">Response Body</h5>
+                            <div className="grid grid-cols-2 gap-x-4 gap-y-2">
+                                <div className="text-zinc-500">Size:</div> <div>{httpFlow.response?.content?.length ?? 0} B</div>
+                                <div className="text-zinc-500">Content-Type:</div> <div className="break-all">{getContentType(httpFlow.response?.headers) || 'N/A'}</div>
+                                {httpFlow.response?.effectiveContentType && getContentType(httpFlow.response?.headers) !== httpFlow.response?.effectiveContentType && (
+                                    <>
+                                        <div className="text-zinc-500">Detected Content-Type:</div>
+                                        <div className="break-all">{httpFlow.response?.effectiveContentType}</div>
+                                    </>
+                                )}
                             </div>
                         </div>
                         <div className="bg-zinc-800 p-4 rounded">
@@ -295,7 +314,7 @@ export const HttpFlowDetails: React.FC<{
                     <RequestResponseView
                         title="Request"
                         fullContent={requestAsText}
-                        bodyContent={formatContent(httpFlow.request?.content, requestFormat, httpFlow.request?.effectiveContentType)}
+                        bodyContent={formatContent(httpFlow.request?.content, requestFormat, getContentType(httpFlow.request?.headers), httpFlow.request?.effectiveContentType)}
                         format={requestFormat}
                         setFormat={setRequestFormat}
                         headers={httpFlow.request?.headers}
@@ -306,7 +325,7 @@ export const HttpFlowDetails: React.FC<{
                     <RequestResponseView
                         title="Response"
                         fullContent={responseAsText}
-                        bodyContent={formatContent(httpFlow.response?.content, responseFormat, httpFlow.response?.effectiveContentType)}
+                        bodyContent={formatContent(httpFlow.response?.content, responseFormat, getContentType(httpFlow.response?.headers), httpFlow.response?.effectiveContentType)}
                         format={responseFormat}
                         setFormat={setResponseFormat}
                         headers={httpFlow.response?.headers}
@@ -323,6 +342,9 @@ export const HttpFlowDetails: React.FC<{
                             </div>
                         ))}
                     </div>
+                )}
+                {selectedTab === 'connection' && (
+                    <ConnectionTab client={httpFlow.client} server={httpFlow.server} />
                 )}
             </div>
         </>
