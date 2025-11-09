@@ -26,7 +26,6 @@ stubs:
           },
           "timestamp_start": fake_date(),
           "duration_ms": fake_float32(),
-          "client_ip": fake_i_pv4_address(),
         },
       },
     }
