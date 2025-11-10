@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
-import { Search, Pause, Play, Download, Braces, HardDriveDownload, Menu } from 'lucide-react';
+import { Search, Pause, Play, Download, Braces, HardDriveDownload, Menu, Filter, X } from 'lucide-react';
 import { createConnectTransport } from "@connectrpc/connect-web";
 import { createClient } from "@connectrpc/connect";
 import { Service, Flow, FlowSchema } from "./gen/mitmflow/v1/mitmflow_pb";
@@ -14,6 +14,8 @@ import { UdpFlowDetails } from './components/UdpFlowDetails';
 import { UdpFlowRow } from './components/UdpFlowRow';
 import { ContentFormat, getFlowId, getTimestamp } from './utils';
 import { DetailsPanel } from './components/DetailsPanel';
+import FilterModal from './components/FilterModal';
+import useFilterStore from './store';
 
 const getHarContent = (content: Uint8Array | undefined, contentType: string | undefined) => {
   if (!content || content.length === 0) {
@@ -99,7 +101,14 @@ const App: React.FC = () => {
   const [flows, setFlows] = useState<Flow[]>([]);
   const [isPaused, setIsPaused] = useState(false);
   const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>('connecting');
-  const [filterText, setFilterText] = useState('');
+  const {
+    text: filterText,
+    setText: setFilterText,
+    flowTypes,
+    http,
+    clearFilters
+  } = useFilterStore();
+  const [isFilterModalOpen, setIsFilterModalOpen] = useState(false);
   const [selectedFlow, setSelectedFlow] = useState<Flow | null>(null);
   const [isPanelMinimized, setIsPanelMinimized] = useState(false);
   const [selectedFlowId, setSelectedFlowId] = useState<string | null>(null);
@@ -281,41 +290,104 @@ const App: React.FC = () => {
     }
   }, [detailsPanelHeight]);
 
+  const activeFilterCount =
+    (flowTypes.length > 0 ? 1 : 0) +
+    (http.methods.length > 0 ? 1 : 0) +
+    (http.contentTypes.length > 0 ? 1 : 0) +
+    (http.statusCodes.length > 0 ? 1 : 0);
+
   // --- Derived State (Filtering) ---
   const filteredFlows = useMemo(() => {
     const filter = filterText.toLowerCase();
-    if (!filter) {
-      // Ensure all flows have a defined flow before returning
-      return flows.filter(flow => flow.flow && flow.flow.case);
-    }
-    
+
     return flows.filter(flow => {
       if (!flow.flow) return false;
 
-      switch (flow.flow.case) {
-        case 'httpFlow':
-          const httpFlow = flow.flow.value;
-          const url = httpFlow.request?.prettyUrl || httpFlow.request?.url || '';
-          const sni = httpFlow.client?.sni || '';
-          const filterTextHttp = `${url} ${httpFlow.request?.method} ${httpFlow.response?.statusCode} ${sni}`.toLowerCase();
-          return filterTextHttp.includes(filter);
-        case 'dnsFlow':
-          const dnsFlow = flow.flow.value;
-          const domainName = dnsFlow.request?.questions[0]?.name || '';
-          return domainName.toLowerCase().includes(filter);
-        case 'tcpFlow':
+      // --- General Text Filter ---
+      if (filter) {
+        let isMatch = false;
+        const clientIp = flow.flow.value.client?.addressHost || '';
+        const serverIp = flow.flow.value.server?.addressHost || '';
+
+        switch (flow.flow.case) {
+          case 'httpFlow':
+            const httpFlow = flow.flow.value;
+            const url = httpFlow.request?.prettyUrl || httpFlow.request?.url || '';
+            const sni = httpFlow.client?.sni || '';
+            const filterTextHttp = `${url} ${httpFlow.request?.method} ${httpFlow.response?.statusCode} ${sni} ${clientIp} ${serverIp}`.toLowerCase();
+            isMatch = filterTextHttp.includes(filter);
+            break;
+          case 'dnsFlow':
+            const dnsFlow = flow.flow.value;
+            const domainName = dnsFlow.request?.questions[0]?.name || '';
+            isMatch = `${domainName} ${clientIp} ${serverIp}`.toLowerCase().includes(filter);
+            break;
+          case 'tcpFlow':
             const tcpFlow = flow.flow.value;
             const tcpServer = tcpFlow.server;
-            return `${tcpServer?.addressHost}:${tcpServer?.addressPort}`.toLowerCase().includes(filter);
-        case 'udpFlow':
+            isMatch = `${tcpServer?.addressHost}:${tcpServer?.addressPort} ${clientIp} ${serverIp}`.toLowerCase().includes(filter);
+            break;
+          case 'udpFlow':
             const udpFlow = flow.flow.value;
             const udpServer = udpFlow.server;
-            return `${udpServer?.addressHost}:${udpServer?.addressPort}`.toLowerCase().includes(filter);
-        default:
-          return false;
+            isMatch = `${udpServer?.addressHost}:${udpServer?.addressPort} ${clientIp} ${serverIp}`.toLowerCase().includes(filter);
+            break;
+        }
+        if (!isMatch) return false;
       }
+
+      // --- Advanced Filters ---
+      // Flow Type Filter (OR logic)
+      if (flowTypes.length > 0) {
+        const flowType = flow.flow.case.replace('Flow', '').toLowerCase();
+        if (!flowTypes.includes(flowType as any)) {
+          return false;
+        }
+      }
+
+      // HTTP Specific Filters (AND logic)
+      if (flow.flow.case === 'httpFlow') {
+        const httpFlow = flow.flow.value;
+
+        // HTTP Method Filter
+        if (http.methods.length > 0 && !http.methods.includes(httpFlow.request?.method || '')) {
+          return false;
+        }
+
+        // HTTP Status Code Filter
+        if (http.statusCodes.length > 0) {
+            const statusCode = httpFlow.response?.statusCode?.toString() || '';
+            const matches = http.statusCodes.some(sc => {
+                if (sc.endsWith('xx')) {
+                    const prefix = sc.slice(0, 1);
+                    return statusCode.startsWith(prefix);
+                }
+                if (sc.includes('-')) {
+                    const [start, end] = sc.split('-').map(Number);
+                    const code = Number(statusCode);
+                    return code >= start && code <= end;
+                }
+                return statusCode === sc;
+            });
+            if (!matches) {
+                return false;
+            }
+        }
+
+        // HTTP Content Type Filter
+        if (http.contentTypes.length > 0) {
+            const reqContentType = httpFlow.request?.effectiveContentType || '';
+            const resContentType = httpFlow.response?.effectiveContentType || '';
+            const matches = http.contentTypes.some(ct => reqContentType.includes(ct) || resContentType.includes(ct));
+            if (!matches) {
+                return false;
+            }
+        }
+      }
+
+      return true; // If all filters pass
     });
-  }, [flows, filterText]); // Dependencies: re-run when flows or filter text change
+  }, [flows, filterText, flowTypes, http.methods, http.statusCodes, http.contentTypes]);
 
   // --- Event Handlers ---
   const handleDownloadSelectedFlows = (format: 'har' | 'json') => {
@@ -634,19 +706,51 @@ const App: React.FC = () => {
           </div>
         </div>
         
+        {activeFilterCount > 0 && (
+          <button
+            onClick={() => setIsFilterModalOpen(true)}
+            className="bg-zinc-800 border border-zinc-700 text-zinc-200 px-3 py-1 rounded-full text-sm font-medium flex items-center gap-2 hover:bg-zinc-700"
+          >
+            {activeFilterCount} {activeFilterCount > 1 ? 'Filters' : 'Filter'}
+            <div
+              onClick={(e) => {
+                e.stopPropagation();
+                clearFilters();
+              }}
+              className="bg-zinc-700 rounded-full p-0.5 hover:bg-zinc-600"
+            >
+              <X size={12} />
+            </div>
+          </button>
+        )}
+
         {/* Filter Input */}
-        <div className="ml-auto relative">
-          <input
-            id="filter-input" // Add id for focus check
-            type="text"
-            value={filterText}
-            onChange={(e) => setFilterText(e.target.value)}
-            placeholder="Filter flows..."
-            className="bg-zinc-800 border border-zinc-700 rounded-full text-zinc-200 px-4 py-1.5 pl-10 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500 w-72"
-          />
-          <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-zinc-500" />
+        <div className="ml-auto relative flex items-center">
+          <div className="relative">
+            <input
+              id="filter-input" // Add id for focus check
+              type="text"
+              value={filterText}
+              onChange={(e) => setFilterText(e.target.value)}
+              placeholder="Filter flows..."
+              className="bg-zinc-800 border border-zinc-700 rounded-l-full text-zinc-200 px-4 py-1.5 pl-10 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500 w-72"
+            />
+            <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-zinc-500" />
+          </div>
+          <button
+            onClick={() => setIsFilterModalOpen(true)}
+            className="bg-zinc-800 border border-zinc-700 border-l-0 rounded-r-full text-zinc-400 px-3 py-1.5 hover:bg-zinc-700 hover:text-white focus:outline-none focus:ring-2 focus:ring-orange-500"
+            data-testid="filter-button"
+          >
+            <Filter size={16} />
+          </button>
         </div>
       </header>
+
+      <FilterModal
+        isOpen={isFilterModalOpen}
+        onClose={() => setIsFilterModalOpen(false)}
+      />
 
       {/* --- Flow Table --- */}
       <main className="flex-grow overflow-y-auto" ref={mainTableRef}> {/* Add ref */}
