@@ -3,45 +3,9 @@ import { Flow, Request, Response } from "../gen/mitmflow/v1/mitmflow_pb";
 import { Light as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { atomOneDark } from 'react-syntax-highlighter/dist/esm/styles/hljs'; // A simple, light theme
 import HexViewer from '../HexViewer';
-import { ContentFormat, FormattedContent, formatContent, getContentType, getHeader, getTimestamp } from '../utils';
-
-const formatTimestamp = (ts: number): string => {
-    const date = new Date(ts);
-    return date.toLocaleTimeString('en-US', {
-        hour12: false,
-        hour: '2-digit',
-        minute: '2-digit',
-        second: '2-digit'
-    }) + '.' + date.getMilliseconds().toString().padStart(3, '0');
-};
-
-const formatUrlWithHostname = (originalUrl: string, sniHostname?: string, hostHeader?: string): string => {
-    try {
-        const url = new URL(originalUrl);
-
-        // Prioritize SNI, then Host header, then original hostname
-        if (sniHostname && sniHostname !== "") {
-            url.hostname = sniHostname;
-        } else if (hostHeader && hostHeader !== "") {
-            // Host header can contain a port, so we need to handle that
-            const hostHeaderParts = hostHeader.split(':');
-            url.hostname = hostHeaderParts[0];
-            if (hostHeaderParts.length > 1) {
-                url.port = hostHeaderParts[1];
-            }
-        }
-
-        // If the port is default for the protocol, remove it for cleaner display
-        if ((url.protocol === 'http:' && url.port === '80') || (url.protocol === 'https:' && url.port === '443')) {
-            url.port = '';
-        }
-
-        return url.toString();
-    } catch {
-        // If originalUrl is not a valid URL, just return it as is.
-        return originalUrl;
-    }
-};
+import { ContentFormat, FormattedContent, formatContent, getContentType, getTimestamp } from '../utils';
+import { ConnectionTab } from './ConnectionTab';
+import { TimingRow } from './TimingRow';
 
 const formatHeaders = (headers: { [key: string]: string }): string => {
     return Object.entries(headers)
@@ -59,7 +23,7 @@ type RequestResponseViewProps = {
     flowPart?: Request | Response;
 };
 
-const RequestResponseView: React.FC<RequestResponseViewProps> = ({ fullContent, bodyContent, format, setFormat, headers, flowPart }) => {
+export const RequestResponseView: React.FC<RequestResponseViewProps> = ({ fullContent, bodyContent, format, setFormat, headers, flowPart }) => {
     const [isBodyExpanded, setIsBodyExpanded] = useState(false);
     const headerText = useMemo(() => {
         if (!fullContent) return 'No content captured.';
@@ -194,7 +158,8 @@ export const HttpFlowDetails: React.FC<{
 
     const requestAsText = useMemo(() => {
         if (!httpFlow.request) return '';
-        const requestLine = `${httpFlow.request.method} ${httpFlow.request.url} ${httpFlow.request.httpVersion}`;
+        const url = httpFlow.request.prettyUrl || httpFlow.request.url;
+        const requestLine = `${httpFlow.request.method} ${url} ${httpFlow.request.httpVersion}`;
         const headers = formatHeaders(httpFlow.request.headers);
         return `${requestLine}\n${headers}`;
     }, [httpFlow.request]);
@@ -215,6 +180,8 @@ export const HttpFlowDetails: React.FC<{
         if (httpFlow.response.statusCode >= 300) return 'text-yellow-400';
         return 'text-green-400';
     }, [httpFlow?.response]);
+
+    const firstRequestByteTimestamp = getTimestamp(httpFlow.request?.timestampStart);
 
     return (
         <>
@@ -264,23 +231,47 @@ export const HttpFlowDetails: React.FC<{
                                 <div className="text-zinc-500">Method:</div> <div>{httpFlow.request?.method}</div>
                                 <div className="text-zinc-500">Status:</div> <div className={statusClass}>{httpFlow.response?.statusCode}</div>
                                 {httpFlow.isWebsocket && <><div className="text-zinc-500">WebSocket:</div> <div>Yes</div></>}
-                                <div className="text-zinc-500">URL:</div> <div className="col-span-2 break-all">{formatUrlWithHostname(httpFlow.request?.url || '', httpFlow.client?.sni, getHeader(httpFlow.request?.headers, 'Host'))}</div>
-                            </div>
-                        </div>
-                        <div className="bg-zinc-800 p-4 rounded">
-                            <h5 className="font-semibold text-zinc-400 mb-3 border-b border-zinc-700 pb-2">Body</h5>
-                            <div className="grid grid-cols-2 gap-x-4 gap-y-2">
-                                <div className="text-zinc-500">Request Size:</div> <div>{httpFlow.request?.content?.length ?? 0} B</div>
-                                <div className="text-zinc-500">Request Content-Type:</div> <div className="break-all">{getContentType(httpFlow.request?.headers) || 'N/A'}</div>
-                                <div className="text-zinc-500">Response Size:</div> <div>{httpFlow.response?.content?.length ?? 0} B</div>
-                                <div className="text-zinc-500">Response Content-Type:</div> <div className="break-all">{getContentType(httpFlow.response?.headers) || 'N/A'}</div>
+                                <div className="text-zinc-500">URL:</div> <div className="col-span-2 break-all">{httpFlow.request?.prettyUrl || httpFlow.request?.url}</div>
                             </div>
                         </div>
                         <div className="bg-zinc-800 p-4 rounded">
                             <h5 className="font-semibold text-zinc-400 mb-3 border-b border-zinc-700 pb-2">Timing</h5>
+                            <div className="grid grid-cols-[max-content,1fr] gap-x-4 gap-y-2">
+                                <TimingRow label="Client conn. established" timestamp={getTimestamp(httpFlow.client?.timestampStart)} relativeTo={firstRequestByteTimestamp} />
+                                <TimingRow label="Server conn. initiated" timestamp={getTimestamp(httpFlow.server?.timestampStart)} relativeTo={firstRequestByteTimestamp} />
+                                <TimingRow label="Server conn. TCP handshake" timestamp={getTimestamp(httpFlow.server?.timestampTcpSetup)} relativeTo={firstRequestByteTimestamp} />
+                                <TimingRow label="Server conn. TLS handshake" timestamp={getTimestamp(httpFlow.server?.timestampTlsSetup)} relativeTo={firstRequestByteTimestamp} />
+                                <TimingRow label="Client conn. TLS handshake" timestamp={getTimestamp(httpFlow.client?.timestampTlsSetup)} relativeTo={firstRequestByteTimestamp} />
+                                <TimingRow label="First request byte" timestamp={firstRequestByteTimestamp} relativeTo={firstRequestByteTimestamp} />
+                                <TimingRow label="Request Complete" timestamp={getTimestamp(httpFlow.request?.timestampEnd)} relativeTo={firstRequestByteTimestamp} />
+                                <TimingRow label="First response byte" timestamp={getTimestamp(httpFlow.response?.timestampStart)} relativeTo={firstRequestByteTimestamp} />
+                                <TimingRow label="Response complete" timestamp={getTimestamp(httpFlow.response?.timestampEnd)} relativeTo={firstRequestByteTimestamp} />
+                            </div>
+                        </div>
+                        <div className="bg-zinc-800 p-4 rounded">
+                            <h5 className="font-semibold text-zinc-400 mb-3 border-b border-zinc-700 pb-2">Request Body</h5>
                             <div className="grid grid-cols-2 gap-x-4 gap-y-2">
-                                <div className="text-zinc-500">Start Time:</div> <div>{formatTimestamp(getTimestamp(httpFlow.timestampStart))}</div>
-                                <div className="text-zinc-500">Duration:</div> <div>{httpFlow.durationMs ? `${httpFlow.durationMs.toFixed(0)} ms` : '...'}</div>
+                                <div className="text-zinc-500">Size:</div> <div>{httpFlow.request?.content?.length ?? 0} B</div>
+                                <div className="text-zinc-500">Content-Type:</div> <div className="break-all">{getContentType(httpFlow.request?.headers) || 'N/A'}</div>
+                                {httpFlow.request?.effectiveContentType && getContentType(httpFlow.request?.headers) !== httpFlow.request?.effectiveContentType && (
+                                    <>
+                                        <div className="text-zinc-500">Detected Content-Type:</div>
+                                        <div className="break-all">{httpFlow.request?.effectiveContentType}</div>
+                                    </>
+                                )}
+                            </div>
+                        </div>
+                        <div className="bg-zinc-800 p-4 rounded">
+                            <h5 className="font-semibold text-zinc-400 mb-3 border-b border-zinc-700 pb-2">Response Body</h5>
+                            <div className="grid grid-cols-2 gap-x-4 gap-y-2">
+                                <div className="text-zinc-500">Size:</div> <div>{httpFlow.response?.content?.length ?? 0} B</div>
+                                <div className="text-zinc-500">Content-Type:</div> <div className="break-all">{getContentType(httpFlow.response?.headers) || 'N/A'}</div>
+                                {httpFlow.response?.effectiveContentType && getContentType(httpFlow.response?.headers) !== httpFlow.response?.effectiveContentType && (
+                                    <>
+                                        <div className="text-zinc-500">Detected Content-Type:</div>
+                                        <div className="break-all">{httpFlow.response?.effectiveContentType}</div>
+                                    </>
+                                )}
                             </div>
                         </div>
                         {httpFlow.error && (
@@ -295,7 +286,7 @@ export const HttpFlowDetails: React.FC<{
                     <RequestResponseView
                         title="Request"
                         fullContent={requestAsText}
-                        bodyContent={formatContent(httpFlow.request?.content, requestFormat, httpFlow.request?.effectiveContentType)}
+                        bodyContent={formatContent(httpFlow.request?.content, requestFormat, getContentType(httpFlow.request?.headers), httpFlow.request?.effectiveContentType)}
                         format={requestFormat}
                         setFormat={setRequestFormat}
                         headers={httpFlow.request?.headers}
@@ -306,7 +297,7 @@ export const HttpFlowDetails: React.FC<{
                     <RequestResponseView
                         title="Response"
                         fullContent={responseAsText}
-                        bodyContent={formatContent(httpFlow.response?.content, responseFormat, httpFlow.response?.effectiveContentType)}
+                        bodyContent={formatContent(httpFlow.response?.content, responseFormat, getContentType(httpFlow.response?.headers), httpFlow.response?.effectiveContentType)}
                         format={responseFormat}
                         setFormat={setResponseFormat}
                         headers={httpFlow.response?.headers}
@@ -323,6 +314,9 @@ export const HttpFlowDetails: React.FC<{
                             </div>
                         ))}
                     </div>
+                )}
+                {selectedTab === 'connection' && (
+                    <ConnectionTab client={httpFlow.client} server={httpFlow.server} />
                 )}
             </div>
         </>

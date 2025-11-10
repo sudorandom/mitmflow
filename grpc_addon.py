@@ -112,7 +112,11 @@ def to_grpc_flow(flow: http.HTTPFlow) -> mitmflow_pb2.HTTPFlow:
     # Request
     f.request.method = flow.request.method
     f.request.url = flow.request.url
+    f.request.pretty_url = flow.request.pretty_url
     f.request.http_version = flow.request.http_version
+    f.request.timestamp_start.FromDatetime(datetime.fromtimestamp(flow.request.timestamp_start))
+    if flow.request.timestamp_end:
+        f.request.timestamp_end.FromDatetime(datetime.fromtimestamp(flow.request.timestamp_end))
     for k, v in flow.request.headers.items():
         f.request.headers[k] = v
     if flow.request.content is not None:
@@ -125,6 +129,9 @@ def to_grpc_flow(flow: http.HTTPFlow) -> mitmflow_pb2.HTTPFlow:
     if flow.response:
         f.response.status_code = flow.response.status_code
         f.response.http_version = flow.response.http_version
+        f.response.timestamp_start.FromDatetime(datetime.fromtimestamp(flow.response.timestamp_start))
+        if flow.response.timestamp_end:
+            f.response.timestamp_end.FromDatetime(datetime.fromtimestamp(flow.response.timestamp_end))
         for k, v in flow.response.headers.items():
             f.response.headers[k] = v
         if flow.response.content is not None:

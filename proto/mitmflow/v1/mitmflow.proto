@@ -311,6 +311,9 @@ message Request {
   string http_version = 6;
   map<string, string> trailers = 7;
   string effective_content_type = 8;
+  google.protobuf.Timestamp timestamp_start = 9;
+  google.protobuf.Timestamp timestamp_end = 10;
+  string pretty_url = 11 [(buf.validate.field).string.uri = true];
 }
 
 message Response {
@@ -331,4 +334,6 @@ message Response {
   string http_version = 5;
   map<string, string> trailers = 6;
   string effective_content_type = 7;
+  google.protobuf.Timestamp timestamp_start = 8;
+  google.protobuf.Timestamp timestamp_end = 9;
 }

@@ -906,6 +906,21 @@ export declare type Request = Message<"mitmflow.v1.Request"> & {
    * @generated from field: string effective_content_type = 8;
    */
   effectiveContentType: string;
+
+  /**
+   * @generated from field: google.protobuf.Timestamp timestamp_start = 9;
+   */
+  timestampStart?: Timestamp;
+
+  /**
+   * @generated from field: google.protobuf.Timestamp timestamp_end = 10;
+   */
+  timestampEnd?: Timestamp;
+
+  /**
+   * @generated from field: string pretty_url = 11;
+   */
+  prettyUrl: string;
 };
 
 /**
@@ -952,6 +967,16 @@ export declare type Response = Message<"mitmflow.v1.Response"> & {
    * @generated from field: string effective_content_type = 7;
    */
   effectiveContentType: string;
+
+  /**
+   * @generated from field: google.protobuf.Timestamp timestamp_start = 8;
+   */
+  timestampStart?: Timestamp;
+
+  /**
+   * @generated from field: google.protobuf.Timestamp timestamp_end = 9;
+   */
+  timestampEnd?: Timestamp;
 };
 
 /**

@@ -130,19 +130,8 @@ func (s *MITMFlowServer) preprocessRequest(req *mitmflowv1.Request) {
 	if ok {
 		req.EffectiveContentType = contentType
 	}
-	if ct := http.DetectContentType(req.Content); ct != "application/octet-stream" {
+	if ct := http.DetectContentType(req.Content); ct != "application/octet-stream" && !strings.HasPrefix(ct, "text/plain") {
 		req.EffectiveContentType = ct
-	}
-
-	if strings.Contains(contentType, "application/proto") {
-		opts := protoscope.WriterOptions{}
-		protoscopeOutput := protoscope.Write(req.Content, opts)
-		req.ContentProtoscopeFrames = []string{protoscopeOutput}
-	} else if strings.Contains(contentType, "application/grpc") {
-		frames, err := parseGrpcFrames(req.Content)
-		if err == nil {
-			req.ContentProtoscopeFrames = frames
-		}
 	}
 
 	switch {
@@ -154,18 +143,22 @@ func (s *MITMFlowServer) preprocessRequest(req *mitmflowv1.Request) {
 		frames, err := parseGrpcFrames(req.Content)
 		if err == nil {
 			req.ContentProtoscopeFrames = frames
+		} else {
+			log.Printf("failed to parse grpc frames: %v", err)
 		}
 	case strings.Contains(contentType, "application/grpc-web"):
 		frames, err := parseGrpcWebFrames(req.Content)
 		if err == nil {
 			req.ContentProtoscopeFrames = frames
+		} else {
+			log.Printf("failed to parse grpc-web frames: %v", err)
 		}
 	}
 }
 
 func getContentType(headers map[string]string) (string, bool) {
-	for _, v := range headers {
-		if strings.ToLower(v) == "content-type" {
+	for k, v := range headers {
+		if strings.ToLower(k) == "content-type" {
 			return strings.ToLower(v), true
 		}
 	}
@@ -177,7 +170,7 @@ func (s *MITMFlowServer) preprocessResponse(resp *mitmflowv1.Response) {
 	if ok {
 		resp.EffectiveContentType = contentType
 	}
-	if ct := http.DetectContentType(resp.Content); ct != "application/octet-stream" {
+	if ct := http.DetectContentType(resp.Content); ct != "application/octet-stream" && !strings.HasPrefix(ct, "text/plain") {
 		resp.EffectiveContentType = ct
 	}
 
@@ -190,11 +183,15 @@ func (s *MITMFlowServer) preprocessResponse(resp *mitmflowv1.Response) {
 		frames, err := parseGrpcFrames(resp.Content)
 		if err == nil {
 			resp.ContentProtoscopeFrames = frames
+		} else {
+			log.Printf("failed to parse grpc frames: %v", err)
 		}
 	case strings.Contains(contentType, "application/grpc-web"):
 		frames, err := parseGrpcWebFrames(resp.Content)
 		if err == nil {
 			resp.ContentProtoscopeFrames = frames
+		} else {
+			log.Printf("failed to parse grpc-web frames: %v", err)
 		}
 	}
 }

@@ -2173,6 +2173,9 @@ type Request struct {
 	HttpVersion             string                 `protobuf:"bytes,6,opt,name=http_version,json=httpVersion,proto3" json:"http_version,omitempty"`
 	Trailers                map[string]string      `protobuf:"bytes,7,rep,name=trailers,proto3" json:"trailers,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
 	EffectiveContentType    string                 `protobuf:"bytes,8,opt,name=effective_content_type,json=effectiveContentType,proto3" json:"effective_content_type,omitempty"`
+	TimestampStart          *timestamppb.Timestamp `protobuf:"bytes,9,opt,name=timestamp_start,json=timestampStart,proto3" json:"timestamp_start,omitempty"`
+	TimestampEnd            *timestamppb.Timestamp `protobuf:"bytes,10,opt,name=timestamp_end,json=timestampEnd,proto3" json:"timestamp_end,omitempty"`
+	PrettyUrl               string                 `protobuf:"bytes,11,opt,name=pretty_url,json=prettyUrl,proto3" json:"pretty_url,omitempty"`
 	unknownFields           protoimpl.UnknownFields
 	sizeCache               protoimpl.SizeCache
 }
@@ -2263,6 +2266,27 @@ func (x *Request) GetEffectiveContentType() string {
 	return ""
 }
 
+func (x *Request) GetTimestampStart() *timestamppb.Timestamp {
+	if x != nil {
+		return x.TimestampStart
+	}
+	return nil
+}
+
+func (x *Request) GetTimestampEnd() *timestamppb.Timestamp {
+	if x != nil {
+		return x.TimestampEnd
+	}
+	return nil
+}
+
+func (x *Request) GetPrettyUrl() string {
+	if x != nil {
+		return x.PrettyUrl
+	}
+	return ""
+}
+
 type Response struct {
 	state                   protoimpl.MessageState `protogen:"open.v1"`
 	StatusCode              int32                  `protobuf:"varint,1,opt,name=status_code,json=statusCode,proto3" json:"status_code,omitempty"`
@@ -2272,6 +2296,8 @@ type Response struct {
 	HttpVersion             string                 `protobuf:"bytes,5,opt,name=http_version,json=httpVersion,proto3" json:"http_version,omitempty"`
 	Trailers                map[string]string      `protobuf:"bytes,6,rep,name=trailers,proto3" json:"trailers,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
 	EffectiveContentType    string                 `protobuf:"bytes,7,opt,name=effective_content_type,json=effectiveContentType,proto3" json:"effective_content_type,omitempty"`
+	TimestampStart          *timestamppb.Timestamp `protobuf:"bytes,8,opt,name=timestamp_start,json=timestampStart,proto3" json:"timestamp_start,omitempty"`
+	TimestampEnd            *timestamppb.Timestamp `protobuf:"bytes,9,opt,name=timestamp_end,json=timestampEnd,proto3" json:"timestamp_end,omitempty"`
 	unknownFields           protoimpl.UnknownFields
 	sizeCache               protoimpl.SizeCache
 }
@@ -2353,6 +2379,20 @@ func (x *Response) GetEffectiveContentType() string {
 		return x.EffectiveContentType
 	}
 	return ""
+}
+
+func (x *Response) GetTimestampStart() *timestamppb.Timestamp {
+	if x != nil {
+		return x.TimestampStart
+	}
+	return nil
+}
+
+func (x *Response) GetTimestampEnd() *timestamppb.Timestamp {
+	if x != nil {
+		return x.TimestampEnd
+	}
+	return nil
 }
 
 var File_mitmflow_v1_mitmflow_proto protoreflect.FileDescriptor
@@ -2556,7 +2596,7 @@ const file_mitmflow_v1_mitmflow_proto_rawDesc = "" +
 	"\fis_websocket\x18\t \x01(\bR\visWebsocket\x12\x12\n" +
 	"\x04live\x18\n" +
 	" \x01(\bR\x04live\x12L\n" +
-	"\x12websocket_messages\x18\v \x03(\v2\x1d.mitmflow.v1.WebSocketMessageR\x11websocketMessages\"\xbd\x05\n" +
+	"\x12websocket_messages\x18\v \x03(\v2\x1d.mitmflow.v1.WebSocketMessageR\x11websocketMessages\"\xec\x06\n" +
 	"\aRequest\x12C\n" +
 	"\x06method\x18\x01 \x01(\tB+\xbaH(r&\x92\x02\x03GET\x92\x02\x04POST\x92\x02\x03PUT\x92\x02\x06DELETE\x92\x02\aOPTIONSR\x06method\x12\x1a\n" +
 	"\x03url\x18\x02 \x01(\tB\b\xbaH\x05r\x03\x88\x01\x01R\x03url\x12\xe8\x01\n" +
@@ -2567,13 +2607,18 @@ const file_mitmflow_v1_mitmflow_proto_rawDesc = "" +
 	"\x19content_protoscope_frames\x18\x05 \x03(\tR\x17contentProtoscopeFrames\x12!\n" +
 	"\fhttp_version\x18\x06 \x01(\tR\vhttpVersion\x12>\n" +
 	"\btrailers\x18\a \x03(\v2\".mitmflow.v1.Request.TrailersEntryR\btrailers\x124\n" +
-	"\x16effective_content_type\x18\b \x01(\tR\x14effectiveContentType\x1a:\n" +
+	"\x16effective_content_type\x18\b \x01(\tR\x14effectiveContentType\x12C\n" +
+	"\x0ftimestamp_start\x18\t \x01(\v2\x1a.google.protobuf.TimestampR\x0etimestampStart\x12?\n" +
+	"\rtimestamp_end\x18\n" +
+	" \x01(\v2\x1a.google.protobuf.TimestampR\ftimestampEnd\x12'\n" +
+	"\n" +
+	"pretty_url\x18\v \x01(\tB\b\xbaH\x05r\x03\x88\x01\x01R\tprettyUrl\x1a:\n" +
 	"\fHeadersEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\x1a;\n" +
 	"\rTrailersEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\xf3\x03\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\xf9\x04\n" +
 	"\bResponse\x12@\n" +
 	"\vstatus_code\x18\x01 \x01(\x05B\x1f\xbaH\x1c\x1a\x1a@\xc8\x01@\xc9\x01@\xac\x02@\xad\x02@\x91\x03@\x94\x03@\xf4\x03\x18\xd7\x04(dR\n" +
 	"statusCode\x12<\n" +
@@ -2582,7 +2627,9 @@ const file_mitmflow_v1_mitmflow_proto_rawDesc = "" +
 	"\x19content_protoscope_frames\x18\x04 \x03(\tR\x17contentProtoscopeFrames\x12!\n" +
 	"\fhttp_version\x18\x05 \x01(\tR\vhttpVersion\x12?\n" +
 	"\btrailers\x18\x06 \x03(\v2#.mitmflow.v1.Response.TrailersEntryR\btrailers\x124\n" +
-	"\x16effective_content_type\x18\a \x01(\tR\x14effectiveContentType\x1a:\n" +
+	"\x16effective_content_type\x18\a \x01(\tR\x14effectiveContentType\x12C\n" +
+	"\x0ftimestamp_start\x18\b \x01(\v2\x1a.google.protobuf.TimestampR\x0etimestampStart\x12?\n" +
+	"\rtimestamp_end\x18\t \x01(\v2\x1a.google.protobuf.TimestampR\ftimestampEnd\x1a:\n" +
 	"\fHeadersEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\x1a;\n" +
@@ -2766,17 +2813,21 @@ var file_mitmflow_v1_mitmflow_proto_depIdxs = []int32{
 	18, // 50: mitmflow.v1.HTTPFlow.websocket_messages:type_name -> mitmflow.v1.WebSocketMessage
 	27, // 51: mitmflow.v1.Request.headers:type_name -> mitmflow.v1.Request.HeadersEntry
 	28, // 52: mitmflow.v1.Request.trailers:type_name -> mitmflow.v1.Request.TrailersEntry
-	29, // 53: mitmflow.v1.Response.headers:type_name -> mitmflow.v1.Response.HeadersEntry
-	30, // 54: mitmflow.v1.Response.trailers:type_name -> mitmflow.v1.Response.TrailersEntry
-	9,  // 55: mitmflow.v1.Service.ExportFlow:input_type -> mitmflow.v1.ExportFlowRequest
-	11, // 56: mitmflow.v1.Service.StreamFlows:input_type -> mitmflow.v1.StreamFlowsRequest
-	10, // 57: mitmflow.v1.Service.ExportFlow:output_type -> mitmflow.v1.ExportFlowResponse
-	12, // 58: mitmflow.v1.Service.StreamFlows:output_type -> mitmflow.v1.StreamFlowsResponse
-	57, // [57:59] is the sub-list for method output_type
-	55, // [55:57] is the sub-list for method input_type
-	55, // [55:55] is the sub-list for extension type_name
-	55, // [55:55] is the sub-list for extension extendee
-	0,  // [0:55] is the sub-list for field type_name
+	31, // 53: mitmflow.v1.Request.timestamp_start:type_name -> google.protobuf.Timestamp
+	31, // 54: mitmflow.v1.Request.timestamp_end:type_name -> google.protobuf.Timestamp
+	29, // 55: mitmflow.v1.Response.headers:type_name -> mitmflow.v1.Response.HeadersEntry
+	30, // 56: mitmflow.v1.Response.trailers:type_name -> mitmflow.v1.Response.TrailersEntry
+	31, // 57: mitmflow.v1.Response.timestamp_start:type_name -> google.protobuf.Timestamp
+	31, // 58: mitmflow.v1.Response.timestamp_end:type_name -> google.protobuf.Timestamp
+	9,  // 59: mitmflow.v1.Service.ExportFlow:input_type -> mitmflow.v1.ExportFlowRequest
+	11, // 60: mitmflow.v1.Service.StreamFlows:input_type -> mitmflow.v1.StreamFlowsRequest
+	10, // 61: mitmflow.v1.Service.ExportFlow:output_type -> mitmflow.v1.ExportFlowResponse
+	12, // 62: mitmflow.v1.Service.StreamFlows:output_type -> mitmflow.v1.StreamFlowsResponse
+	61, // [61:63] is the sub-list for method output_type
+	59, // [59:61] is the sub-list for method input_type
+	59, // [59:59] is the sub-list for extension type_name
+	59, // [59:59] is the sub-list for extension extendee
+	0,  // [0:59] is the sub-list for field type_name
 }
 
 func init() { file_mitmflow_v1_mitmflow_proto_init() }

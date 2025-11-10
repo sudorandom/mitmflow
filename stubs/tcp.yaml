@@ -22,10 +22,12 @@ stubs:
           "timestamp_start": fake_date(),
           "duration_ms": fake_float32(),
           "client": {
-            "peername_host": fake_i_pv4_address()
+            "peername_host": fake_i_pv4_address(),
+            "peername_port": fake_int8(),
           },
           "server": {
-            "address_host": fake_i_pv4_address()
+            "address_host": fake_i_pv4_address(),
+            "address_port": fake_int8(),
           }
         }
       }
@@ -41,10 +43,12 @@ stubs:
           "timestamp_start": fake_date(),
           "duration_ms": fake_float32(),
           "client": {
-            "peername_host": fake_i_pv4_address()
+            "peername_host": fake_i_pv4_address(),
+            "peername_port": fake_int8(),
           },
           "server": {
-            "address_host": fake_i_pv4_address()
+            "address_host": fake_i_pv4_address(),
+            "address_port": fake_int8(),
           }
         }
       }

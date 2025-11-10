@@ -45,7 +45,7 @@ const generateHarBlob = (flowsToExport: Flow[]): Blob => {
             time: httpFlow.durationMs,
             request: {
               method: httpFlow.request?.method || '',
-              url: httpFlow.request?.url || '',
+              url: httpFlow.request?.prettyUrl || httpFlow.request?.url || '',
               httpVersion: "HTTP/1.1", headers: [], queryString: [], cookies: [],
               postData: getHarContent(httpFlow.request?.content, httpFlow.request?.effectiveContentType)
             },
@@ -295,7 +295,7 @@ const App: React.FC = () => {
       switch (flow.flow.case) {
         case 'httpFlow':
           const httpFlow = flow.flow.value;
-          const url = httpFlow.request?.url || '';
+          const url = httpFlow.request?.prettyUrl || httpFlow.request?.url || '';
           const sni = httpFlow.client?.sni || '';
           const filterTextHttp = `${url} ${httpFlow.request?.method} ${httpFlow.response?.statusCode} ${sni}`.toLowerCase();
           return filterTextHttp.includes(filter);
