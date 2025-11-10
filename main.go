@@ -134,17 +134,6 @@ func (s *MITMFlowServer) preprocessRequest(req *mitmflowv1.Request) {
 		req.EffectiveContentType = ct
 	}
 
-	if strings.Contains(contentType, "application/proto") {
-		opts := protoscope.WriterOptions{}
-		protoscopeOutput := protoscope.Write(req.Content, opts)
-		req.ContentProtoscopeFrames = []string{protoscopeOutput}
-	} else if strings.Contains(contentType, "application/grpc") {
-		frames, err := parseGrpcFrames(req.Content)
-		if err == nil {
-			req.ContentProtoscopeFrames = frames
-		}
-	}
-
 	switch {
 	case strings.Contains(contentType, "application/proto") || strings.Contains(contentType, "application/protobuf"):
 		opts := protoscope.WriterOptions{}
@@ -154,18 +143,22 @@ func (s *MITMFlowServer) preprocessRequest(req *mitmflowv1.Request) {
 		frames, err := parseGrpcFrames(req.Content)
 		if err == nil {
 			req.ContentProtoscopeFrames = frames
+		} else {
+			log.Printf("failed to parse grpc frames: %v", err)
 		}
 	case strings.Contains(contentType, "application/grpc-web"):
 		frames, err := parseGrpcWebFrames(req.Content)
 		if err == nil {
 			req.ContentProtoscopeFrames = frames
+		} else {
+			log.Printf("failed to parse grpc-web frames: %v", err)
 		}
 	}
 }
 
 func getContentType(headers map[string]string) (string, bool) {
-	for _, v := range headers {
-		if strings.ToLower(v) == "content-type" {
+	for k, v := range headers {
+		if strings.ToLower(k) == "content-type" {
 			return strings.ToLower(v), true
 		}
 	}
@@ -190,11 +183,15 @@ func (s *MITMFlowServer) preprocessResponse(resp *mitmflowv1.Response) {
 		frames, err := parseGrpcFrames(resp.Content)
 		if err == nil {
 			resp.ContentProtoscopeFrames = frames
+		} else {
+			log.Printf("failed to parse grpc frames: %v", err)
 		}
 	case strings.Contains(contentType, "application/grpc-web"):
 		frames, err := parseGrpcWebFrames(resp.Content)
 		if err == nil {
 			resp.ContentProtoscopeFrames = frames
+		} else {
+			log.Printf("failed to parse grpc-web frames: %v", err)
 		}
 	}
 }
