@@ -291,6 +291,15 @@ class MitmFlowAddon:
         self.flowclient = None
         self.queue = asyncio.Queue()
         self.export_task = None
+        self.event_types = []
+        self.allowed_events = {
+            "all", "requestheaders", "response", "responseheaders", "error",
+            "http_connect", "http_connect_upstream", "http_connected", "http_connect_error",
+            "dns_request", "dns_response", "dns_error",
+            "tcp_start", "tcp_message", "tcp_end", "tcp_error",
+            "udp_start", "udp_message", "udp_end", "udp_error",
+            "websocket_start", "websocket_message", "websocket_end",
+        }
 
     def load(self, loader):
         loader.add_option(
@@ -309,7 +318,21 @@ class MitmFlowAddon:
     def running(self):
         self.flowclient = mitmflow_connect.ServiceClient(ctx.options.grpc_addr)
         self.export_task = asyncio.create_task(self._export_flows())
-        self.event_types = ctx.options.grpc_events.split(',')
+        self._update_events()
+
+    def configure(self, updates):
+        if "grpc_events" in updates:
+            self._update_events()
+
+    def _update_events(self):
+        events = ctx.options.grpc_events.split(',')
+        valid_events = []
+        for event in [e.strip() for e in events]:
+            if event in self.allowed_events:
+                valid_events.append(event)
+            else:
+                ctx.log.warn(f"Invalid gRPC event type: {event}")
+        self.event_types = valid_events
 
     def _is_event_enabled(self, event_type: str) -> bool:
         return "all" in self.event_types or event_type in self.event_types

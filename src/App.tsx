@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
-import { Search, Pause, Play, Download, Braces, HardDriveDownload, Menu, Filter, X, Settings } from 'lucide-react';
+import { Search, Pause, Play, Download, Braces, HardDriveDownload, Menu, Filter, X, Settings, Trash } from 'lucide-react';
 import { createConnectTransport } from "@connectrpc/connect-web";
 import { createClient } from "@connectrpc/connect";
 import { Service, Flow, FlowSchema } from "./gen/mitmflow/v1/mitmflow_pb";
@@ -564,6 +564,13 @@ const App: React.FC = () => {
         return;
       }
 
+      // If focus is on something outside the flow list (and not the body), do nothing.
+      if (document.activeElement && document.activeElement !== document.body) {
+        if (mainTableRef.current && !mainTableRef.current.contains(document.activeElement)) {
+          return;
+        }
+      }
+
       if ((e.metaKey || e.ctrlKey) && e.key === 'a') {
         e.preventDefault();
         const allFlowIds = new Set(filteredFlows.map(f => getFlowId(f)).filter((id): id is string => id !== undefined));
@@ -648,12 +655,6 @@ const App: React.FC = () => {
       <header className="p-4 border-b border-zinc-700 flex items-center gap-4 flex-shrink-0">
         <h1 className="text-2xl font-semibold text-white">Flows</h1>
         <div className="flex items-center gap-2 ml-2">
-          <button
-            onClick={() => setIsSettingsModalOpen(true)}
-            className="bg-zinc-800 border border-zinc-700 text-zinc-200 px-3 py-1 rounded-full text-sm font-medium flex items-center gap-1.5 hover:bg-zinc-700"
-          >
-            <Settings size={14} />
-          </button>
           {/* Connection Status Indicator */}
           <div className={`flex items-center justify-center w-28 gap-2 px-3 py-1 rounded-full text-sm font-medium
             ${connectionStatus === 'live' ? 'text-green-400 bg-green-900/50' : ''}
@@ -674,7 +675,7 @@ const App: React.FC = () => {
               onClick={() => setIsMenuOpen(!isMenuOpen)}
               className="bg-zinc-800 border border-zinc-700 text-zinc-200 px-3 py-1 rounded-full text-sm font-medium flex items-center gap-1.5 hover:bg-zinc-700"
             >
-              <Menu size={14} />
+              <Menu size={20} />
             </button>
             {isMenuOpen && (
               <div className="absolute right-0 mt-2 w-48 bg-zinc-800 border border-zinc-700 rounded-md shadow-lg z-20">
@@ -682,14 +683,14 @@ const App: React.FC = () => {
                   onClick={() => { togglePause(); setIsMenuOpen(false); }}
                   className="block w-full text-left px-4 py-2 text-sm text-zinc-200 hover:bg-zinc-700 flex items-center gap-1.5"
                 >
-                  {isPaused ? <Play size={14} /> : <Pause size={14} />}
+                  {isPaused ? <Play size={20} /> : <Pause size={20} />}
                   {isPaused ? 'Resume' : 'Pause'}
                 </button>
                 <button
                   onClick={() => { handleClearFlows(); setIsMenuOpen(false); }}
                   className="block w-full text-left px-4 py-2 text-sm text-zinc-200 hover:bg-zinc-700 flex items-center gap-1.5"
                 >
-                  Clear Flows
+                  <Trash size={20} /> Clear Flows
                 </button>
                 <div className="relative inline-block w-full" ref={bulkDownloadRef}>
                   <button
@@ -697,7 +698,7 @@ const App: React.FC = () => {
                     disabled={selectedFlowIds.size === 0}
                     className="block w-full text-left px-4 py-2 text-sm text-zinc-200 hover:bg-zinc-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5"
                   >
-                    <Download size={14} /> {selectedFlowIds.size}
+                    <Download size={20} /> Download ({selectedFlowIds.size})
                   </button>
                   {isBulkDownloadOpen && (
                     <div className="absolute left-0 bg-zinc-800 border border-zinc-700 rounded shadow-lg z-10 min-w-[180px] top-full mt-2">
@@ -718,6 +719,18 @@ const App: React.FC = () => {
                     </div>
                   )}
                 </div>
+                <button
+                    onClick={() => setIsSettingsModalOpen(true)}
+                    className="block w-full text-left px-4 py-2 text-sm text-zinc-200 hover:bg-zinc-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5"
+                  >
+                    <Settings size={20} /> Settings
+                  </button>
+                <button
+                  
+                  className="bg-zinc-800 border border-zinc-700 text-zinc-200 px-3 py-1 rounded-full text-sm font-medium flex items-center gap-1.5 hover:bg-zinc-700"
+                >
+                  
+                </button>
               </div>
             )}
           </div>
@@ -726,16 +739,21 @@ const App: React.FC = () => {
               onClick={togglePause}
               className="bg-zinc-800 border border-zinc-700 text-zinc-200 px-3 py-1 rounded-full text-sm font-medium flex items-center gap-1.5 hover:bg-zinc-700"
             >
-              {isPaused ? <Play size={14} /> : <Pause size={14} />}
-              {isPaused ? 'Resume' : 'Pause'}
+              {isPaused ? <Play size={20} /> : <Pause size={20} />}
             </button>
             
             <button
               onClick={handleClearFlows}
               className="bg-zinc-800 border border-zinc-700 text-zinc-200 px-3 py-1 rounded-full text-sm font-medium flex items-center gap-1.5 hover:bg-zinc-700"
             >
-              Clear Flows
+              <Trash size={20} />
             </button>
+            <button
+                onClick={() => setIsSettingsModalOpen(true)}
+                className="bg-zinc-800 border border-zinc-700 text-zinc-200 px-3 py-1 rounded-full text-sm font-medium flex items-center gap-1.5 hover:bg-zinc-700"
+              >
+                <Settings size={20} />
+              </button>
 
             {/* Bulk Download Button with Dropdown */}
             <div className="relative inline-block" ref={bulkDownloadRef}>
@@ -744,7 +762,7 @@ const App: React.FC = () => {
                 disabled={selectedFlowIds.size === 0}
                 className="bg-zinc-800 border border-zinc-700 text-zinc-200 px-3 py-1 rounded-full text-sm font-medium flex items-center gap-1.5 hover:bg-zinc-700 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                <Download size={14} /> {selectedFlowIds.size}
+                <Download size={20} /> {selectedFlowIds.size}
               </button>
               {isBulkDownloadOpen && (
                 <div className="absolute right-0 bg-zinc-800 border border-zinc-700 rounded shadow-lg z-50 min-w-[180px] top-full mt-2">
@@ -753,21 +771,21 @@ const App: React.FC = () => {
                     onClick={(e) => { e.preventDefault(); handleDownloadSelectedFlows('har'); setIsBulkDownloadOpen(false); }}
                     className="flex items-center gap-3 px-4 py-2.5 text-sm text-zinc-400 hover:bg-zinc-700 hover:text-zinc-200"
                   >
-                    <HardDriveDownload size={16} /> Download HAR
+                    <HardDriveDownload size={20} /> Download HAR
                   </a>
                   <a
                     href="#"
                     onClick={(e) => { e.preventDefault(); handleDownloadSelectedFlows('json'); setIsBulkDownloadOpen(false); }}
                     className="flex items-center gap-3 px-4 py-2.5 text-sm text-zinc-400 hover:bg-zinc-700 hover:text-zinc-200"
                   >
-                    <Braces size={16} /> Download Flows (JSON)
+                    <Braces size={20} /> Download Flows (JSON)
                   </a>
                 </div>
               )}
             </div>
           </div>
         </div>
-        
+
         {activeFilterCount > 0 && (
           <button
             onClick={() => setIsFilterModalOpen(true)}
@@ -804,7 +822,7 @@ const App: React.FC = () => {
             className="bg-zinc-800 border border-zinc-700 border-l-0 rounded-r-full text-zinc-400 px-3 py-1.5 hover:bg-zinc-700 hover:text-white focus:outline-none focus:ring-2 focus:ring-orange-500"
             data-testid="filter-button"
           >
-            <Filter size={16} />
+            <Filter size={20} />
           </button>
         </div>
       </header>
