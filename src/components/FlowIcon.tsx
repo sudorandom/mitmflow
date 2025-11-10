@@ -10,9 +10,12 @@ import {
     MessageCircle,
     Server,
 } from "lucide-react";
-import { Flow } from "@/gen/mitmflow/v1/mitmflow_pb";
+import { Flow } from "../gen/mitmflow/v1/mitmflow_pb";
 
 export default function FlowIcon({ flow }: { flow: Flow }) {
+    if (!flow.flow?.case) {
+        return null;
+    }
     if (flow.flow.case === "httpFlow") {
         const contentType =
             flow.flow.value.response?.effectiveContentType ||

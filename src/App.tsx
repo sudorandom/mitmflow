@@ -94,10 +94,16 @@ const FlowRow: React.FC<{
 
 // --- MAIN APP COMPONENT ---
 
+declare global {
+  interface Window {
+    MITMFLOW_GRPC_ADDR?: string;
+  }
+}
+
 type ConnectionStatus = 'connecting' | 'live' | 'paused' | 'failed';
 
 const App: React.FC = () => {
-  const client = useMemo(() => createClient(Service, createConnectTransport({ baseUrl: "http://localhost:50051" })), []);
+  const client = useMemo(() => createClient(Service, createConnectTransport({ baseUrl: window.MITMFLOW_GRPC_ADDR || "http://localhost:50051" })), []);
   // --- State ---
   const [flows, setFlows] = useState<Flow[]>([]);
   const [isFlowsTruncated, setIsFlowsTruncated] = useState(false);
@@ -342,9 +348,11 @@ const App: React.FC = () => {
       // --- General Text Filter ---
       if (filter) {
         let isMatch = false;
-        const clientIp = flow.flow.value.client?.addressHost || '';
-        const serverIp = flow.flow.value.server?.addressHost || '';
-
+        const clientIp = flow.flow.value?.client?.peernameHost || '';
+        const serverIp = flow.flow.value?.server?.addressHost || '';
+        if (!flow.flow.case) {
+          return false;
+        }
         switch (flow.flow.case) {
           case 'httpFlow':
             const httpFlow = flow.flow.value;
@@ -375,6 +383,9 @@ const App: React.FC = () => {
       // --- Advanced Filters ---
       // Flow Type Filter (OR logic)
       if (flowTypes.length > 0) {
+        if (!flow.flow?.case) {
+          return false;
+        }
         const flowType = flow.flow.case.replace('Flow', '').toLowerCase();
         if (!flowTypes.includes(flowType as any)) {
           return false;
