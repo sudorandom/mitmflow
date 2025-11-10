@@ -251,7 +251,7 @@ export const HttpFlowDetails: React.FC<{
                         <div className="bg-zinc-800 p-4 rounded">
                             <h5 className="font-semibold text-zinc-400 mb-3 border-b border-zinc-700 pb-2">Request Body</h5>
                             <div className="grid grid-cols-2 gap-x-4 gap-y-2">
-                                <div className="text-zinc-500">Size:</div> <div>{formatSize(httpFlow.request?.content?.length)}</div>
+                                <div className="text-zinc-500">Size:</div> <div>{formatSize(httpFlow.request?.content?.length)} {httpFlow.request?.contentTruncated && <span className="text-yellow-500">(truncated)</span>}</div>
                                 <div className="text-zinc-500">Content-Type:</div> <div className="break-all">{getContentType(httpFlow.request?.headers) || 'N/A'}</div>
                                 {httpFlow.request?.effectiveContentType && getContentType(httpFlow.request?.headers) !== httpFlow.request?.effectiveContentType && (
                                     <>
@@ -264,7 +264,7 @@ export const HttpFlowDetails: React.FC<{
                         <div className="bg-zinc-800 p-4 rounded">
                             <h5 className="font-semibold text-zinc-400 mb-3 border-b border-zinc-700 pb-2">Response Body</h5>
                             <div className="grid grid-cols-2 gap-x-4 gap-y-2">
-                                <div className="text-zinc-500">Size:</div> <div>{formatSize(httpFlow.response?.content?.length)}</div>
+                                <div className="text-zinc-500">Size:</div> <div>{formatSize(httpFlow.response?.content?.length)} {httpFlow.response?.contentTruncated && <span className="text-yellow-500">(truncated)</span>}</div>
                                 <div className="text-zinc-500">Content-Type:</div> <div className="break-all">{getContentType(httpFlow.response?.headers) || 'N/A'}</div>
                                 {httpFlow.response?.effectiveContentType && getContentType(httpFlow.response?.headers) !== httpFlow.response?.effectiveContentType && (
                                     <>

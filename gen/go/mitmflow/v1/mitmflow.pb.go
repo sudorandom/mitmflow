@@ -2176,6 +2176,7 @@ type Request struct {
 	TimestampStart          *timestamppb.Timestamp `protobuf:"bytes,9,opt,name=timestamp_start,json=timestampStart,proto3" json:"timestamp_start,omitempty"`
 	TimestampEnd            *timestamppb.Timestamp `protobuf:"bytes,10,opt,name=timestamp_end,json=timestampEnd,proto3" json:"timestamp_end,omitempty"`
 	PrettyUrl               string                 `protobuf:"bytes,11,opt,name=pretty_url,json=prettyUrl,proto3" json:"pretty_url,omitempty"`
+	ContentTruncated        bool                   `protobuf:"varint,12,opt,name=content_truncated,json=contentTruncated,proto3" json:"content_truncated,omitempty"`
 	unknownFields           protoimpl.UnknownFields
 	sizeCache               protoimpl.SizeCache
 }
@@ -2287,6 +2288,13 @@ func (x *Request) GetPrettyUrl() string {
 	return ""
 }
 
+func (x *Request) GetContentTruncated() bool {
+	if x != nil {
+		return x.ContentTruncated
+	}
+	return false
+}
+
 type Response struct {
 	state                   protoimpl.MessageState `protogen:"open.v1"`
 	StatusCode              int32                  `protobuf:"varint,1,opt,name=status_code,json=statusCode,proto3" json:"status_code,omitempty"`
@@ -2298,6 +2306,7 @@ type Response struct {
 	EffectiveContentType    string                 `protobuf:"bytes,7,opt,name=effective_content_type,json=effectiveContentType,proto3" json:"effective_content_type,omitempty"`
 	TimestampStart          *timestamppb.Timestamp `protobuf:"bytes,8,opt,name=timestamp_start,json=timestampStart,proto3" json:"timestamp_start,omitempty"`
 	TimestampEnd            *timestamppb.Timestamp `protobuf:"bytes,9,opt,name=timestamp_end,json=timestampEnd,proto3" json:"timestamp_end,omitempty"`
+	ContentTruncated        bool                   `protobuf:"varint,10,opt,name=content_truncated,json=contentTruncated,proto3" json:"content_truncated,omitempty"`
 	unknownFields           protoimpl.UnknownFields
 	sizeCache               protoimpl.SizeCache
 }
@@ -2393,6 +2402,13 @@ func (x *Response) GetTimestampEnd() *timestamppb.Timestamp {
 		return x.TimestampEnd
 	}
 	return nil
+}
+
+func (x *Response) GetContentTruncated() bool {
+	if x != nil {
+		return x.ContentTruncated
+	}
+	return false
 }
 
 var File_mitmflow_v1_mitmflow_proto protoreflect.FileDescriptor
@@ -2596,7 +2612,7 @@ const file_mitmflow_v1_mitmflow_proto_rawDesc = "" +
 	"\fis_websocket\x18\t \x01(\bR\visWebsocket\x12\x12\n" +
 	"\x04live\x18\n" +
 	" \x01(\bR\x04live\x12L\n" +
-	"\x12websocket_messages\x18\v \x03(\v2\x1d.mitmflow.v1.WebSocketMessageR\x11websocketMessages\"\xec\x06\n" +
+	"\x12websocket_messages\x18\v \x03(\v2\x1d.mitmflow.v1.WebSocketMessageR\x11websocketMessages\"\x99\a\n" +
 	"\aRequest\x12C\n" +
 	"\x06method\x18\x01 \x01(\tB+\xbaH(r&\x92\x02\x03GET\x92\x02\x04POST\x92\x02\x03PUT\x92\x02\x06DELETE\x92\x02\aOPTIONSR\x06method\x12\x1a\n" +
 	"\x03url\x18\x02 \x01(\tB\b\xbaH\x05r\x03\x88\x01\x01R\x03url\x12\xe8\x01\n" +
@@ -2612,13 +2628,14 @@ const file_mitmflow_v1_mitmflow_proto_rawDesc = "" +
 	"\rtimestamp_end\x18\n" +
 	" \x01(\v2\x1a.google.protobuf.TimestampR\ftimestampEnd\x12'\n" +
 	"\n" +
-	"pretty_url\x18\v \x01(\tB\b\xbaH\x05r\x03\x88\x01\x01R\tprettyUrl\x1a:\n" +
+	"pretty_url\x18\v \x01(\tB\b\xbaH\x05r\x03\x88\x01\x01R\tprettyUrl\x12+\n" +
+	"\x11content_truncated\x18\f \x01(\bR\x10contentTruncated\x1a:\n" +
 	"\fHeadersEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\x1a;\n" +
 	"\rTrailersEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\xf9\x04\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\xa6\x05\n" +
 	"\bResponse\x12@\n" +
 	"\vstatus_code\x18\x01 \x01(\x05B\x1f\xbaH\x1c\x1a\x1a@\xc8\x01@\xc9\x01@\xac\x02@\xad\x02@\x91\x03@\x94\x03@\xf4\x03\x18\xd7\x04(dR\n" +
 	"statusCode\x12<\n" +
@@ -2629,7 +2646,9 @@ const file_mitmflow_v1_mitmflow_proto_rawDesc = "" +
 	"\btrailers\x18\x06 \x03(\v2#.mitmflow.v1.Response.TrailersEntryR\btrailers\x124\n" +
 	"\x16effective_content_type\x18\a \x01(\tR\x14effectiveContentType\x12C\n" +
 	"\x0ftimestamp_start\x18\b \x01(\v2\x1a.google.protobuf.TimestampR\x0etimestampStart\x12?\n" +
-	"\rtimestamp_end\x18\t \x01(\v2\x1a.google.protobuf.TimestampR\ftimestampEnd\x1a:\n" +
+	"\rtimestamp_end\x18\t \x01(\v2\x1a.google.protobuf.TimestampR\ftimestampEnd\x12+\n" +
+	"\x11content_truncated\x18\n" +
+	" \x01(\bR\x10contentTruncated\x1a:\n" +
 	"\fHeadersEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\x1a;\n" +

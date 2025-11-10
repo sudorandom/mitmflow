@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
-import { Search, Pause, Play, Download, Braces, HardDriveDownload, Menu, Filter, X } from 'lucide-react';
+import { Search, Pause, Play, Download, Braces, HardDriveDownload, Menu, Filter, X, Settings } from 'lucide-react';
 import { createConnectTransport } from "@connectrpc/connect-web";
 import { createClient } from "@connectrpc/connect";
 import { Service, Flow, FlowSchema } from "./gen/mitmflow/v1/mitmflow_pb";
@@ -15,6 +15,7 @@ import { UdpFlowRow } from './components/UdpFlowRow';
 import { ContentFormat, getFlowId, getTimestamp } from './utils';
 import { DetailsPanel } from './components/DetailsPanel';
 import FilterModal from './components/FilterModal';
+import SettingsModal from './components/SettingsModal';
 import useFilterStore from './store';
 
 const getHarContent = (content: Uint8Array | undefined, contentType: string | undefined) => {
@@ -99,6 +100,7 @@ const App: React.FC = () => {
   const client = useMemo(() => createClient(Service, createConnectTransport({ baseUrl: "http://localhost:50051" })), []);
   // --- State ---
   const [flows, setFlows] = useState<Flow[]>([]);
+  const [isFlowsTruncated, setIsFlowsTruncated] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
   const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>('connecting');
   const {
@@ -121,6 +123,15 @@ const App: React.FC = () => {
   const [responseFormats, setResponseFormats] = useState<Map<string, ContentFormat>>(new Map());
   const [isDownloadOpen, setDownloadOpen] = useState(false);
   const [isInfoTooltipOpen, setIsInfoTooltipOpen] = useState(false);
+  const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
+  const [maxFlows, setMaxFlows] = useState(() => {
+    const savedMaxFlows = localStorage.getItem('maxFlows');
+    return savedMaxFlows ? Number(savedMaxFlows) : 500;
+  });
+  const [maxBodySize, setMaxBodySize] = useState(() => {
+    const savedMaxBodySize = localStorage.getItem('maxBodySize');
+    return savedMaxBodySize ? Number(savedMaxBodySize) : 1024; // 1MB default
+  });
   const contentRef = useRef<HTMLDivElement>(null);
   const mainTableRef = useRef<HTMLDivElement>(null); // Ref for the main table scrolling area
   const lastSelectedFlowId = useRef<string | null>(null);
@@ -225,6 +236,19 @@ const App: React.FC = () => {
             }
             const incomingFlow = response.flow;
 
+            if (incomingFlow.flow.case === 'httpFlow') {
+              const httpFlow = incomingFlow.flow.value;
+              const maxBodySizeBytes = maxBodySize * 1024;
+              if (httpFlow.request && httpFlow.request.content.length > maxBodySizeBytes) {
+                httpFlow.request.content = httpFlow.request.content.slice(0, maxBodySizeBytes);
+                httpFlow.request.contentTruncated = true;
+              }
+              if (httpFlow.response && httpFlow.response.content.length > maxBodySizeBytes) {
+                httpFlow.response.content = httpFlow.response.content.slice(0, maxBodySizeBytes);
+                httpFlow.response.contentTruncated = true;
+              }
+            }
+
             const existingIndex = prevFlows.findIndex(r => {
               const rFlowId = getFlowId(r);
               const incomingFlowId = getFlowId(incomingFlow);
@@ -235,7 +259,11 @@ const App: React.FC = () => {
               newFlows[existingIndex] = incomingFlow;
               return newFlows;
             }
-            return [incomingFlow, ...prevFlows.slice(0, 499)];
+            const newFlows = [incomingFlow, ...prevFlows.slice(0, maxFlows - 1)];
+            if (newFlows.length >= maxFlows) {
+              setIsFlowsTruncated(true);
+            }
+            return newFlows;
           });
         }
         // Stream completed without error, re-attempt after a delay
@@ -261,7 +289,7 @@ const App: React.FC = () => {
       clearTimeout(timeoutId);
       abortController.abort(); // Abort the current connection attempt
     };
-  }, [isPaused]);
+  }, [isPaused, maxFlows, maxBodySize]);
 
 
   useEffect(() => {
@@ -289,6 +317,14 @@ const App: React.FC = () => {
       setDetailsPanelHeight(window.innerHeight * 0.5);
     }
   }, [detailsPanelHeight]);
+
+  useEffect(() => {
+    localStorage.setItem('maxFlows', String(maxFlows));
+  }, [maxFlows]);
+
+  useEffect(() => {
+    localStorage.setItem('maxBodySize', String(maxBodySize));
+  }, [maxBodySize]);
 
   const activeFilterCount =
     (flowTypes.length > 0 ? 1 : 0) +
@@ -422,6 +458,7 @@ const App: React.FC = () => {
   
   const handleClearFlows = () => {
     setFlows([]); // Clear the main flows array
+    setIsFlowsTruncated(false);
     setSelectedFlow(null);
     setSelectedFlowId(null);
     setSelectedFlowIds(new Set());
@@ -590,8 +627,13 @@ const App: React.FC = () => {
       {/* --- Header --- */}
       <header className="p-4 border-b border-zinc-700 flex items-center gap-4 flex-shrink-0">
         <h1 className="text-2xl font-semibold text-white">Flows</h1>
-        
         <div className="flex items-center gap-2 ml-2">
+          <button
+            onClick={() => setIsSettingsModalOpen(true)}
+            className="bg-zinc-800 border border-zinc-700 text-zinc-200 px-3 py-1 rounded-full text-sm font-medium flex items-center gap-1.5 hover:bg-zinc-700"
+          >
+            <Settings size={14} />
+          </button>
           {/* Connection Status Indicator */}
           <div className={`flex items-center justify-center w-28 gap-2 px-3 py-1 rounded-full text-sm font-medium
             ${connectionStatus === 'live' ? 'text-green-400 bg-green-900/50' : ''}
@@ -752,6 +794,15 @@ const App: React.FC = () => {
         onClose={() => setIsFilterModalOpen(false)}
       />
 
+      <SettingsModal
+        isOpen={isSettingsModalOpen}
+        onClose={() => setIsSettingsModalOpen(false)}
+        maxFlows={maxFlows}
+        setMaxFlows={setMaxFlows}
+        maxBodySize={maxBodySize}
+        setMaxBodySize={setMaxBodySize}
+      />
+
       {/* --- Flow Table --- */}
       <main className="flex-grow overflow-y-auto" ref={mainTableRef}> {/* Add ref */}
         <table className="w-full border-collapse text-sm">
@@ -760,7 +811,7 @@ const App: React.FC = () => {
               <th className="p-3 text-left font-medium text-zinc-500 border-b-2 border-zinc-700 w-[5%] md:w-[2.5%]"></th>
               <th className="p-3 text-left font-medium text-zinc-500 border-b-2 border-zinc-700 w-[5%] md:w-[5%]">Status</th>
               <th className="p-3 text-left font-medium text-zinc-500 border-b-2 border-zinc-700 w-[85%] md:w-[72.5%]">Request</th>
-              <th className="hidden md:table-cell p-3 text-left font-medium text-zinc-500 border-b-2 border-zinc-700 w-[8%]">Size</th>
+              <th className="hidden md:table-cell p-3 text-left font-medium text-zinc-500 border-b-2 border-zinc-700 w-[8%]">Transfer</th>
               <th className="hidden md:table-cell p-3 text-left font-medium text-zinc-500 border-b-2 border-zinc-700 w-[7%]">Duration</th>
             </tr>
           </thead>
@@ -780,6 +831,12 @@ const App: React.FC = () => {
           </tbody>
         </table>
       </main>
+
+      {isFlowsTruncated && (
+        <footer className="p-2 text-center text-xs text-zinc-500 border-t border-zinc-700">
+          Showing the last {flows.length} flows. You can change this limit in the <button onClick={() => setIsSettingsModalOpen(true)} className="underline hover:text-orange-500">settings</button>.
+        </footer>
+      )}
 
       {/* --- Details Panel --- */}
       <DetailsPanel

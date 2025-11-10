@@ -1,6 +1,6 @@
 import React from 'react';
 import { Flow } from '../gen/mitmflow/v1/mitmflow_pb';
-import { getFlowId, formatDuration, formatSize } from '../utils';
+import { getFlowId, formatDuration, formatBytes } from '../utils';
 import FlowIcon from './FlowIcon';
 import { StatusPill } from './StatusPill';
 
@@ -16,7 +16,8 @@ export const UdpFlowRow: React.FC<{
     const udpFlow = flow.flow.value;
     const flowId = getFlowId(flow);
     const duration = udpFlow.durationMs;
-    const size = udpFlow.messages.reduce((acc, msg) => acc + msg.content.length, 0);
+    const outSize = udpFlow.messages.filter(m => m.fromClient).reduce((acc, msg) => acc + msg.content.length, 0);
+    const inSize = udpFlow.messages.filter(m => !m.fromClient).reduce((acc, msg) => acc + msg.content.length, 0);
     const status = udpFlow.error ? 'ERROR' : 'OK';
     const statusColor = udpFlow.error ? 'red' : 'green';
 
@@ -35,7 +36,12 @@ export const UdpFlowRow: React.FC<{
             <td className="p-3 font-mono max-w-xs overflow-hidden text-ellipsis whitespace-nowrap">
                 udp://{udpFlow.server?.addressHost}:{udpFlow.server?.addressPort}
             </td>
-            <td className="hidden md:table-cell p-3 font-mono max-w-xs overflow-hidden text-ellipsis whitespace-nowrap">{formatSize(size)}</td>
+            <td className="hidden md:table-cell p-3 font-mono max-w-xs overflow-hidden text-ellipsis whitespace-nowrap">
+                <div className="flex flex-col">
+                    <span>out: {formatBytes(outSize)}</span>
+                    <span>in: {formatBytes(inSize)}</span>
+                </div>
+            </td>
             <td className="hidden md:table-cell p-3 font-mono max-w-xs overflow-hidden text-ellipsis whitespace-nowrap">{formatDuration(duration)}</td>
         </tr>
     );

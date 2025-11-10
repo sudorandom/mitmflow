@@ -2,7 +2,7 @@ import React from 'react';
 import { Flow } from "../gen/mitmflow/v1/mitmflow_pb";
 import FlowIcon from './FlowIcon';
 import { StatusPill } from './StatusPill';
-import { formatDuration } from '../utils';
+import { formatBytes, formatDuration } from '../utils';
 
 export const DnsFlowRow: React.FC<{
     flow: Flow;
@@ -31,7 +31,12 @@ export const DnsFlowRow: React.FC<{
                 <StatusPill status={status} color={statusColor} />
             </td>
             <td className="p-3 font-mono max-w-xs overflow-hidden text-ellipsis whitespace-nowrap">dns://{dnsFlow.server?.addressHost}</td>
-            <td className="hidden md:table-cell p-3 font-mono max-w-xs overflow-hidden text-ellipsis whitespace-nowrap">{dnsFlow.response ? `${dnsFlow.response.packed.length} B` : '...'}</td>
+            <td className="hidden md:table-cell p-3 font-mono max-w-xs overflow-hidden text-ellipsis whitespace-nowrap">
+                <div className="flex flex-col">
+                    <span>out: {formatBytes(dnsFlow.request?.packed?.length)}</span>
+                    <span>in: {formatBytes(dnsFlow.response?.packed?.length)}</span>
+                </div>
+            </td>
             <td className="hidden md:table-cell p-3 font-mono max-w-xs overflow-hidden text-ellipsis whitespace-nowrap">{formatDuration(dnsFlow.durationMs)}</td>
         </tr>
     );
