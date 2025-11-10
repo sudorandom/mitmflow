@@ -11,17 +11,12 @@ import (
 	"strings"
 	"sync"
 
-	"os"
-
 	"connectrpc.com/connect"
 	"github.com/google/uuid"
 	"github.com/protocolbuffers/protoscope"
 	"github.com/rs/cors"
 	"golang.org/x/net/http2"
 	"golang.org/x/net/http2/h2c"
-	"google.golang.org/protobuf/proto"
-	"google.golang.org/protobuf/reflect/protodesc"
-	"google.golang.org/protobuf/types/descriptorpb"
 
 	mitmflowv1 "github.com/sudorandom/mitmflow/gen/go/mitmflow/v1"
 )
@@ -30,22 +25,16 @@ import (
 var dist embed.FS
 
 var (
-	descriptorSetPaths = flag.String("descriptor-set-paths", "", "Comma-separated paths to protobuf descriptor sets")
+	addr = flag.String("addr", "127.0.0.1:50051", "Address to listen on")
 )
 
 type MITMFlowServer struct {
 	subscribers map[string]chan *mitmflowv1.Flow
-
-	mu sync.RWMutex
-
-	files protodesc.Resolver
+	mu          sync.RWMutex
 }
 
-func NewMITMFlowServer(files protodesc.Resolver) *MITMFlowServer {
-	return &MITMFlowServer{
-		subscribers: make(map[string]chan *mitmflowv1.Flow),
-		files:       files,
-	}
+func NewMITMFlowServer() *MITMFlowServer {
+	return &MITMFlowServer{subscribers: make(map[string]chan *mitmflowv1.Flow)}
 
 }
 
@@ -140,14 +129,14 @@ func (s *MITMFlowServer) preprocessRequest(req *mitmflowv1.Request) {
 		protoscopeOutput := protoscope.Write(req.Content, opts)
 		req.ContentProtoscopeFrames = []string{protoscopeOutput}
 	case strings.Contains(contentType, "application/grpc-web"):
-		frames, err := parseGrpcWebFrames(req.Content)
+		frames, err := parseGrpcWebFrames(req.Content, nil, nil)
 		if err == nil {
 			req.ContentProtoscopeFrames = frames
 		} else {
 			log.Printf("failed to parse grpc-web frames: %v", err)
 		}
 	case strings.Contains(contentType, "application/grpc"):
-		frames, err := parseGrpcFrames(req.Content)
+		frames, err := parseGrpcFrames(req.Content, nil)
 		if err == nil {
 			req.ContentProtoscopeFrames = frames
 		} else {
@@ -180,14 +169,14 @@ func (s *MITMFlowServer) preprocessResponse(resp *mitmflowv1.Response) {
 		protoscopeOutput := protoscope.Write(resp.Content, opts)
 		resp.ContentProtoscopeFrames = []string{protoscopeOutput}
 	case strings.Contains(contentType, "application/grpc-web"):
-		frames, err := parseGrpcWebFrames(resp.Content)
+		frames, err := parseGrpcWebFrames(resp.Content, resp.Headers, resp.Trailers)
 		if err == nil {
 			resp.ContentProtoscopeFrames = frames
 		} else {
 			log.Printf("failed to parse grpc-web frames: %v", err)
 		}
 	case strings.Contains(contentType, "application/grpc"):
-		frames, err := parseGrpcFrames(resp.Content)
+		frames, err := parseGrpcFrames(resp.Content, resp.Trailers)
 		if err == nil {
 			resp.ContentProtoscopeFrames = frames
 		} else {
@@ -196,52 +185,49 @@ func (s *MITMFlowServer) preprocessResponse(resp *mitmflowv1.Response) {
 	}
 }
 
-func loadSchema(descriptorSetPaths string) (protodesc.Resolver, error) {
-	if descriptorSetPaths == "" {
-		return nil, nil
-	}
-
-	var fds descriptorpb.FileDescriptorSet
-	for path := range strings.SplitSeq(descriptorSetPaths, ",") {
-		b, err := os.ReadFile(path)
-		if err != nil {
-			return nil, fmt.Errorf("failed to read descriptor set file: %w", err)
-		}
-		var set descriptorpb.FileDescriptorSet
-		if err := proto.Unmarshal(b, &set); err != nil {
-			return nil, fmt.Errorf("failed to unmarshal descriptor set: %w", err)
-		}
-		fds.File = append(fds.File, set.File...)
-	}
-
-	files, err := protodesc.NewFiles(&fds)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create new files: %w", err)
-	}
-
-	return files, nil
-}
-
 func main() {
 	flag.Parse()
-	files, err := loadSchema(*descriptorSetPaths)
-	if err != nil {
-		log.Fatalf("failed to load schema: %v", err)
-	}
 	mux := http.NewServeMux()
-	server := NewMITMFlowServer(files)
+	server := NewMITMFlowServer()
 	path, handler := mitmflowv1.NewServiceHandler(server)
 	mux.Handle(path, handler)
+
+	log.Printf("Starting server on %s", *addr)
 
 	fsys, err := fs.Sub(dist, "dist")
 	if err != nil {
 		log.Fatal(err)
 	}
 	staticHandler := http.FileServer(http.FS(fsys))
-	mux.Handle("/", staticHandler)
 
-	addr := "127.0.0.1:50051"
-	log.Printf("Starting server on %s", addr)
+	// Handle the root path separately to inject the server address
+	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/" || r.URL.Path == "/index.html" {
+			// Read the index.html file from the embedded filesystem
+			indexHTML, err := fs.ReadFile(fsys, "index.html")
+			if err != nil {
+				http.Error(w, "index.html not found", http.StatusInternalServerError)
+				return
+			}
+
+			// Inject the server address into the HTML
+			config := fmt.Sprintf(`<script>window.MITMFLOW_GRPC_ADDR = "http://%s";</script>`, *addr)
+			modifiedHTML := strings.Replace(
+				string(indexHTML),
+				"<!-- MITMFLOW_CONFIG -->",
+				config,
+				1,
+			)
+
+			// Serve the modified HTML
+			w.Header().Set("Content-Type", "text/html")
+			w.Write([]byte(modifiedHTML))
+			return
+		}
+
+		// For all other paths, serve static files
+		staticHandler.ServeHTTP(w, r)
+	})
 
 	c := cors.New(cors.Options{
 		AllowedOrigins: []string{"http://localhost:5173"},
@@ -252,7 +238,7 @@ func main() {
 	handlerWithCors := c.Handler(h2c.NewHandler(mux, &http2.Server{}))
 
 	err = http.ListenAndServe(
-		addr,
+		*addr,
 		// Use h2c so we can serve HTTP/2 without TLS.
 		handlerWithCors,
 	)
