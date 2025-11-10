@@ -3,14 +3,19 @@ package main
 import (
 	"bytes"
 	"compress/gzip"
+	"encoding/base64"
 	"encoding/binary"
 	"fmt"
 	"io"
 
 	"github.com/protocolbuffers/protoscope"
+	_ "google.golang.org/genproto/googleapis/rpc/errdetails"
+	statuspb "google.golang.org/genproto/googleapis/rpc/status"
+	"google.golang.org/protobuf/encoding/protojson"
+	"google.golang.org/protobuf/proto"
 )
 
-func parseGrpcFrames(content []byte) ([]string, error) {
+func parseGrpcFrames(content []byte, trailers map[string]string) ([]string, error) {
 	var frames []string
 	buf := bytes.NewBuffer(content)
 	for buf.Len() > 5 {
@@ -46,10 +51,25 @@ func parseGrpcFrames(content []byte) ([]string, error) {
 		protoscopeOutput := protoscope.Write(message, opts)
 		frames = append(frames, protoscopeOutput)
 	}
+
+	if statusBin, ok := trailers["grpc-status-details-bin"]; ok {
+		status := &statuspb.Status{}
+		if err := proto.Unmarshal([]byte(statusBin), status); err == nil {
+			jsonBytes, err := protojson.MarshalOptions{Indent: "  "}.Marshal(status)
+			if err == nil {
+				frames = append(frames, string(jsonBytes))
+			}
+		}
+	}
+
+	if statusFrame := parseErrorDetails(trailers["grpc-status-details-bin"]); statusFrame != nil {
+		frames = append(frames, *statusFrame)
+	}
+
 	return frames, nil
 }
 
-func parseGrpcWebFrames(content []byte) ([]string, error) {
+func parseGrpcWebFrames(content []byte, headers map[string]string, trailers map[string]string) ([]string, error) {
 	var frames []string
 	buf := bytes.NewBuffer(content)
 	for buf.Len() > 5 {
@@ -99,5 +119,52 @@ func parseGrpcWebFrames(content []byte) ([]string, error) {
 			return nil, fmt.Errorf("invalid grpc-web frame type: %x", prefix[0])
 		}
 	}
+
+	if statusFrame := parseErrorDetails(trailers["grpc-status-details-bin"]); statusFrame != nil {
+		frames = append(frames, *statusFrame)
+	}
+	if statusFrame := parseErrorDetails(headers["grpc-status-details-bin"]); statusFrame != nil {
+		frames = append(frames, *statusFrame)
+	}
+
 	return frames, nil
+}
+
+func parseErrorDetails(errorDetailsBin string) *string {
+	if errorDetailsBin == "" {
+		return nil
+	}
+
+	decoded, err := base64.StdEncoding.DecodeString(errorDetailsBin)
+	if err != nil {
+		return nil
+	}
+
+	if statusJSON := parseErrorStatusAsJSON(decoded); statusJSON != nil {
+		return statusJSON
+	}
+
+	opts := protoscope.WriterOptions{
+		Schema:          statuspb.File_google_rpc_status_proto.Messages().ByName("Status"),
+		PrintFieldNames: true,
+		PrintEnumNames:  true,
+	}
+	frame := protoscope.Write(decoded, opts)
+	return &frame
+}
+
+func parseErrorStatusAsJSON(statusBytes []byte) *string {
+	status := &statuspb.Status{}
+	if err := proto.Unmarshal(statusBytes, status); err != nil {
+		return nil
+	}
+
+	// Attempt to encode it in JSON
+	jsonBytes, err := protojson.MarshalOptions{Indent: "  "}.Marshal(status)
+	if err != nil {
+		return nil
+	}
+
+	jsonStr := string(jsonBytes)
+	return &jsonStr
 }
