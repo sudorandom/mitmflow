@@ -338,4 +338,5 @@ message Response {
   google.protobuf.Timestamp timestamp_start = 8;
   google.protobuf.Timestamp timestamp_end = 9;
   bool content_truncated = 10;
+  string reason = 11;
 }

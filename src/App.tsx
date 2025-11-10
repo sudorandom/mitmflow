@@ -40,6 +40,7 @@ const generateHarBlob = (flowsToExport: Flow[]): Blob => {
     log: {
       version: "1.2",
       creator: { name: "mitm-flows", version: "1.0" },
+      pages: [],
       entries: flowsToExport.flatMap(flow => {
         if (flow?.flow?.case === 'httpFlow') {
           const httpFlow = flow.flow.value;
@@ -49,13 +50,21 @@ const generateHarBlob = (flowsToExport: Flow[]): Blob => {
             request: {
               method: httpFlow.request?.method || '',
               url: httpFlow.request?.prettyUrl || httpFlow.request?.url || '',
-              httpVersion: "HTTP/1.1", headers: [], queryString: [], cookies: [],
+              httpVersion: httpFlow.request?.httpVersion || 'HTTP/1.1',
+              headers: httpFlow.request?.headers ? Object.entries(httpFlow.request.headers).map(([name, value]) => ({ name, value })) : [],
+              queryString: httpFlow.request?.url ? new URL(httpFlow.request.url).searchParams : new URLSearchParams(),
+              cookies: [],
               postData: getHarContent(httpFlow.request?.content, httpFlow.request?.effectiveContentType)
             },
             response: {
-              status: httpFlow.response?.statusCode || 0, statusText: "OK", httpVersion: "HTTP/1.1", headers: [], cookies: [],
+              status: httpFlow.response?.statusCode || 0,
+              statusText: httpFlow.response?.reason || 'OK',
+              httpVersion: httpFlow.response?.httpVersion || 'HTTP/1.1',
+              headers: httpFlow.response?.headers ? Object.entries(httpFlow.response.headers).map(([name, value]) => ({ name, value })) : [],
+              cookies: [],
               content: getHarContent(httpFlow.response?.content, httpFlow.response?.effectiveContentType)
-            }
+            },
+            serverIPAddress: httpFlow.server?.addressHost || '',
           }];
         }
         return [];

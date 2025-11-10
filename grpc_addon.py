@@ -128,6 +128,7 @@ def to_grpc_flow(flow: http.HTTPFlow) -> mitmflow_pb2.HTTPFlow:
     # Response
     if flow.response:
         f.response.status_code = flow.response.status_code
+        f.response.reason = flow.response.reason
         f.response.http_version = flow.response.http_version
         f.response.timestamp_start.FromDatetime(datetime.fromtimestamp(flow.response.timestamp_start))
         if flow.response.timestamp_end:

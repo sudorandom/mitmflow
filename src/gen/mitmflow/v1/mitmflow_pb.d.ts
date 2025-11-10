@@ -987,6 +987,11 @@ export declare type Response = Message<"mitmflow.v1.Response"> & {
    * @generated from field: bool content_truncated = 10;
    */
   contentTruncated: boolean;
+
+  /**
+   * @generated from field: string reason = 11;
+   */
+  reason: string;
 };
 
 /**

@@ -2307,6 +2307,7 @@ type Response struct {
 	TimestampStart          *timestamppb.Timestamp `protobuf:"bytes,8,opt,name=timestamp_start,json=timestampStart,proto3" json:"timestamp_start,omitempty"`
 	TimestampEnd            *timestamppb.Timestamp `protobuf:"bytes,9,opt,name=timestamp_end,json=timestampEnd,proto3" json:"timestamp_end,omitempty"`
 	ContentTruncated        bool                   `protobuf:"varint,10,opt,name=content_truncated,json=contentTruncated,proto3" json:"content_truncated,omitempty"`
+	Reason                  string                 `protobuf:"bytes,11,opt,name=reason,proto3" json:"reason,omitempty"`
 	unknownFields           protoimpl.UnknownFields
 	sizeCache               protoimpl.SizeCache
 }
@@ -2409,6 +2410,13 @@ func (x *Response) GetContentTruncated() bool {
 		return x.ContentTruncated
 	}
 	return false
+}
+
+func (x *Response) GetReason() string {
+	if x != nil {
+		return x.Reason
+	}
+	return ""
 }
 
 var File_mitmflow_v1_mitmflow_proto protoreflect.FileDescriptor
@@ -2635,7 +2643,7 @@ const file_mitmflow_v1_mitmflow_proto_rawDesc = "" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\x1a;\n" +
 	"\rTrailersEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\xa6\x05\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\xbe\x05\n" +
 	"\bResponse\x12@\n" +
 	"\vstatus_code\x18\x01 \x01(\x05B\x1f\xbaH\x1c\x1a\x1a@\xc8\x01@\xc9\x01@\xac\x02@\xad\x02@\x91\x03@\x94\x03@\xf4\x03\x18\xd7\x04(dR\n" +
 	"statusCode\x12<\n" +
@@ -2648,7 +2656,8 @@ const file_mitmflow_v1_mitmflow_proto_rawDesc = "" +
 	"\x0ftimestamp_start\x18\b \x01(\v2\x1a.google.protobuf.TimestampR\x0etimestampStart\x12?\n" +
 	"\rtimestamp_end\x18\t \x01(\v2\x1a.google.protobuf.TimestampR\ftimestampEnd\x12+\n" +
 	"\x11content_truncated\x18\n" +
-	" \x01(\bR\x10contentTruncated\x1a:\n" +
+	" \x01(\bR\x10contentTruncated\x12\x16\n" +
+	"\x06reason\x18\v \x01(\tR\x06reason\x1a:\n" +
 	"\fHeadersEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\x1a;\n" +
