@@ -128,8 +128,13 @@ export const formatContent = (content: Uint8Array | string | undefined, format: 
       return { data: contentAsString, encoding: 'text', effectiveFormat: effectiveFormat };
     case 'dns':
         return { data: parseDnsPacket(contentAsUint8Array), encoding: 'text', effectiveFormat: 'json' };
-    case 'image':
-      return { data: btoa(String.fromCharCode(...contentAsUint8Array)), encoding: 'base64', effectiveFormat: effectiveFormat };
+    case 'image': {
+      let binary = '';
+      contentAsUint8Array.forEach((byte) => {
+        binary += String.fromCharCode(byte);
+      });
+      return { data: btoa(binary), encoding: 'base64', effectiveFormat: effectiveFormat };
+    }
     case 'binary':
     case 'protobuf':
     case 'grpc':
@@ -178,23 +183,37 @@ export const formatDuration = (durationMs: number | undefined): string => {
     if (durationMs === undefined) {
         return '...';
     }
-    if (durationMs < 1000) {
-        return `${durationMs.toFixed(0)} ms`;
+
+    const sign = durationMs < 0 ? '-' : '';
+    const absDuration = Math.abs(durationMs);
+
+    if (absDuration < 1000) {
+        return `${sign}${absDuration.toFixed(0)} ms`;
     }
-    return `${(durationMs / 1000).toFixed(2)} s`;
+    if (absDuration < 60 * 1000) {
+        return `${sign}${(absDuration / 1000).toFixed(2)} s`;
+    }
+    if (absDuration < 60 * 60 * 1000) {
+        return `${sign}${(absDuration / (60 * 1000)).toFixed(2)} min`;
+    }
+    return `${sign}${(absDuration / (60 * 60 * 1000)).toFixed(2)} h`;
 }
 
-export const formatSize = (size: number | undefined): string => {
-    if (size === undefined) {
+export const formatSize = (bytes: number | undefined, decimals = 2): string => {
+    if (bytes === undefined) {
         return '...';
     }
-    if (size < 1024) {
-        return `${size} B`;
+    if (bytes === 0) {
+        return '0 Bytes';
     }
-    if (size < 1024 * 1024) {
-        return `${(size / 1024).toFixed(2)} KB`;
-    }
-    return `${(size / (1024 * 1024)).toFixed(2)} MB`;
+
+    const k = 1024;
+    const dm = decimals < 0 ? 0 : decimals;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB', 'YB'];
+
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
 }
 
 export const formatTimestampWithRelative = (ts: number, relativeTo: number): string => {
@@ -211,7 +230,13 @@ export const formatTimestampWithRelative = (ts: number, relativeTo: number): str
     }
 
     const diff = ts - relativeTo;
-    return `${absolute}(${diff.toFixed(0)}ms)`;
+    const relativeFormatted = formatDuration(Math.abs(diff));
+
+    if (diff >= 0) {
+        return `${absolute} (+${relativeFormatted})`;
+    } else {
+        return `${absolute} (-${relativeFormatted})`;
+    }
 };
 
 export const getFlowTitle = (flow: Flow): string => {

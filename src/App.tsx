@@ -563,8 +563,7 @@ const App: React.FC = () => {
                     disabled={selectedFlowIds.size === 0}
                     className="block w-full text-left px-4 py-2 text-sm text-zinc-200 hover:bg-zinc-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5"
                   >
-                    <Download size={14} />
-                    Download ({selectedFlowIds.size})
+                    <Download size={14} /> {selectedFlowIds.size}
                   </button>
                   {isBulkDownloadOpen && (
                     <div className="absolute left-0 bg-zinc-800 border border-zinc-700 rounded shadow-lg z-10 min-w-[180px] top-full mt-2">
@@ -611,8 +610,7 @@ const App: React.FC = () => {
                 disabled={selectedFlowIds.size === 0}
                 className="bg-zinc-800 border border-zinc-700 text-zinc-200 px-3 py-1 rounded-full text-sm font-medium flex items-center gap-1.5 hover:bg-zinc-700 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                <Download size={14} />
-                Download ({selectedFlowIds.size})
+                <Download size={14} /> {selectedFlowIds.size}
               </button>
               {isBulkDownloadOpen && (
                 <div className="absolute right-0 bg-zinc-800 border border-zinc-700 rounded shadow-lg z-50 min-w-[180px] top-full mt-2">

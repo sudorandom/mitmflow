@@ -1,7 +1,9 @@
 import React, { useMemo } from 'react';
 import { Flow } from "../gen/mitmflow/v1/mitmflow_pb";
+import { formatSize } from '../utils';
 import FlowIcon from './FlowIcon';
 import { StatusPill } from './StatusPill';
+import { formatDuration } from '../utils';
 
 export const HttpFlowRow: React.FC<{
     flow: Flow;
@@ -35,8 +37,8 @@ export const HttpFlowRow: React.FC<{
                 <StatusPill status={httpFlow.response?.statusCode ?? '...'} color={statusColor} />
             </td>
             <td className="p-3 font-mono max-w-xs overflow-hidden text-ellipsis whitespace-nowrap">{httpFlow.request?.method} {httpFlow.request?.prettyUrl || httpFlow.request?.url}</td>
-            <td className="hidden md:table-cell p-3 font-mono max-w-xs overflow-hidden text-ellipsis whitespace-nowrap">{httpFlow.response ? `${httpFlow.response.content.length} B` : '...'}</td>
-            <td className="hidden md:table-cell p-3 font-mono max-w-xs overflow-hidden text-ellipsis whitespace-nowrap">{httpFlow.durationMs ? `${httpFlow.durationMs.toFixed(0)} ms` : '...'}</td>
+            <td className="hidden md:table-cell p-3 font-mono max-w-xs overflow-hidden text-ellipsis whitespace-nowrap">{httpFlow.response ? `${formatSize(httpFlow.response.content.length)}` : '...'}</td>
+            <td className="hidden md:table-cell p-3 font-mono max-w-xs overflow-hidden text-ellipsis whitespace-nowrap">{formatDuration(httpFlow.durationMs)}</td>
         </tr>
     );
 };

@@ -2,6 +2,7 @@ import React from 'react';
 import { Flow } from "../gen/mitmflow/v1/mitmflow_pb";
 import FlowIcon from './FlowIcon';
 import { StatusPill } from './StatusPill';
+import { formatDuration } from '../utils';
 
 export const DnsFlowRow: React.FC<{
     flow: Flow;
@@ -31,7 +32,7 @@ export const DnsFlowRow: React.FC<{
             </td>
             <td className="p-3 font-mono max-w-xs overflow-hidden text-ellipsis whitespace-nowrap">dns://{dnsFlow.server?.addressHost}</td>
             <td className="hidden md:table-cell p-3 font-mono max-w-xs overflow-hidden text-ellipsis whitespace-nowrap">{dnsFlow.response ? `${dnsFlow.response.packed.length} B` : '...'}</td>
-            <td className="hidden md:table-cell p-3 font-mono max-w-xs overflow-hidden text-ellipsis whitespace-nowrap">{dnsFlow.durationMs ? `${dnsFlow.durationMs.toFixed(0)} ms` : '...'}</td>
+            <td className="hidden md:table-cell p-3 font-mono max-w-xs overflow-hidden text-ellipsis whitespace-nowrap">{formatDuration(dnsFlow.durationMs)}</td>
         </tr>
     );
 };

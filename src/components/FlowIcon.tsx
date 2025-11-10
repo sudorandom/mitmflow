@@ -1,10 +1,11 @@
 
 import {
+    File,
     FileJson,
     FileText,
     FileImage,
     FileCode,
-    Globe,
+    FileType,
     Network,
     MessageCircle,
     Server,
@@ -13,19 +14,31 @@ import { Flow } from "@/gen/mitmflow/v1/mitmflow_pb";
 
 export default function FlowIcon({ flow }: { flow: Flow }) {
     if (flow.flow.case === "httpFlow") {
-        const contentType = flow.flow.value.response?.headers["content-type"];
+        const contentType =
+            flow.flow.value.response?.effectiveContentType ||
+            flow.flow.value.request?.effectiveContentType;
 
-        if (contentType?.includes("json")) {
-            return <FileJson className="w-5 h-5" />;
-        } else if (contentType?.includes("text/html")) {
-            return <FileCode className="w-5 h-5" />;
-        } else if (contentType?.includes("text/")) {
-            return <FileText className="w-5 h-5" />;
-        } else if (contentType?.includes("image/")) {
-            return <FileImage className="w-5 h-5" />;
-        } else {
-            return <Globe className="w-5 h-5" />;
+        const iconMap: [string, JSX.Element][] = [
+            ["json", <FileJson className="w-5 h-5" />],
+            ["xml", <FileCode className="w-5 h-5" />],
+            ["text/html", <FileCode className="w-5 h-5" />],
+            ["text/css", <FileCode className="w-5 h-5" />],
+            ["application/javascript", <FileCode className="w-5 h-5" />],
+            ["text", <FileText className="w-5 h-5" />],
+            ["font", <FileType className="w-5 h-5" />],
+            ["image", <FileImage className="w-5 h-5" />],
+            ["dns", <Network className="w-5 h-5" />],
+        ];
+
+        if (contentType) {
+            for (const [key, icon] of iconMap) {
+                if (contentType.includes(key)) {
+                    return icon;
+                }
+            }
         }
+
+        return <File className="w-5 h-5" />;
     } else if (flow.flow.case === "dnsFlow") {
         return <Network className="w-5 h-5" />;
     } else if (flow.flow.case === "tcpFlow") {
