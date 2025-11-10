@@ -3,7 +3,7 @@ import { Flow, Request, Response } from "../gen/mitmflow/v1/mitmflow_pb";
 import { Light as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { atomOneDark } from 'react-syntax-highlighter/dist/esm/styles/hljs'; // A simple, light theme
 import HexViewer from '../HexViewer';
-import { ContentFormat, FormattedContent, formatContent, getContentType, getTimestamp } from '../utils';
+import { ContentFormat, FormattedContent, formatContent, getContentType, getTimestamp, formatSize } from '../utils';
 import { ConnectionTab } from './ConnectionTab';
 import { TimingRow } from './TimingRow';
 
@@ -102,7 +102,7 @@ export const RequestResponseView: React.FC<RequestResponseViewProps> = ({ fullCo
                     {bodySize > 0 && !showBodyByDefault && (
                         <div className="mt-2 text-sm">
                             <a href="#" onClick={(e) => { e.preventDefault(); setIsBodyExpanded(!isBodyExpanded); }} className="text-orange-400 hover:underline">
-                                {isBodyExpanded ? 'Collapse' : 'Expand'} body ({bodySize} bytes)
+                                {isBodyExpanded ? 'Collapse' : 'Expand'} body ({formatSize(bodySize)})
                             </a>
                         </div>
                     )}
@@ -251,7 +251,7 @@ export const HttpFlowDetails: React.FC<{
                         <div className="bg-zinc-800 p-4 rounded">
                             <h5 className="font-semibold text-zinc-400 mb-3 border-b border-zinc-700 pb-2">Request Body</h5>
                             <div className="grid grid-cols-2 gap-x-4 gap-y-2">
-                                <div className="text-zinc-500">Size:</div> <div>{httpFlow.request?.content?.length ?? 0} B</div>
+                                <div className="text-zinc-500">Size:</div> <div>{formatSize(httpFlow.request?.content?.length)}</div>
                                 <div className="text-zinc-500">Content-Type:</div> <div className="break-all">{getContentType(httpFlow.request?.headers) || 'N/A'}</div>
                                 {httpFlow.request?.effectiveContentType && getContentType(httpFlow.request?.headers) !== httpFlow.request?.effectiveContentType && (
                                     <>
@@ -264,7 +264,7 @@ export const HttpFlowDetails: React.FC<{
                         <div className="bg-zinc-800 p-4 rounded">
                             <h5 className="font-semibold text-zinc-400 mb-3 border-b border-zinc-700 pb-2">Response Body</h5>
                             <div className="grid grid-cols-2 gap-x-4 gap-y-2">
-                                <div className="text-zinc-500">Size:</div> <div>{httpFlow.response?.content?.length ?? 0} B</div>
+                                <div className="text-zinc-500">Size:</div> <div>{formatSize(httpFlow.response?.content?.length)}</div>
                                 <div className="text-zinc-500">Content-Type:</div> <div className="break-all">{getContentType(httpFlow.response?.headers) || 'N/A'}</div>
                                 {httpFlow.response?.effectiveContentType && getContentType(httpFlow.response?.headers) !== httpFlow.response?.effectiveContentType && (
                                     <>

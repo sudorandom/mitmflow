@@ -1,6 +1,7 @@
 import React from 'react';
 import { Flow } from '../gen/mitmflow/v1/mitmflow_pb';
 import { getFlowId, formatDuration, formatSize } from '../utils';
+import FlowIcon from './FlowIcon';
 import { StatusPill } from './StatusPill';
 
 export const TcpFlowRow: React.FC<{
@@ -27,6 +28,7 @@ export const TcpFlowRow: React.FC<{
             onMouseDown={(e) => onMouseDown(flow, e)}
             onMouseEnter={() => onMouseEnter(flow)}
         >
+            <td className="p-3"><FlowIcon flow={flow} /></td>
             <td className="p-3 font-mono max-w-xs overflow-hidden text-ellipsis whitespace-nowrap">
                 <StatusPill status={status} color={statusColor} />
             </td>
