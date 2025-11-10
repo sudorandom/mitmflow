@@ -287,9 +287,31 @@ def to_grpc_dns_flow(flow: mitmproxy.dns.DNSFlow) -> mitmflow_pb2.DNSFlow:
 
 class MitmFlowAddon:
     def __init__(self):
-        self.flowclient = mitmflow_connect.ServiceClient("http://127.0.0.1:50051")
+        self.flowclient = None
         self.queue = asyncio.Queue()
+        self.export_task = None
+
+    def load(self, loader):
+        loader.add_option(
+            name="grpc_addr",
+            typespec=str,
+            default="http://127.0.0.1:50051",
+            help="Address of the gRPC server",
+        )
+        loader.add_option(
+            name="grpc_events",
+            typespec=str,
+            default="all",
+            help="Comma-separated list of event types to emit (e.g., request,response)",
+        )
+
+    def running(self):
+        self.flowclient = mitmflow_connect.ServiceClient(ctx.options.grpc_addr)
         self.export_task = asyncio.create_task(self._export_flows())
+        self.event_types = ctx.options.grpc_events.split(',')
+
+    def _is_event_enabled(self, event_type: str) -> bool:
+        return "all" in self.event_types or event_type in self.event_types
 
     async def _export_flows(self):
         async def flow_generator():
@@ -309,114 +331,152 @@ class MitmFlowAddon:
                 await asyncio.sleep(5) # wait before retrying
 
     async def requestheaders(self, flow: mitmproxy.http.HTTPFlow):
+        if not self._is_event_enabled("requestheaders"):
+            return
         await self.queue.put(mitmflow_pb2.ExportFlowRequest(
             event_type=mitmflow_pb2.EVENT_TYPE_REQUESTHEADERS,
             flow=mitmflow_pb2.Flow(http_flow=to_grpc_flow(flow)),
         ))
 
     async def response(self, flow: http.HTTPFlow):
+        if not self._is_event_enabled("response"):
+            return
         await self.queue.put(mitmflow_pb2.ExportFlowRequest(
             event_type=mitmflow_pb2.EVENT_TYPE_RESPONSE,
             flow=mitmflow_pb2.Flow(http_flow=to_grpc_flow(flow)),
         ))
 
     async def responseheaders(self, flow: mitmproxy.http.HTTPFlow):
+        if not self._is_event_enabled("responseheaders"):
+            return
         await self.queue.put(mitmflow_pb2.ExportFlowRequest(
             event_type=mitmflow_pb2.EVENT_TYPE_RESPONSEHEADERS,
             flow=mitmflow_pb2.Flow(http_flow=to_grpc_flow(flow)),
         ))
 
     async def error(self, flow: mitmproxy.http.HTTPFlow):
+        if not self._is_event_enabled("error"):
+            return
         await self.queue.put(mitmflow_pb2.ExportFlowRequest(
             event_type=mitmflow_pb2.EVENT_TYPE_ERROR,
             flow=mitmflow_pb2.Flow(http_flow=to_grpc_flow(flow)),
         ))
 
     async def http_connect(self, flow: mitmproxy.http.HTTPFlow):
+        if not self._is_event_enabled("http_connect"):
+            return
         await self.queue.put(mitmflow_pb2.ExportFlowRequest(
             event_type=mitmflow_pb2.EVENT_TYPE_HTTP_CONNECT,
             flow=mitmflow_pb2.Flow(http_flow=to_grpc_flow(flow)),
         ))
 
     async def http_connect_upstream(self, flow: mitmproxy.http.HTTPFlow):
+        if not self._is_event_enabled("http_connect_upstream"):
+            return
         await self.queue.put(mitmflow_pb2.ExportFlowRequest(
             event_type=mitmflow_pb2.EVENT_TYPE_HTTP_CONNECT_UPSTREAM,
             flow=mitmflow_pb2.Flow(http_flow=to_grpc_flow(flow)),
         ))
 
     async def http_connected(self, flow: mitmproxy.http.HTTPFlow):
+        if not self._is_event_enabled("http_connected"):
+            return
         await self.queue.put(mitmflow_pb2.ExportFlowRequest(
             event_type=mitmflow_pb2.EVENT_TYPE_HTTP_CONNECTED,
             flow=mitmflow_pb2.Flow(http_flow=to_grpc_flow(flow)),
         ))
 
     async def http_connect_error(self, flow: mitmproxy.http.HTTPFlow):
+        if not self._is_event_enabled("http_connect_error"):
+            return
         await self.queue.put(mitmflow_pb2.ExportFlowRequest(
             event_type=mitmflow_pb2.EVENT_TYPE_HTTP_CONNECT_ERROR,
             flow=mitmflow_pb2.Flow(http_flow=to_grpc_flow(flow)),
         ))
 
     async def dns_request(self, flow: mitmproxy.dns.DNSFlow):
+        if not self._is_event_enabled("dns_request"):
+            return
         await self.queue.put(mitmflow_pb2.ExportFlowRequest(
             event_type=mitmflow_pb2.EVENT_TYPE_DNS_REQUEST,
             flow=mitmflow_pb2.Flow(dns_flow=to_grpc_dns_flow(flow)),
         ))
         
     async def dns_response(self, flow: mitmproxy.dns.DNSFlow):
+        if not self._is_event_enabled("dns_response"):
+            return
         await self.queue.put(mitmflow_pb2.ExportFlowRequest(
             event_type=mitmflow_pb2.EVENT_TYPE_DNS_RESPONSE,
             flow=mitmflow_pb2.Flow(dns_flow=to_grpc_dns_flow(flow)),
         ))
 
     async def dns_error(self, flow: mitmproxy.dns.DNSFlow):
+        if not self._is_event_enabled("dns_error"):
+            return
         await self.queue.put(mitmflow_pb2.ExportFlowRequest(
             event_type=mitmflow_pb2.EVENT_TYPE_DNS_ERROR,
             flow=mitmflow_pb2.Flow(dns_flow=to_grpc_dns_flow(flow)),
         ))
 
     async def tcp_start(self, flow: mitmproxy.tcp.TCPFlow):
+        if not self._is_event_enabled("tcp_start"):
+            return
         await self.queue.put(mitmflow_pb2.ExportFlowRequest(
             event_type=mitmflow_pb2.EVENT_TYPE_TCP_START,
             flow=mitmflow_pb2.Flow(tcp_flow=to_grpc_tcp_flow(flow)),
         ))
 
     async def tcp_message(self, flow: mitmproxy.tcp.TCPFlow):
+        if not self._is_event_enabled("tcp_message"):
+            return
         await self.queue.put(mitmflow_pb2.ExportFlowRequest(
             event_type=mitmflow_pb2.EVENT_TYPE_TCP_MESSAGE,
             flow=mitmflow_pb2.Flow(tcp_flow=to_grpc_tcp_flow(flow)),
         ))
 
     async def tcp_end(self, flow: mitmproxy.tcp.TCPFlow):
+        if not self._is_event_enabled("tcp_end"):
+            return
         await self.queue.put(mitmflow_pb2.ExportFlowRequest(
             event_type=mitmflow_pb2.EVENT_TYPE_TCP_END,
             flow=mitmflow_pb2.Flow(tcp_flow=to_grpc_tcp_flow(flow)),
         ))
 
     async def tcp_error(self, flow: mitmproxy.tcp.TCPFlow):
+        if not self._is_event_enabled("tcp_error"):
+            return
         await self.queue.put(mitmflow_pb2.ExportFlowRequest(
             event_type=mitmflow_pb2.EVENT_TYPE_TCP_ERROR,
             flow=mitmflow_pb2.Flow(tcp_flow=to_grpc_tcp_flow(flow)),
         ))
 
     async def udp_start(self, flow: mitmproxy.udp.UDPFlow):
+        if not self._is_event_enabled("udp_start"):
+            return
         await self.queue.put(mitmflow_pb2.ExportFlowRequest(
             event_type=mitmflow_pb2.EVENT_TYPE_UDP_START,
             flow=mitmflow_pb2.Flow(udp_flow=to_grpc_udp_flow(flow)),
         ))
 
     async def udp_message(self, flow: mitmproxy.udp.UDPFlow):
+        if not self._is_event_enabled("udp_message"):
+            return
         await self.queue.put(mitmflow_pb2.ExportFlowRequest(
             event_type=mitmflow_pb2.EVENT_TYPE_UDP_MESSAGE,
             flow=mitmflow_pb2.Flow(udp_flow=to_grpc_udp_flow(flow)),
         ))
 
     async def udp_end(self, flow: mitmproxy.udp.UDPFlow):
+        if not self._is_event_enabled("udp_end"):
+            return
         await self.queue.put(mitmflow_pb2.ExportFlowRequest(
             event_type=mitmflow_pb2.EVENT_TYPE_UDP_END,
             flow=mitmflow_pb2.Flow(udp_flow=to_grpc_udp_flow(flow)),
         ))
 
     async def udp_error(self, flow: mitmproxy.udp.UDPFlow):
+        if not self._is_event_enabled("udp_error"):
+            return
         await self.queue.put(mitmflow_pb2.ExportFlowRequest(
             event_type=mitmflow_pb2.EVENT_TYPE_UDP_ERROR,
             flow=mitmflow_pb2.Flow(udp_flow=to_grpc_udp_flow(flow)),
