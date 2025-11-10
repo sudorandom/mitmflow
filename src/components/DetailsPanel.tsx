@@ -1,7 +1,9 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { X } from 'lucide-react';
 import { Flow } from '../gen/mitmflow/v1/mitmflow_pb';
 import { getFlowTitle } from '../utils';
+import FlowIcon from './FlowIcon';
+import { StatusPill } from './StatusPill';
 
 interface DetailsPanelProps {
   flow: Flow | null;
@@ -68,7 +70,44 @@ export const DetailsPanel: React.FC<DetailsPanelProps> = ({
         className="absolute top-0 left-0 right-0 h-2 -mt-1 cursor-ns-resize z-50"
         onMouseDown={handleMouseDown}
       />
-      <div className="flex items-center p-2.5 px-4 bg-zinc-800 border-b border-zinc-700 flex-shrink-0">
+      <div className="flex items-center p-2.5 px-4 bg-zinc-800 border-b border-zinc-700 flex-shrink-0 gap-3">
+        <FlowIcon flow={flow} />
+        <StatusPill
+            status={(() => {
+                if (flow.flow.case === 'httpFlow') {
+                    return flow.flow.value.response?.statusCode ?? '...';
+                }
+                if (flow.flow.case === 'dnsFlow') {
+                    return flow.flow.value.response ? 'OK' : 'ERROR';
+                }
+                if (flow.flow.case === 'tcpFlow') {
+                    return flow.flow.value.error ? 'ERROR' : 'OK';
+                }
+                if (flow.flow.case === 'udpFlow') {
+                    return flow.flow.value.error ? 'ERROR' : 'OK';
+                }
+                return '...';
+            })()}
+            color={(() => {
+                if (flow.flow.case === 'httpFlow') {
+                    if (!flow.flow.value.response) return 'gray';
+                    if (flow.flow.value.response.statusCode >= 500) return 'red';
+                    if (flow.flow.value.response.statusCode >= 400) return 'red';
+                    if (flow.flow.value.response.statusCode >= 300) return 'yellow';
+                    return 'green';
+                }
+                if (flow.flow.case === 'dnsFlow') {
+                    return flow.flow.value.response ? 'green' : 'red';
+                }
+                if (flow.flow.case === 'tcpFlow') {
+                    return flow.flow.value.error ? 'red' : 'green';
+                }
+                if (flow.flow.case === 'udpFlow') {
+                    return flow.flow.value.error ? 'red' : 'green';
+                }
+                return 'gray';
+            })()}
+        />
         <div className="font-mono text-sm truncate">{getFlowTitle(flow)}</div>
         <div className="ml-auto flex items-center gap-4">
           <button

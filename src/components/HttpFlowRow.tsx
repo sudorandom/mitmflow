@@ -1,5 +1,6 @@
 import React, { useMemo } from 'react';
 import { Flow } from "../gen/mitmflow/v1/mitmflow_pb";
+import FlowIcon from './FlowIcon';
 import { StatusPill } from './StatusPill';
 
 export const HttpFlowRow: React.FC<{
@@ -29,6 +30,7 @@ export const HttpFlowRow: React.FC<{
             onMouseEnter={() => onMouseEnter(flow)}
             data-flow-id={httpFlow.id} // Add data-attribute for scrolling
         >
+            <td className="p-3"><FlowIcon flow={flow} /></td>
             <td className="p-3 font-mono max-w-xs overflow-hidden text-ellipsis whitespace-nowrap">
                 <StatusPill status={httpFlow.response?.statusCode ?? '...'} color={statusColor} />
             </td>

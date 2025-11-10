@@ -1,5 +1,6 @@
 import React from 'react';
 import { Flow } from "../gen/mitmflow/v1/mitmflow_pb";
+import FlowIcon from './FlowIcon';
 import { StatusPill } from './StatusPill';
 
 export const DnsFlowRow: React.FC<{
@@ -24,6 +25,7 @@ export const DnsFlowRow: React.FC<{
             onMouseEnter={() => onMouseEnter(flow)}
             data-flow-id={dnsFlow.id}
         >
+            <td className="p-3"><FlowIcon flow={flow} /></td>
             <td className="p-3 font-mono max-w-xs overflow-hidden text-ellipsis whitespace-nowrap">
                 <StatusPill status={status} color={statusColor} />
             </td>

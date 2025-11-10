@@ -655,8 +655,9 @@ const App: React.FC = () => {
         <table className="w-full border-collapse text-sm">
           <thead className="sticky top-0 bg-zinc-800">
             <tr>
+              <th className="p-3 text-left font-medium text-zinc-500 border-b-2 border-zinc-700 w-[5%] md:w-[2.5%]"></th>
               <th className="p-3 text-left font-medium text-zinc-500 border-b-2 border-zinc-700 w-[5%] md:w-[5%]">Status</th>
-              <th className="p-3 text-left font-medium text-zinc-500 border-b-2 border-zinc-700 w-[85%] md:w-[75%]">Request</th>
+              <th className="p-3 text-left font-medium text-zinc-500 border-b-2 border-zinc-700 w-[85%] md:w-[72.5%]">Request</th>
               <th className="hidden md:table-cell p-3 text-left font-medium text-zinc-500 border-b-2 border-zinc-700 w-[8%]">Size</th>
               <th className="hidden md:table-cell p-3 text-left font-medium text-zinc-500 border-b-2 border-zinc-700 w-[7%]">Duration</th>
             </tr>
