@@ -59,7 +59,7 @@ func parseGrpcWebFrames(content []byte) ([]string, error) {
 		}
 
 		// Check if it's a data frame (MSB is 0)
-		if prefix[0]>>7 == 0 {
+		if (prefix[0] & 0x80) == 0 {
 			lengthPrefix := make([]byte, 4)
 			if _, err := io.ReadFull(buf, lengthPrefix); err != nil {
 				return nil, err
@@ -78,8 +78,7 @@ func parseGrpcWebFrames(content []byte) ([]string, error) {
 			opts := protoscope.WriterOptions{}
 			protoscopeOutput := protoscope.Write(message, opts)
 			frames = append(frames, protoscopeOutput)
-		} else {
-			// Trailer frame, we can ignore it for now.
+		} else if prefix[0] == 0x80 { // Trailer frame
 			// We just need to read the length and the content to advance the buffer.
 			lengthPrefix := make([]byte, 4)
 			if _, err := io.ReadFull(buf, lengthPrefix); err != nil {
@@ -93,8 +92,11 @@ func parseGrpcWebFrames(content []byte) ([]string, error) {
 
 			trailer := make([]byte, length)
 			if _, err := io.ReadFull(buf, trailer); err != nil {
-				return nil, err
+				return nil, fmt.Errorf("failed to read grpc-web trailer: %w", err)
 			}
+			frames = append(frames, string(trailer))
+		} else {
+			return nil, fmt.Errorf("invalid grpc-web frame type: %x", prefix[0])
 		}
 	}
 	return frames, nil

@@ -139,19 +139,19 @@ func (s *MITMFlowServer) preprocessRequest(req *mitmflowv1.Request) {
 		opts := protoscope.WriterOptions{}
 		protoscopeOutput := protoscope.Write(req.Content, opts)
 		req.ContentProtoscopeFrames = []string{protoscopeOutput}
-	case strings.Contains(contentType, "application/grpc"):
-		frames, err := parseGrpcFrames(req.Content)
-		if err == nil {
-			req.ContentProtoscopeFrames = frames
-		} else {
-			log.Printf("failed to parse grpc frames: %v", err)
-		}
 	case strings.Contains(contentType, "application/grpc-web"):
 		frames, err := parseGrpcWebFrames(req.Content)
 		if err == nil {
 			req.ContentProtoscopeFrames = frames
 		} else {
 			log.Printf("failed to parse grpc-web frames: %v", err)
+		}
+	case strings.Contains(contentType, "application/grpc"):
+		frames, err := parseGrpcFrames(req.Content)
+		if err == nil {
+			req.ContentProtoscopeFrames = frames
+		} else {
+			log.Printf("failed to parse grpc frames: %v", err)
 		}
 	}
 }
@@ -179,19 +179,19 @@ func (s *MITMFlowServer) preprocessResponse(resp *mitmflowv1.Response) {
 		opts := protoscope.WriterOptions{}
 		protoscopeOutput := protoscope.Write(resp.Content, opts)
 		resp.ContentProtoscopeFrames = []string{protoscopeOutput}
-	case strings.Contains(contentType, "application/grpc"):
-		frames, err := parseGrpcFrames(resp.Content)
-		if err == nil {
-			resp.ContentProtoscopeFrames = frames
-		} else {
-			log.Printf("failed to parse grpc frames: %v", err)
-		}
 	case strings.Contains(contentType, "application/grpc-web"):
 		frames, err := parseGrpcWebFrames(resp.Content)
 		if err == nil {
 			resp.ContentProtoscopeFrames = frames
 		} else {
 			log.Printf("failed to parse grpc-web frames: %v", err)
+		}
+	case strings.Contains(contentType, "application/grpc"):
+		frames, err := parseGrpcFrames(resp.Content)
+		if err == nil {
+			resp.ContentProtoscopeFrames = frames
+		} else {
+			log.Printf("failed to parse grpc frames: %v", err)
 		}
 	}
 }
