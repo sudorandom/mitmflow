@@ -314,6 +314,7 @@ message Request {
   google.protobuf.Timestamp timestamp_start = 9;
   google.protobuf.Timestamp timestamp_end = 10;
   string pretty_url = 11 [(buf.validate.field).string.uri = true];
+  bool content_truncated = 12;
 }
 
 message Response {
@@ -336,4 +337,5 @@ message Response {
   string effective_content_type = 7;
   google.protobuf.Timestamp timestamp_start = 8;
   google.protobuf.Timestamp timestamp_end = 9;
+  bool content_truncated = 10;
 }

@@ -118,12 +118,12 @@ def to_grpc_flow(flow: http.HTTPFlow) -> mitmflow_pb2.HTTPFlow:
     if flow.request.timestamp_end:
         f.request.timestamp_end.FromDatetime(datetime.fromtimestamp(flow.request.timestamp_end))
     for k, v in flow.request.headers.items():
-        f.request.headers[k] = v
+        f.request.headers[k] = v.encode('utf-8', 'replace').decode('utf-8')
     if flow.request.content is not None:
         f.request.content = flow.request.content
     if flow.request.trailers:
         for k, v in flow.request.trailers.items():
-            f.request.trailers[k] = v
+            f.request.trailers[k] = v.encode('utf-8', 'replace').decode('utf-8')
 
     # Response
     if flow.response:
@@ -133,12 +133,12 @@ def to_grpc_flow(flow: http.HTTPFlow) -> mitmflow_pb2.HTTPFlow:
         if flow.response.timestamp_end:
             f.response.timestamp_end.FromDatetime(datetime.fromtimestamp(flow.response.timestamp_end))
         for k, v in flow.response.headers.items():
-            f.response.headers[k] = v
+            f.response.headers[k] = v.encode('utf-8', 'replace').decode('utf-8')
         if flow.response.content is not None:
             f.response.content = flow.response.content
         if flow.response.trailers:
             for k, v in flow.response.trailers.items():
-                f.response.trailers[k] = v
+                f.response.trailers[k] = v.encode('utf-8', 'replace').decode('utf-8')
 
     # Timestamps
     f.timestamp_start.FromDatetime(datetime.fromtimestamp(flow.timestamp_start))

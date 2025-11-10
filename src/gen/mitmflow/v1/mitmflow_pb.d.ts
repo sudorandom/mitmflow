@@ -921,6 +921,11 @@ export declare type Request = Message<"mitmflow.v1.Request"> & {
    * @generated from field: string pretty_url = 11;
    */
   prettyUrl: string;
+
+  /**
+   * @generated from field: bool content_truncated = 12;
+   */
+  contentTruncated: boolean;
 };
 
 /**
@@ -977,6 +982,11 @@ export declare type Response = Message<"mitmflow.v1.Response"> & {
    * @generated from field: google.protobuf.Timestamp timestamp_end = 9;
    */
   timestampEnd?: Timestamp;
+
+  /**
+   * @generated from field: bool content_truncated = 10;
+   */
+  contentTruncated: boolean;
 };
 
 /**
