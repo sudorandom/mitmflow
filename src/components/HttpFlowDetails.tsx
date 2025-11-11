@@ -13,7 +13,7 @@ const formatHeaders = (headers: { [key: string]: string }): string => {
         .join('\n');
 };
 
-type HTTPBodyViewProps = {
+type RequestResponseViewProps = {
     title: string;
     fullContent?: string;
     bodyContent?: FormattedContent; // Allow Uint8Array for binary
@@ -23,7 +23,7 @@ type HTTPBodyViewProps = {
     flowPart?: Request | Response;
 };
 
-export const HTTPBodyView: React.FC<HTTPBodyViewProps> = ({ fullContent, bodyContent, format, setFormat, headers, flowPart }) => {
+export const RequestResponseView: React.FC<RequestResponseViewProps> = ({ fullContent, bodyContent, format, setFormat, headers, flowPart }) => {
     const [isBodyExpanded, setIsBodyExpanded] = useState(false);
     const headerText = useMemo(() => {
         if (!fullContent) return 'No content captured.';
@@ -32,7 +32,7 @@ export const HTTPBodyView: React.FC<HTTPBodyViewProps> = ({ fullContent, bodyCon
     }, [fullContent]);
 
     const bodySize = bodyContent?.data ? (typeof bodyContent.data === 'string' ? bodyContent.data.length : bodyContent.data.byteLength) : 0;
-    const showBodyByDefault = (bodySize > 0 && bodySize < 10 * 1024) || bodyContent?.effectiveFormat === 'image';
+    const showBodyByDefault = (bodySize > 0 && bodySize < 1024) || bodyContent?.effectiveFormat === 'image';
 
     const effectiveFormat = bodyContent?.effectiveFormat || format;
 
@@ -277,7 +277,7 @@ export const HttpFlowDetails: React.FC<{
                     </div>
                 )}
                 {selectedTab === 'request' && (
-                    <HTTPBodyView
+                    <RequestResponseView
                         title="Request"
                         fullContent={requestAsText}
                         bodyContent={formatContent(httpFlow.request?.content, requestFormat, getContentType(httpFlow.request?.headers), httpFlow.request?.effectiveContentType)}
@@ -288,7 +288,7 @@ export const HttpFlowDetails: React.FC<{
                     />
                 )}
                 {selectedTab === 'response' && (
-                    <HTTPBodyView
+                    <RequestResponseView
                         title="Response"
                         fullContent={responseAsText}
                         bodyContent={formatContent(httpFlow.response?.content, responseFormat, getContentType(httpFlow.response?.headers), httpFlow.response?.effectiveContentType)}

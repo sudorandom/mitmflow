@@ -4,43 +4,9 @@
 
 ## Features
 
-`mitmflow` provides several features beyond the standard `mitmproxy` web UI:
-
-*   **gRPC-Web Support:** Parse and inspect gRPC-Web frames using `protoscope`.
-*   **HAR File Exports:** Export flows to HAR files for analysis in other tools.
-*   **JSON Exports:** Export all flow types to JSON for easy integration with other systems.
-*   **Read-only UI:** The UI is read-only, preventing accidental modification of traffic and making it safe for "consume only" environments.
 *   **Real-time traffic inspection:** View HTTP, DNS, TCP, and UDP flows in real-time.
 *   **Detailed flow analysis:** Inspect flow details, including headers, bodies, and connection information.
 *   **Extensible:** The `mitmproxy` addon can be customized to support additional protocols and features.
-
-## Architecture
-
-```mermaid
-graph TD
-    subgraph mitmproxy
-        A[mitmproxy]
-        B[gRPC Addon]
-    end
-    subgraph Go
-        C[gRPC Server]
-    end
-    subgraph TypeScript
-        D[React Frontend]
-    end
-
-    A -- Inter-process calls --> B
-    B -- gRPC --> C
-    C -- gRPC-Connect --> D
-
-    subgraph "Shared Protobuf Schema"
-        E((proto))
-    end
-
-    B -.-> E
-    C -.-> E
-    D -.-> E
-```
 
 ## Getting Started
 

@@ -1,23 +1,28 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useCallback } from 'react';
 import { AgGridReact } from 'ag-grid-react';
-import { ColDef } from 'ag-grid-community';
+import { ColDef, GetRowIdParams, SelectionChangedEvent } from 'ag-grid-community';
 import { Flow } from '../gen/mitmflow/v1/mitmflow_pb';
-import { getFlowType, getRequest, getResponse, formatBytes } from '../utils';
+import { getFlowType, getRequest, getResponse, formatBytes, getFlowId } from '../utils';
 import FlowIcon from './FlowIcon';
 import { StatusPill } from './StatusPill';
 
-import "ag-grid-community/styles/ag-grid.css";
-import "ag-grid-community/styles/ag-theme-alpine.css";
+import 'ag-grid-community/styles/ag-grid.css';
+import "ag-grid-community/styles/ag-theme-quartz.css";
 
 interface FlowsGridProps {
     flows: Flow[];
-    onRowClicked: (flow: Flow) => void;
+    onSelectionChanged: (selectedFlows: Flow[]) => void;
     onGridReady: (api: any) => void;
 }
 
-export const FlowsGrid: React.FC<FlowsGridProps> = ({ flows, onRowClicked, onGridReady }) => {
-    console.log('FlowsGrid rendering');
+export const FlowsGrid: React.FC<FlowsGridProps> = ({ flows, onSelectionChanged, onGridReady }) => {
     const columnDefs = useMemo<ColDef[]>(() => [
+        {
+            headerName: '',
+            checkboxSelection: true,
+            headerCheckboxSelection: true,
+            width: 50,
+        },
         {
             field: 'type',
             headerName: '',
@@ -85,15 +90,24 @@ export const FlowsGrid: React.FC<FlowsGridProps> = ({ flows, onRowClicked, onGri
         },
     ], []);
 
+    const getRowId = useMemo(() => {
+        return (params: GetRowIdParams<Flow>) => getFlowId(params.data) || '';
+    }, []);
+
+    const handleSelectionChanged = useCallback((event: SelectionChangedEvent) => {
+        onSelectionChanged(event.api.getSelectedRows());
+    }, [onSelectionChanged]);
+
     return (
-        <div className="ag-theme-alpine h-full">
+        <div className="ag-theme-quartz-dark h-full">
             <AgGridReact
                 rowData={flows}
                 columnDefs={columnDefs}
-                onRowClicked={(event) => onRowClicked(event.data)}
                 onGridReady={onGridReady}
                 rowSelection="multiple"
                 animateRows={true}
+                getRowId={getRowId}
+                onSelectionChanged={handleSelectionChanged}
             />
         </div>
     );

@@ -91,8 +91,6 @@ const App: React.FC = () => {
   const {
     text: filterText,
     setText: setFilterText,
-    flowTypes,
-    http,
     clearFilters
   } = useFilterStore();
   const [selectedFlow, setSelectedFlow] = useState<Flow | null>(null);
@@ -189,18 +187,18 @@ const App: React.FC = () => {
     setIsDragging(false);
   }, []);
 
-  const handleRowMouseEnter = (flow: Flow) => {
-    if (isDragging) {
-      const newSelectedFlowIds = new Set(selectedFlowIds);
-      if (flow) {
-        const flowId = getFlowId(flow);
-        if (flowId) {
-          newSelectedFlowIds.add(flowId);
-        }
-      }
-      setSelectedFlowIds(newSelectedFlowIds);
+  const handleSelectionChanged = useCallback((selectedFlows: Flow[]) => {
+    setSelectedFlowIds(new Set(selectedFlows.map(f => getFlowId(f)).filter(Boolean) as string[]));
+    const lastSelected = selectedFlows[selectedFlows.length - 1];
+    if (lastSelected) {
+        setSelectedFlow(lastSelected);
+        setSelectedFlowId(getFlowId(lastSelected));
+        setIsPanelMinimized(false);
+    } else {
+        setSelectedFlow(null);
+        setSelectedFlowId(null);
     }
-  };
+  }, []);
 
   // --- Data Fetching ---
   useEffect(() => {
@@ -323,101 +321,8 @@ const App: React.FC = () => {
 
   // --- Derived State (Filtering) ---
   const filteredFlows = useMemo(() => {
-    const filter = filterText.toLowerCase();
-
-    return flows.filter(flow => {
-      if (!flow.flow) return false;
-
-      // --- General Text Filter ---
-      if (filter) {
-        let isMatch = false;
-        const clientIp = flow.flow.value?.client?.peernameHost || '';
-        const serverIp = flow.flow.value?.server?.addressHost || '';
-        if (!flow.flow.case) {
-          return false;
-        }
-        switch (flow.flow.case) {
-          case 'httpFlow':
-            const httpFlow = flow.flow.value;
-            const url = httpFlow.request?.prettyUrl || httpFlow.request?.url || '';
-            const sni = httpFlow.client?.sni || '';
-            const filterTextHttp = `${url} ${httpFlow.request?.method} ${httpFlow.response?.statusCode} ${sni} ${clientIp} ${serverIp}`.toLowerCase();
-            isMatch = filterTextHttp.includes(filter);
-            break;
-          case 'dnsFlow':
-            const dnsFlow = flow.flow.value;
-            const domainName = dnsFlow.request?.questions[0]?.name || '';
-            isMatch = `${domainName} ${clientIp} ${serverIp}`.toLowerCase().includes(filter);
-            break;
-          case 'tcpFlow':
-            const tcpFlow = flow.flow.value;
-            const tcpServer = tcpFlow.server;
-            isMatch = `${tcpServer?.addressHost}:${tcpServer?.addressPort} ${clientIp} ${serverIp}`.toLowerCase().includes(filter);
-            break;
-          case 'udpFlow':
-            const udpFlow = flow.flow.value;
-            const udpServer = udpFlow.server;
-            isMatch = `${udpServer?.addressHost}:${udpServer?.addressPort} ${clientIp} ${serverIp}`.toLowerCase().includes(filter);
-            break;
-        }
-        if (!isMatch) return false;
-      }
-
-      // --- Advanced Filters ---
-      // Flow Type Filter (OR logic)
-      if (flowTypes.length > 0) {
-        if (!flow.flow?.case) {
-          return false;
-        }
-        const flowType = flow.flow.case.replace('Flow', '').toLowerCase();
-        if (!flowTypes.includes(flowType as any)) {
-          return false;
-        }
-      }
-
-      // HTTP Specific Filters (AND logic)
-      if (flow.flow.case === 'httpFlow') {
-        const httpFlow = flow.flow.value;
-
-        // HTTP Method Filter
-        if (http.methods.length > 0 && !http.methods.includes(httpFlow.request?.method || '')) {
-          return false;
-        }
-
-        // HTTP Status Code Filter
-        if (http.statusCodes.length > 0) {
-            const statusCode = httpFlow.response?.statusCode?.toString() || '';
-            const matches = http.statusCodes.some(sc => {
-                if (sc.endsWith('xx')) {
-                    const prefix = sc.slice(0, 1);
-                    return statusCode.startsWith(prefix);
-                }
-                if (sc.includes('-')) {
-                    const [start, end] = sc.split('-').map(Number);
-                    const code = Number(statusCode);
-                    return code >= start && code <= end;
-                }
-                return statusCode === sc;
-            });
-            if (!matches) {
-                return false;
-            }
-        }
-
-        // HTTP Content Type Filter
-        if (http.contentTypes.length > 0) {
-            const reqContentType = httpFlow.request?.effectiveContentType || '';
-            const resContentType = httpFlow.response?.effectiveContentType || '';
-            const matches = http.contentTypes.some(ct => reqContentType.includes(ct) || resContentType.includes(ct));
-            if (!matches) {
-                return false;
-            }
-        }
-      }
-
-      return true; // If all filters pass
-    });
-  }, [flows, filterText, flowTypes, http.methods, http.statusCodes, http.contentTypes]);
+    return flows;
+  }, [flows]);
 
   // --- Event Handlers ---
   const handleDownloadSelectedFlows = (format: 'har' | 'json') => {
@@ -476,137 +381,11 @@ const App: React.FC = () => {
     });
   }, []);
 
-  const handleFlowMouseDown = useCallback((flow: Flow, event?: React.MouseEvent) => {
-    if (event) { // Only set isDragging if it's a mouse event
-      setIsDragging(true);
-    }
-    const newSelectedFlowIds = new Set(selectedFlowIds);
-    const currentFlowId = getFlowId(flow);
-
-    if (!currentFlowId) {
-      return; // Should not happen if filteredFlows is correct
-    }
-
-    if (event?.shiftKey && lastSelectedFlowId.current) {
-      const lastIndex = filteredFlows.findIndex(f => {
-        const fFlowId = getFlowId(f);
-        return fFlowId && fFlowId === lastSelectedFlowId.current;
-      });
-      const currentIndex = filteredFlows.findIndex(f => {
-        const fFlowId = getFlowId(f);
-        return fFlowId && fFlowId === currentFlowId;
-      });
-      const [start, end] = [lastIndex, currentIndex].sort((a, b) => a - b);
-      for (let i = start; i <= end; i++) {
-        const f = filteredFlows[i];
-        if (f) {
-            const fFlowId = getFlowId(f);
-            if (fFlowId) {
-              newSelectedFlowIds.add(fFlowId);
-            }
-        }
-      }
-    } else if (event?.metaKey || event?.ctrlKey) {
-      if (newSelectedFlowIds.has(currentFlowId)) {
-        newSelectedFlowIds.delete(currentFlowId);
-      } else {
-        newSelectedFlowIds.add(currentFlowId);
-      }
-    } else {
-      newSelectedFlowIds.clear();
-      newSelectedFlowIds.add(currentFlowId);
-    }
-
-    setSelectedFlowIds(newSelectedFlowIds);
-    setSelectedFlow(flow);
-    setSelectedFlowId(currentFlowId);
-    lastSelectedFlowId.current = currentFlowId;
-    setIsPanelMinimized(false);
-  }, [filteredFlows, selectedFlowIds]);
-
   const handleClosePanel = useCallback(() => {
     setSelectedFlow(null);
     setSelectedFlowId(null);
     setDetailsPanelHeight(null); // Reset height when panel is closed
   }, []); // Memoize with useCallback
-
-  // --- Keyboard Navigation Effect ---
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      // Don't navigate if user is typing in the filter input
-      if (e.target === document.getElementById('filter-input')) {
-        return;
-      }
-
-      // If focus is on something outside the flow list (and not the body), do nothing.
-      if (document.activeElement && document.activeElement !== document.body) {
-        if (mainTableRef.current && !mainTableRef.current.contains(document.activeElement)) {
-          return;
-        }
-      }
-
-      if ((e.metaKey || e.ctrlKey) && e.key === 'a') {
-        e.preventDefault();
-        const allFlowIds = new Set(filteredFlows.map(f => getFlowId(f)).filter((id): id is string => id !== undefined));
-        setSelectedFlowIds(allFlowIds);
-        return;
-      }
-
-      if (e.key !== 'ArrowUp' && e.key !== 'ArrowDown' && e.key !== 'PageUp' && e.key !== 'PageDown') {
-        return;
-      }
-      
-      e.preventDefault(); // Prevent page scrolling
-
-      if (filteredFlows.length === 0) {
-        return;
-      }
-
-      let currentIndex = -1;
-      if (selectedFlowId) {
-        currentIndex = filteredFlows.findIndex(f => {
-          const flowId = getFlowId(f);
-          return flowId && flowId === selectedFlowId;
-        });
-      }
-
-      let nextIndex = -1;
-      if (e.key === 'ArrowDown') {
-        nextIndex = Math.min(currentIndex + 1, filteredFlows.length - 1);
-        if (currentIndex === -1) nextIndex = 0; // Start from top if nothing is selected
-      } else if (e.key === 'ArrowUp') { // ArrowUp
-        nextIndex = Math.max(currentIndex - 1, 0);
-        if (currentIndex === -1) nextIndex = 0; // Start from top if nothing is selected
-      } else if (e.key === 'PageDown') {
-        nextIndex = Math.min(currentIndex + 10, filteredFlows.length - 1);
-        if (currentIndex === -1) nextIndex = 0; // Start from top if nothing is selected
-      } else if (e.key === 'PageUp') {
-        nextIndex = Math.max(currentIndex - 10, 0);
-        if (currentIndex === -1) nextIndex = 0; // Start from top if nothing is selected
-      }
-      
-      if (nextIndex !== currentIndex && nextIndex > -1) {
-        const nextFlow = filteredFlows[nextIndex];
-        if (nextFlow) {
-          // This will update selection and open/update the details panel
-          handleFlowMouseDown(nextFlow);
-          
-          // Scroll the item into view
-          const nextFlowId = getFlowId(nextFlow);
-          const rowElement = nextFlowId ? mainTableRef.current?.querySelector(`[data-flow-id="${nextFlowId}"]`) : null;
-          rowElement?.scrollIntoView({
-            behavior: 'smooth',
-            block: 'nearest',
-          });
-        }
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-    return () => {
-      window.removeEventListener('keydown', handleKeyDown);
-    };
-  }, [filteredFlows, selectedFlowId, handleFlowMouseDown]); // Add dependencies
 
   // --- Close panel on Escape key ---
   useEffect(() => {
@@ -630,211 +409,210 @@ const App: React.FC = () => {
         <h1 className="text-2xl font-semibold text-white">Flows</h1>
         <div className="flex items-center gap-2 ml-2">
           {/* Connection Status Indicator */}
-          <div className={`flex items-center justify-center w-28 gap-2 px-3 py-1 rounded-full text-sm font-medium
-            ${connectionStatus === 'live' ? 'text-green-400 bg-green-900/50' : ''}
-            ${connectionStatus === 'paused' ? 'text-yellow-400 bg-yellow-900/50' : ''}
-            ${connectionStatus === 'connecting' ? 'text-blue-400 bg-blue-900/50' : ''}
-            ${connectionStatus === 'failed' ? 'text-red-400 bg-red-900/50' : ''}
-          `}>
-            <span className={`w-2 h-2 rounded-full
-              ${connectionStatus === 'live' ? 'bg-green-400 animate-pulse' : ''}
-              ${connectionStatus === 'paused' ? 'bg-yellow-400' : ''}
-              ${connectionStatus === 'connecting' ? 'bg-blue-400 animate-pulse' : ''}
-              ${connectionStatus === 'failed' ? 'bg-red-400' : ''}
-            `} />
-            {connectionStatus.charAt(0).toUpperCase() + connectionStatus.slice(1)}
-          </div>
-          <div className="md:hidden relative" ref={menuRef}>
-            <button
-              onClick={() => setIsMenuOpen(!isMenuOpen)}
-              className="bg-zinc-800 border border-zinc-700 text-zinc-200 px-3 py-1 rounded-full text-sm font-medium flex items-center gap-1.5 hover:bg-zinc-700"
-            >
-              <Menu size={20} />
-            </button>
-            {isMenuOpen && (
-              <div className="absolute right-0 mt-2 w-48 bg-zinc-800 border border-zinc-700 rounded-md shadow-lg z-20">
-                <button
-                  onClick={() => { togglePause(); setIsMenuOpen(false); }}
-                  className="block w-full text-left px-4 py-2 text-sm text-zinc-200 hover:bg-zinc-700 flex items-center gap-1.5"
-                >
-                  {isPaused ? <Play size={20} /> : <Pause size={20} />}
-                  {isPaused ? 'Resume' : 'Pause'}
-                </button>
-                <button
-                  onClick={() => { handleClearFlows(); setIsMenuOpen(false); }}
-                  className="block w-full text-left px-4 py-2 text-sm text-zinc-200 hover:bg-zinc-700 flex items-center gap-1.5"
-                >
-                  <Trash size={20} /> Clear Flows
-                </button>
-                <div className="relative inline-block w-full" ref={bulkDownloadRef}>
-                  <button
-                    onClick={(e) => { e.stopPropagation(); setIsBulkDownloadOpen(o => !o); }}
-                    disabled={selectedFlowIds.size === 0}
-                    className="block w-full text-left px-4 py-2 text-sm text-zinc-200 hover:bg-zinc-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5"
-                  >
-                    <Download size={20} /> Download ({selectedFlowIds.size})
-                  </button>
-                  {isBulkDownloadOpen && (
-                    <div className="absolute left-0 bg-zinc-800 border border-zinc-700 rounded shadow-lg z-10 min-w-[180px] top-full mt-2">
-                      <a
-                        href="#"
-                        onClick={(e) => { e.preventDefault(); handleDownloadSelectedFlows('har'); setIsBulkDownloadOpen(false); setIsMenuOpen(false); }}
-                        className="flex items-center gap-3 px-4 py-2.5 text-sm text-zinc-200 hover:bg-zinc-700 hover:text-zinc-200"
-                      >
-                        <HardDriveDownload size={16} /> Download HAR
-                      </a>
-                      <a
-                        href="#"
-                        onClick={(e) => { e.preventDefault(); handleDownloadSelectedFlows('json'); setIsBulkDownloadOpen(false); setIsMenuOpen(false); }}
-                        className="flex items-center gap-3 px-4 py-2.5 text-sm text-zinc-200 hover:bg-zinc-700 hover:text-zinc-200"
-                      >
-                        <Braces size={16} /> Download Flows (JSON)
-                      </a>
-                    </div>
-                  )}
-                </div>
-                <button
-                    onClick={() => setIsSettingsModalOpen(true)}
-                    className="block w-full text-left px-4 py-2 text-sm text-zinc-200 hover:bg-zinc-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5"
-                  >
-                    <Settings size={20} /> Settings
-                  </button>
-                <button
+    //       <div className={`flex items-center justify-center w-28 gap-2 px-3 py-1 rounded-full text-sm font-medium
+    //         ${connectionStatus === 'live' ? 'text-green-400 bg-green-900/50' : ''}
+    //         ${connectionStatus === 'paused' ? 'text-yellow-400 bg-yellow-900/50' : ''}
+    //         ${connectionStatus === 'connecting' ? 'text-blue-400 bg-blue-900/50' : ''}
+    //         ${connectionStatus === 'failed' ? 'text-red-400 bg-red-900/50' : ''}
+    //       `}>
+    //         <span className={`w-2 h-2 rounded-full
+    //           ${connectionStatus === 'live' ? 'bg-green-400 animate-pulse' : ''}
+    //           ${connectionStatus === 'paused' ? 'bg-yellow-400' : ''}
+    //           ${connectionStatus === 'connecting' ? 'bg-blue-400 animate-pulse' : ''}
+    //           ${connectionStatus === 'failed' ? 'bg-red-400' : ''}
+    //         `} />
+    //         {connectionStatus.charAt(0).toUpperCase() + connectionStatus.slice(1)}
+    //       </div>
+    //       <div className="md:hidden relative" ref={menuRef}>
+    //         <button
+    //           onClick={() => setIsMenuOpen(!isMenuOpen)}
+    //           className="bg-zinc-800 border border-zinc-700 text-zinc-200 px-3 py-1 rounded-full text-sm font-medium flex items-center gap-1.5 hover:bg-zinc-700"
+    //         >
+    //           <Menu size={20} />
+    //         </button>
+    //         {isMenuOpen && (
+    //           <div className="absolute right-0 mt-2 w-48 bg-zinc-800 border border-zinc-700 rounded-md shadow-lg z-20">
+    //             <button
+    //               onClick={() => { togglePause(); setIsMenuOpen(false); }}
+    //               className="block w-full text-left px-4 py-2 text-sm text-zinc-200 hover:bg-zinc-700 flex items-center gap-1.5"
+    //             >
+    //               {isPaused ? <Play size={20} /> : <Pause size={20} />}
+    //               {isPaused ? 'Resume' : 'Pause'}
+    //             </button>
+    //             <button
+    //               onClick={() => { handleClearFlows(); setIsMenuOpen(false); }}
+    //               className="block w-full text-left px-4 py-2 text-sm text-zinc-200 hover:bg-zinc-700 flex items-center gap-1.5"
+    //             >
+    //               <Trash size={20} /> Clear Flows
+    //             </button>
+    //             <div className="relative inline-block w-full" ref={bulkDownloadRef}>
+    //               <button
+    //                 onClick={(e) => { e.stopPropagation(); setIsBulkDownloadOpen(o => !o); }}
+    //                 disabled={selectedFlowIds.size === 0}
+    //                 className="block w-full text-left px-4 py-2 text-sm text-zinc-200 hover:bg-zinc-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5"
+    //               >
+    //                 <Download size={20} /> Download ({selectedFlowIds.size})
+    //               </button>
+    //               {isBulkDownloadOpen && (
+    //                 <div className="absolute left-0 bg-zinc-800 border border-zinc-700 rounded shadow-lg z-10 min-w-[180px] top-full mt-2">
+    //                   <a
+    //                     href="#"
+    //                     onClick={(e) => { e.preventDefault(); handleDownloadSelectedFlows('har'); setIsBulkDownloadOpen(false); setIsMenuOpen(false); }}
+    //                     className="flex items-center gap-3 px-4 py-2.5 text-sm text-zinc-200 hover:bg-zinc-700 hover:text-zinc-200"
+    //                   >
+    //                     <HardDriveDownload size={16} /> Download HAR
+    //                   </a>
+    //                   <a
+    //                     href="#"
+    //                     onClick={(e) => { e.preventDefault(); handleDownloadSelectedFlows('json'); setIsBulkDownloadOpen(false); setIsMenuOpen(false); }}
+    //                     className="flex items-center gap-3 px-4 py-2.5 text-sm text-zinc-200 hover:bg-zinc-700 hover:text-zinc-200"
+    //                   >
+    //                     <Braces size={16} /> Download Flows (JSON)
+    //                   </a>
+    //                 </div>
+    //               )}
+    //             </div>
+    //             <button
+    //                 onClick={() => setIsSettingsModalOpen(true)}
+    //                 className="block w-full text-left px-4 py-2 text-sm text-zinc-200 hover:bg-zinc-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5"
+    //               >
+    //                 <Settings size={20} /> Settings
+    //               </button>
+    //             <button
                   
-                  className="bg-zinc-800 border border-zinc-700 text-zinc-200 px-3 py-1 rounded-full text-sm font-medium flex items-center gap-1.5 hover:bg-zinc-700"
-                >
+    //               className="bg-zinc-800 border border-zinc-700 text-zinc-200 px-3 py-1 rounded-full text-sm font-medium flex items-center gap-1.5 hover:bg-zinc-700"
+    //             >
                   
-                </button>
-              </div>
-            )}
-          </div>
-          <div className="hidden md:flex items-center gap-2">
-            <button
-              onClick={togglePause}
-              className="bg-zinc-800 border border-zinc-700 text-zinc-200 px-3 py-1 rounded-full text-sm font-medium flex items-center gap-1.5 hover:bg-zinc-700"
-            >
-              {isPaused ? <Play size={20} /> : <Pause size={20} />}
-            </button>
+    //             </button>
+    //           </div>
+    //         )}
+    //       </div>
+    //       <div className="hidden md:flex items-center gap-2">
+    //         <button
+    //           onClick={togglePause}
+    //           className="bg-zinc-800 border border-zinc-700 text-zinc-200 px-3 py-1 rounded-full text-sm font-medium flex items-center gap-1.5 hover:bg-zinc-700"
+    //         >
+    //           {isPaused ? <Play size={20} /> : <Pause size={20} />}
+    //         </button>
             
-            <button
-              onClick={handleClearFlows}
-              className="bg-zinc-800 border border-zinc-700 text-zinc-200 px-3 py-1 rounded-full text-sm font-medium flex items-center gap-1.5 hover:bg-zinc-700"
-            >
-              <Trash size={20} />
-            </button>
-            <button
-                onClick={() => setIsSettingsModalOpen(true)}
-                className="bg-zinc-800 border border-zinc-700 text-zinc-200 px-3 py-1 rounded-full text-sm font-medium flex items-center gap-1.5 hover:bg-zinc-700"
-              >
-                <Settings size={20} />
-              </button>
+    //         <button
+    //           onClick={handleClearFlows}
+    //           className="bg-zinc-800 border border-zinc-700 text-zinc-200 px-3 py-1 rounded-full text-sm font-medium flex items-center gap-1.5 hover:bg-zinc-700"
+    //         >
+    //           <Trash size={20} />
+    //         </button>
+    //         <button
+    //             onClick={() => setIsSettingsModalOpen(true)}
+    //             className="bg-zinc-800 border border-zinc-700 text-zinc-200 px-3 py-1 rounded-full text-sm font-medium flex items-center gap-1.5 hover:bg-zinc-700"
+    //           >
+    //             <Settings size={20} />
+    //           </button>
 
-            {/* Bulk Download Button with Dropdown */}
-            <div className="relative inline-block" ref={bulkDownloadRef}>
-              <button
-                onClick={(e) => { e.stopPropagation(); setIsBulkDownloadOpen(o => !o); }}
-                disabled={selectedFlowIds.size === 0}
-                className="bg-zinc-800 border border-zinc-700 text-zinc-200 px-3 py-1 rounded-full text-sm font-medium flex items-center gap-1.5 hover:bg-zinc-700 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <Download size={20} /> {selectedFlowIds.size}
-              </button>
-              {isBulkDownloadOpen && (
-                <div className="absolute right-0 bg-zinc-800 border border-zinc-700 rounded shadow-lg z-50 min-w-[180px] top-full mt-2">
-                  <a
-                    href="#"
-                    onClick={(e) => { e.preventDefault(); handleDownloadSelectedFlows('har'); setIsBulkDownloadOpen(false); }}
-                    className="flex items-center gap-3 px-4 py-2.5 text-sm text-zinc-400 hover:bg-zinc-700 hover:text-zinc-200"
-                  >
-                    <HardDriveDownload size={20} /> Download HAR
-                  </a>
-                  <a
-                    href="#"
-                    onClick={(e) => { e.preventDefault(); handleDownloadSelectedFlows('json'); setIsBulkDownloadOpen(false); }}
-                    className="flex items-center gap-3 px-4 py-2.5 text-sm text-zinc-400 hover:bg-zinc-700 hover:text-zinc-200"
-                  >
-                    <Braces size={20} /> Download Flows (JSON)
-                  </a>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
+    //         {/* Bulk Download Button with Dropdown */}
+    //         <div className="relative inline-block" ref={bulkDownloadRef}>
+    //           <button
+    //             onClick={(e) => { e.stopPropagation(); setIsBulkDownloadOpen(o => !o); }}
+    //             disabled={selectedFlowIds.size === 0}
+    //             className="bg-zinc-800 border border-zinc-700 text-zinc-200 px-3 py-1 rounded-full text-sm font-medium flex items-center gap-1.5 hover:bg-zinc-700 disabled:opacity-50 disabled:cursor-not-allowed"
+    //           >
+    //             <Download size={20} /> {selectedFlowIds.size}
+    //           </button>
+    //           {isBulkDownloadOpen && (
+    //             <div className="absolute right-0 bg-zinc-800 border border-zinc-700 rounded shadow-lg z-50 min-w-[180px] top-full mt-2">
+    //               <a
+    //                 href="#"
+    //                 onClick={(e) => { e.preventDefault(); handleDownloadSelectedFlows('har'); setIsBulkDownloadOpen(false); }}
+    //                 className="flex items-center gap-3 px-4 py-2.5 text-sm text-zinc-400 hover:bg-zinc-700 hover:text-zinc-200"
+    //               >
+    //                 <HardDriveDownload size={20} /> Download HAR
+    //               </a>
+    //               <a
+    //                 href="#"
+    //                 onClick={(e) => { e.preventDefault(); handleDownloadSelectedFlows('json'); setIsBulkDownloadOpen(false); }}
+    //                 className="flex items-center gap-3 px-4 py-2.5 text-sm text-zinc-400 hover:bg-zinc-700 hover:text-zinc-200"
+    //               >
+    //                 <Braces size={20} /> Download Flows (JSON)
+    //               </a>
+    //             </div>
+    //           )}
+    //         </div>
+    //       </div>
+    //     </div>
 
-        {/* Filter Input */}
-        <div className="ml-auto relative flex items-center">
-          <div className="relative">
-            <input
-              id="filter-input" // Add id for focus check
-              type="text"
-              value={filterText}
-              onChange={(e) => setFilterText(e.target.value)}
-              placeholder="Filter flows..."
-              className="bg-zinc-800 border border-zinc-700 rounded-full text-zinc-200 px-4 py-1.5 pl-10 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500 w-72"
-            />
-            <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-zinc-500" />
-          </div>
-        </div>
-      </header>
+    //     {/* Filter Input */}
+    //     <div className="ml-auto relative flex items-center">
+    //       <div className="relative">
+    //         <input
+    //           id="filter-input" // Add id for focus check
+    //           type="text"
+    //           value={filterText}
+    //           onChange={(e) => setFilterText(e.target.value)}
+    //           placeholder="Filter flows..."
+    //           className="bg-zinc-800 border border-zinc-700 rounded-full text-zinc-200 px-4 py-1.5 pl-10 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500 w-72"
+    //         />
+    //         <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-zinc-500" />
+    //       </div>
+    //     </div>
+    //   </header>
 
-      <SettingsModal
-        isOpen={isSettingsModalOpen}
-        onClose={() => setIsSettingsModalOpen(false)}
-        maxFlows={maxFlows}
-        setMaxFlows={setMaxFlows}
-        maxBodySize={maxBodySize}
-        setMaxBodySize={setMaxBodySize}
-      />
+    //   <SettingsModal
+    //     isOpen={isSettingsModalOpen}
+    //     onClose={() => setIsSettingsModalOpen(false)}
+    //     maxFlows={maxFlows}
+    //     setMaxFlows={setMaxFlows}
+    //     maxBodySize={maxBodySize}
+    //     setMaxBodySize={setMaxBodySize}
+    //   />
 
-      {/* --- Flow Table --- */}
-      <main className="flex-grow" ref={mainTableRef}>
-        <FlowsGrid
-            flows={filteredFlows}
-            onRowClicked={(flow) => handleFlowMouseDown(flow)}
-            onGridReady={onGridReady}
-        />
-      </main>
+    //   {/* --- Flow Table --- */}
+    //   <main className="flex-grow" ref={mainTableRef}>
+    //     <FlowsGrid
+    //         flows={filteredFlows}
+    //         onSelectionChanged={handleSelectionChanged}
+    //         onGridReady={onGridReady}
+    //     />
+    //   </main>
 
-      {isFlowsTruncated && (
-        <footer className="p-2 text-center text-xs text-zinc-500 border-t border-zinc-700">
-          Showing the last {flows.length} flows. You can change this limit in the <button onClick={() => setIsSettingsModalOpen(true)} className="underline hover:text-orange-500">settings</button>.
-        </footer>
-      )}
+    //   {isFlowsTruncated && (
+    //     <footer className="p-2 text-center text-xs text-zinc-500 border-t border-zinc-700">
+    //       Showing the last {flows.length} flows. You can change this limit in the <button onClick={() => setIsSettingsModalOpen(true)} className="underline hover:text-orange-500">settings</button>.
+    //     </footer>
+    //   )}
 
-      {/* --- Details Panel --- */}
-      <DetailsPanel
-        flow={selectedFlow}
-        isMinimized={isPanelMinimized}
-        onClose={handleClosePanel}
-        panelHeight={detailsPanelHeight}
-        setPanelHeight={setDetailsPanelHeight}
-      >
-        {selectedFlow?.flow?.case === 'httpFlow' && (
-          <HttpFlowDetails
-            flow={selectedFlow}
-            requestFormat={requestFormats.get(selectedFlowId!) || 'auto'}
-            setRequestFormat={(format) => handleSetRequestFormat(selectedFlowId!, format)}
-            responseFormat={responseFormats.get(selectedFlowId!) || 'auto'}
-            setResponseFormat={(format) => handleSetResponseFormat(selectedFlowId!, format)}
-            downloadFlowContent={downloadFlowContent}
-            isDownloadOpen={isDownloadOpen}
-            setDownloadOpen={setDownloadOpen}
-            isInfoTooltipOpen={isInfoTooltipOpen}
-            setIsInfoTooltipOpen={setIsInfoTooltipOpen}
-            contentRef={contentRef}
-          />
-        )}
-        {selectedFlow?.flow?.case === 'dnsFlow' && (
-          <DnsFlowDetails flow={selectedFlow} />
-        )}
-        {selectedFlow?.flow?.case === 'tcpFlow' && (
-            <TcpFlowDetails flow={selectedFlow} />
-        )}
-        {selectedFlow?.flow?.case === 'udpFlow' && (
-            <UdpFlowDetails flow={selectedFlow} />
-        )}
-      </DetailsPanel>
-    </div>
-  );
+    //   {/* --- Details Panel --- */}
+    //   <DetailsPanel
+    //     flow={selectedFlow}
+    //     isMinimized={isPanelMinimized}
+    //     onClose={handleClosePanel}
+    //     panelHeight={detailsPanelHeight}
+    //     setPanelHeight={setDetailsPanelHeight}
+    //   >
+    //     {selectedFlow?.flow?.case === 'httpFlow' && (
+    //       <HttpFlowDetails
+    //         flow={selectedFlow}
+    //         requestFormat={requestFormats.get(selectedFlowId!) || 'auto'}
+    //         setRequestFormat={(format) => handleSetRequestFormat(selectedFlowId!, format)}
+    //         responseFormat={responseFormats.get(selectedFlowId!) || 'auto'}
+    //         setResponseFormat={(format) => handleSetResponseFormat(selectedFlowId!, format)}
+    //         downloadFlowContent={downloadFlowContent}
+    //         isDownloadOpen={isDownloadOpen}
+    //         setDownloadOpen={setDownloadOpen}
+    //         isInfoTooltipOpen={isInfoTooltipOpen}
+    //         setIsInfoTooltipOpen={setIsInfoTooltipOpen}
+    //         contentRef={contentRef}
+    //       />
+    //     )}
+    //     {selectedFlow?.flow?.case === 'dnsFlow' && (
+    //       <DnsFlowDetails flow={selectedFlow} />
+    //     )}
+    //     {selectedFlow?.flow?.case === 'tcpFlow' && (
+    //         <TcpFlowDetails flow={selectedFlow} />
+    //     )}
+    //     {selectedFlow?.flow?.case === 'udpFlow' && (
+    //         <UdpFlowDetails flow={selectedFlow} />
+    //     )}
+    //   </DetailsPanel>
+    // </div>
 };
 
 export default App;
