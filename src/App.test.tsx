@@ -1,4 +1,4 @@
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, within } from '@testing-library/react';
 import { vi, test, expect } from 'vitest';
 import App from './App';
 import { createClient } from '@connectrpc/connect';
@@ -24,23 +24,22 @@ test('renders the main app component', () => {
 test('renders the details panel when a flow is selected', async () => {
     const mockFlow = {
         flow: {
-            flow: {
-                case: 'httpFlow',
-                value: {
-                    id: '1',
-                    request: {
-                        method: 'GET',
-                        url: 'http://example.com',
-                        httpVersion: 'HTTP/1.1',
-                        headers: {},
-                        content: new Uint8Array(),
-                    },
-                    response: {
-                        statusCode: 200,
-                        httpVersion: 'HTTP/1.1',
-                        headers: {},
-                        content: new Uint8Array(),
-                    },
+            case: 'httpFlow',
+            value: {
+                id: '1',
+                request: {
+                    method: 'GET',
+                    url: 'http://example.com',
+                    prettyUrl: 'http://example.com',
+                    httpVersion: 'HTTP/1.1',
+                    headers: {},
+                    content: new Uint8Array(),
+                },
+                response: {
+                    statusCode: 200,
+                    httpVersion: 'HTTP/1.1',
+                    headers: {},
+                    content: new Uint8Array(),
                 },
             },
         },
@@ -48,7 +47,7 @@ test('renders the details panel when a flow is selected', async () => {
 
     mockedCreateClient.mockReturnValue({
         streamFlows: async function* () {
-            yield mockFlow;
+            yield { flow: mockFlow };
             // Don't complete the stream
             await new Promise(() => { });
         },
@@ -59,8 +58,8 @@ test('renders the details panel when a flow is selected', async () => {
 
     render(<App />);
 
-    const flowRow = await screen.findByText(/http:\/\/example.com/i);
-    fireEvent.mouseDown(flowRow);
+    const flowRow = await screen.findByTestId('flow-row-1');
+    fireEvent.click(flowRow);
 
     const requestTab = screen.getByRole('button', { name: /Request/i });
     expect(requestTab).toBeInTheDocument();
@@ -69,23 +68,22 @@ test('renders the details panel when a flow is selected', async () => {
 test('adds flows to the list', async () => {
     const mockFlow = {
         flow: {
-            flow: {
-                case: 'httpFlow',
-                value: {
-                    id: '1',
-                    request: {
-                        method: 'GET',
-                        url: 'http://example.com',
-                        httpVersion: 'HTTP/1.1',
-                        headers: {},
-                        content: new Uint8Array(),
-                    },
-                    response: {
-                        statusCode: 200,
-                        httpVersion: 'HTTP/1.1',
-                        headers: {},
-                        content: new Uint8Array(),
-                    },
+            case: 'httpFlow',
+            value: {
+                id: '1',
+                request: {
+                    method: 'GET',
+                    url: 'http://example.com',
+                    prettyUrl: 'http://example.com',
+                    httpVersion: 'HTTP/1.1',
+                    headers: {},
+                    content: new Uint8Array(),
+                },
+                response: {
+                    statusCode: 200,
+                    httpVersion: 'HTTP/1.1',
+                    headers: {},
+                    content: new Uint8Array(),
                 },
             },
         },
@@ -93,7 +91,7 @@ test('adds flows to the list', async () => {
 
     mockedCreateClient.mockReturnValue({
         streamFlows: async function* () {
-            yield mockFlow;
+            yield { flow: mockFlow };
             // Don't complete the stream
             await new Promise(() => { });
         },
@@ -104,6 +102,7 @@ test('adds flows to the list', async () => {
 
     render(<App />);
 
-    const flowRow = await screen.findByText(/http:\/\/example.com/i);
-    expect(flowRow).toBeInTheDocument();
+    const flowRow = await screen.findByTestId('flow-row-1');
+    const requestCell = within(flowRow).getByText(/http:\/\/example.com/i);
+    expect(requestCell).toBeInTheDocument();
 });

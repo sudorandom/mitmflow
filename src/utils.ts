@@ -216,6 +216,41 @@ export const formatSize = (bytes: number | undefined, decimals = 2): string => {
     return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
 }
 
+export const getFlowType = (flow: Flow | undefined | null): string | undefined => {
+    if (!flow || !flow.flow) {
+        return undefined;
+    }
+    return flow.flow.case.replace('Flow', '').toLowerCase();
+}
+
+export const getRequest = (flow: Flow | undefined | null) => {
+    if (!flow || !flow.flow) {
+        return undefined;
+    }
+    switch (flow.flow.case) {
+        case 'httpFlow':
+            return flow.flow.value.request;
+        case 'dnsFlow':
+            return flow.flow.value.request;
+        default:
+            return undefined;
+    }
+}
+
+export const getResponse = (flow: Flow | undefined | null) => {
+    if (!flow || !flow.flow) {
+        return undefined;
+    }
+    switch (flow.flow.case) {
+        case 'httpFlow':
+            return flow.flow.value.response;
+        case 'dnsFlow':
+            return flow.flow.value.response;
+        default:
+            return undefined;
+    }
+}
+
 export const formatTimestampWithRelative = (ts: number, relativeTo: number): string => {
     const date = new Date(ts);
     const absolute = date.toLocaleTimeString('en-US', {
