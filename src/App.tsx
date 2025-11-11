@@ -5,18 +5,15 @@ import { createClient } from "@connectrpc/connect";
 import { Service, Flow, FlowSchema } from "./gen/mitmflow/v1/mitmflow_pb";
 import { toJson } from "@bufbuild/protobuf";
 import { DnsFlowDetails } from './components/DnsFlowDetails';
-import { DnsFlowRow } from './components/DnsFlowRow';
 import { HttpFlowDetails } from './components/HttpFlowDetails';
-import { HttpFlowRow } from './components/HttpFlowRow';
 import { TcpFlowDetails } from './components/TcpFlowDetails';
-import { TcpFlowRow } from './components/TcpFlowRow';
 import { UdpFlowDetails } from './components/UdpFlowDetails';
-import { UdpFlowRow } from './components/UdpFlowRow';
 import { ContentFormat, getFlowId, getTimestamp } from './utils';
 import { DetailsPanel } from './components/DetailsPanel';
 import FilterModal from './components/FilterModal';
 import SettingsModal from './components/SettingsModal';
 import useFilterStore from './store';
+import FlowGrid from './components/FlowGrid';
 
 const getHarContent = (content: Uint8Array | undefined, contentType: string | undefined) => {
   if (!content || content.length === 0) {
@@ -72,33 +69,6 @@ const generateHarBlob = (flowsToExport: Flow[]): Blob => {
     }
   };
   return new Blob([JSON.stringify(har, null, 2)], { type: 'application/json;charset=utf-8' });
-};
-
-/**
- * Renders a single flow row in the table
- */
-const FlowRow: React.FC<{
-    flow: Flow;
-    isSelected: boolean;
-    onMouseDown: (flow: Flow, event: React.MouseEvent) => void;
-    onMouseEnter: (flow: Flow) => void;
-}> = ({ flow, isSelected, onMouseDown, onMouseEnter }) => {
-    if (!flow.flow) {
-        return null;
-    }
-
-    switch (flow.flow.case) {
-        case 'httpFlow':
-            return <HttpFlowRow flow={flow} isSelected={isSelected} onMouseDown={onMouseDown} onMouseEnter={onMouseEnter} />;
-        case 'dnsFlow':
-            return <DnsFlowRow flow={flow} isSelected={isSelected} onMouseDown={onMouseDown} onMouseEnter={onMouseEnter} />;
-        case 'tcpFlow':
-            return <TcpFlowRow flow={flow} isSelected={isSelected} onMouseDown={onMouseDown} onMouseEnter={onMouseEnter} />;
-        case 'udpFlow':
-            return <UdpFlowRow flow={flow} isSelected={isSelected} onMouseDown={onMouseDown} onMouseEnter={onMouseEnter} />;
-        default:
-            return null;
-    }
 };
 
 // --- MAIN APP COMPONENT ---
@@ -205,23 +175,6 @@ const App: React.FC = () => {
     URL.revokeObjectURL(url);
   }, []);
 
-  const handleMouseUp = useCallback(() => {
-    setIsDragging(false);
-  }, []);
-
-  const handleRowMouseEnter = (flow: Flow) => {
-    if (isDragging) {
-      const newSelectedFlowIds = new Set(selectedFlowIds);
-      if (flow) {
-        const flowId = getFlowId(flow);
-        if (flowId) {
-          newSelectedFlowIds.add(flowId);
-        }
-      }
-      setSelectedFlowIds(newSelectedFlowIds);
-    }
-  };
-
   // --- Data Fetching ---
   useEffect(() => {
     if (isPaused) {
@@ -305,14 +258,6 @@ const App: React.FC = () => {
       abortController.abort(); // Abort the current connection attempt
     };
   }, [isPaused, maxFlows, maxBodySize]);
-
-
-  useEffect(() => {
-    window.addEventListener('mouseup', handleMouseUp);
-    return () => {
-      window.removeEventListener('mouseup', handleMouseUp);
-    };
-  }, [handleMouseUp]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -502,53 +447,16 @@ const App: React.FC = () => {
     });
   }, []);
 
-  const handleFlowMouseDown = useCallback((flow: Flow, event?: React.MouseEvent) => {
-    if (event) { // Only set isDragging if it's a mouse event
-      setIsDragging(true);
-    }
-    const newSelectedFlowIds = new Set(selectedFlowIds);
-    const currentFlowId = getFlowId(flow);
-
-    if (!currentFlowId) {
-      return; // Should not happen if filteredFlows is correct
-    }
-
-    if (event?.shiftKey && lastSelectedFlowId.current) {
-      const lastIndex = filteredFlows.findIndex(f => {
-        const fFlowId = getFlowId(f);
-        return fFlowId && fFlowId === lastSelectedFlowId.current;
-      });
-      const currentIndex = filteredFlows.findIndex(f => {
-        const fFlowId = getFlowId(f);
-        return fFlowId && fFlowId === currentFlowId;
-      });
-      const [start, end] = [lastIndex, currentIndex].sort((a, b) => a - b);
-      for (let i = start; i <= end; i++) {
-        const f = filteredFlows[i];
-        if (f) {
-            const fFlowId = getFlowId(f);
-            if (fFlowId) {
-              newSelectedFlowIds.add(fFlowId);
-            }
-        }
-      }
-    } else if (event?.metaKey || event?.ctrlKey) {
-      if (newSelectedFlowIds.has(currentFlowId)) {
-        newSelectedFlowIds.delete(currentFlowId);
-      } else {
-        newSelectedFlowIds.add(currentFlowId);
-      }
-    } else {
-      newSelectedFlowIds.clear();
-      newSelectedFlowIds.add(currentFlowId);
-    }
-
-    setSelectedFlowIds(newSelectedFlowIds);
+  const handleFlowRowClicked = (flow: Flow) => {
     setSelectedFlow(flow);
-    setSelectedFlowId(currentFlowId);
-    lastSelectedFlowId.current = currentFlowId;
-    setIsPanelMinimized(false);
-  }, [filteredFlows, selectedFlowIds]);
+    const flowId = getFlowId(flow);
+    if (flowId) {
+        setSelectedFlowId(flowId);
+        const newSelectedFlowIds = new Set<string>();
+        newSelectedFlowIds.add(flowId);
+        setSelectedFlowIds(newSelectedFlowIds);
+    }
+  };
 
   const handleClosePanel = useCallback(() => {
     setSelectedFlow(null);
@@ -614,8 +522,7 @@ const App: React.FC = () => {
       if (nextIndex !== currentIndex && nextIndex > -1) {
         const nextFlow = filteredFlows[nextIndex];
         if (nextFlow) {
-          // This will update selection and open/update the details panel
-          handleFlowMouseDown(nextFlow);
+          handleFlowRowClicked(nextFlow);
           
           // Scroll the item into view
           const nextFlowId = getFlowId(nextFlow);
@@ -632,7 +539,7 @@ const App: React.FC = () => {
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
     };
-  }, [filteredFlows, selectedFlowId, handleFlowMouseDown]); // Add dependencies
+  }, [filteredFlows, selectedFlowId]); // Add dependencies
 
   // --- Close panel on Escape key ---
   useEffect(() => {
@@ -842,32 +749,8 @@ const App: React.FC = () => {
       />
 
       {/* --- Flow Table --- */}
-      <main className="flex-grow overflow-y-auto" ref={mainTableRef}> {/* Add ref */}
-        <table className="w-full border-collapse text-sm">
-          <thead className="sticky top-0 bg-zinc-800">
-            <tr>
-              <th className="p-3 text-left font-medium text-zinc-500 border-b-2 border-zinc-700 w-[5%] md:w-[2.5%]"></th>
-              <th className="p-3 text-left font-medium text-zinc-500 border-b-2 border-zinc-700 w-[5%] md:w-[5%]">Status</th>
-              <th className="p-3 text-left font-medium text-zinc-500 border-b-2 border-zinc-700 w-[85%] md:w-[72.5%]">Request</th>
-              <th className="hidden md:table-cell p-3 text-left font-medium text-zinc-500 border-b-2 border-zinc-700 w-[8%]">Transfer</th>
-              <th className="hidden md:table-cell p-3 text-left font-medium text-zinc-500 border-b-2 border-zinc-700 w-[7%]">Duration</th>
-            </tr>
-          </thead>
-          <tbody>
-            {filteredFlows.map(flow => (
-              <FlowRow
-                key={getFlowId(flow) || 'unknown'}
-                flow={flow}
-                isSelected={(() => {
-                  const flowId = getFlowId(flow);
-                  return flowId ? selectedFlowIds.has(flowId) : false;
-                })()}
-                onMouseDown={handleFlowMouseDown}
-                onMouseEnter={handleRowMouseEnter}
-              />
-            ))}
-          </tbody>
-        </table>
+      <main className="flex-grow overflow-y-auto" ref={mainTableRef}>
+        <FlowGrid flows={filteredFlows} onRowClicked={handleFlowRowClicked} />
       </main>
 
       {isFlowsTruncated && (
