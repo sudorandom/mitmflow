@@ -1,22 +1,18 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
-import { Search, Pause, Play, Download, Braces, HardDriveDownload, Menu, Filter, X, Settings, Trash } from 'lucide-react';
+import { Search, Pause, Play, Download, Braces, HardDriveDownload, Menu, Settings, Trash } from 'lucide-react';
 import { createConnectTransport } from "@connectrpc/connect-web";
 import { createClient } from "@connectrpc/connect";
 import { Service, Flow, FlowSchema } from "./gen/mitmflow/v1/mitmflow_pb";
 import { toJson } from "@bufbuild/protobuf";
 import { DnsFlowDetails } from './components/DnsFlowDetails';
-import { DnsFlowRow } from './components/DnsFlowRow';
 import { HttpFlowDetails } from './components/HttpFlowDetails';
-import { HttpFlowRow } from './components/HttpFlowRow';
 import { TcpFlowDetails } from './components/TcpFlowDetails';
-import { TcpFlowRow } from './components/TcpFlowRow';
 import { UdpFlowDetails } from './components/UdpFlowDetails';
-import { UdpFlowRow } from './components/UdpFlowRow';
 import { ContentFormat, getFlowId, getTimestamp } from './utils';
 import { DetailsPanel } from './components/DetailsPanel';
-import FilterModal from './components/FilterModal';
 import SettingsModal from './components/SettingsModal';
 import useFilterStore from './store';
+import { FlowsGrid } from './components/FlowsGrid';
 
 const getHarContent = (content: Uint8Array | undefined, contentType: string | undefined) => {
   if (!content || content.length === 0) {
@@ -74,32 +70,6 @@ const generateHarBlob = (flowsToExport: Flow[]): Blob => {
   return new Blob([JSON.stringify(har, null, 2)], { type: 'application/json;charset=utf-8' });
 };
 
-/**
- * Renders a single flow row in the table
- */
-const FlowRow: React.FC<{
-    flow: Flow;
-    isSelected: boolean;
-    onMouseDown: (flow: Flow, event: React.MouseEvent) => void;
-    onMouseEnter: (flow: Flow) => void;
-}> = ({ flow, isSelected, onMouseDown, onMouseEnter }) => {
-    if (!flow.flow) {
-        return null;
-    }
-
-    switch (flow.flow.case) {
-        case 'httpFlow':
-            return <HttpFlowRow flow={flow} isSelected={isSelected} onMouseDown={onMouseDown} onMouseEnter={onMouseEnter} />;
-        case 'dnsFlow':
-            return <DnsFlowRow flow={flow} isSelected={isSelected} onMouseDown={onMouseDown} onMouseEnter={onMouseEnter} />;
-        case 'tcpFlow':
-            return <TcpFlowRow flow={flow} isSelected={isSelected} onMouseDown={onMouseDown} onMouseEnter={onMouseEnter} />;
-        case 'udpFlow':
-            return <UdpFlowRow flow={flow} isSelected={isSelected} onMouseDown={onMouseDown} onMouseEnter={onMouseEnter} />;
-        default:
-            return null;
-    }
-};
 
 // --- MAIN APP COMPONENT ---
 
@@ -125,7 +95,6 @@ const App: React.FC = () => {
     http,
     clearFilters
   } = useFilterStore();
-  const [isFilterModalOpen, setIsFilterModalOpen] = useState(false);
   const [selectedFlow, setSelectedFlow] = useState<Flow | null>(null);
   const [isPanelMinimized, setIsPanelMinimized] = useState(false);
   const [selectedFlowId, setSelectedFlowId] = useState<string | null>(null);
@@ -152,6 +121,17 @@ const App: React.FC = () => {
   const lastSelectedFlowId = useRef<string | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   const bulkDownloadRef = useRef<HTMLDivElement>(null); // New ref for bulk download menu
+  const gridApiRef = useRef<any>(null);
+
+  const onGridReady = (params: any) => {
+    gridApiRef.current = params.api;
+  };
+
+  useEffect(() => {
+    if (gridApiRef.current) {
+      gridApiRef.current.setQuickFilter(filterText);
+    }
+  }, [filterText]);
 
   const downloadFlowContent = useCallback((flow: Flow, type: 'har' | 'flow-json' | 'request' | 'response') => {
     const httpFlow = flow.flow.case === 'httpFlow' ? flow.flow.value : null;
@@ -340,12 +320,6 @@ const App: React.FC = () => {
   useEffect(() => {
     localStorage.setItem('maxBodySize', String(maxBodySize));
   }, [maxBodySize]);
-
-  const activeFilterCount =
-    (flowTypes.length > 0 ? 1 : 0) +
-    (http.methods.length > 0 ? 1 : 0) +
-    (http.contentTypes.length > 0 ? 1 : 0) +
-    (http.statusCodes.length > 0 ? 1 : 0);
 
   // --- Derived State (Filtering) ---
   const filteredFlows = useMemo(() => {
@@ -786,24 +760,6 @@ const App: React.FC = () => {
           </div>
         </div>
 
-        {activeFilterCount > 0 && (
-          <button
-            onClick={() => setIsFilterModalOpen(true)}
-            className="bg-zinc-800 border border-zinc-700 text-zinc-200 px-3 py-1 rounded-full text-sm font-medium flex items-center gap-2 hover:bg-zinc-700"
-          >
-            {activeFilterCount} {activeFilterCount > 1 ? 'Filters' : 'Filter'}
-            <div
-              onClick={(e) => {
-                e.stopPropagation();
-                clearFilters();
-              }}
-              className="bg-zinc-700 rounded-full p-0.5 hover:bg-zinc-600"
-            >
-              <X size={12} />
-            </div>
-          </button>
-        )}
-
         {/* Filter Input */}
         <div className="ml-auto relative flex items-center">
           <div className="relative">
@@ -813,24 +769,12 @@ const App: React.FC = () => {
               value={filterText}
               onChange={(e) => setFilterText(e.target.value)}
               placeholder="Filter flows..."
-              className="bg-zinc-800 border border-zinc-700 rounded-l-full text-zinc-200 px-4 py-1.5 pl-10 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500 w-72"
+              className="bg-zinc-800 border border-zinc-700 rounded-full text-zinc-200 px-4 py-1.5 pl-10 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500 w-72"
             />
             <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-zinc-500" />
           </div>
-          <button
-            onClick={() => setIsFilterModalOpen(true)}
-            className="bg-zinc-800 border border-zinc-700 border-l-0 rounded-r-full text-zinc-400 px-3 py-1.5 hover:bg-zinc-700 hover:text-white focus:outline-none focus:ring-2 focus:ring-orange-500"
-            data-testid="filter-button"
-          >
-            <Filter size={20} />
-          </button>
         </div>
       </header>
-
-      <FilterModal
-        isOpen={isFilterModalOpen}
-        onClose={() => setIsFilterModalOpen(false)}
-      />
 
       <SettingsModal
         isOpen={isSettingsModalOpen}
@@ -842,32 +786,12 @@ const App: React.FC = () => {
       />
 
       {/* --- Flow Table --- */}
-      <main className="flex-grow overflow-y-auto" ref={mainTableRef}> {/* Add ref */}
-        <table className="w-full border-collapse text-sm">
-          <thead className="sticky top-0 bg-zinc-800">
-            <tr>
-              <th className="p-3 text-left font-medium text-zinc-500 border-b-2 border-zinc-700 w-[5%] md:w-[2.5%]"></th>
-              <th className="p-3 text-left font-medium text-zinc-500 border-b-2 border-zinc-700 w-[5%] md:w-[5%]">Status</th>
-              <th className="p-3 text-left font-medium text-zinc-500 border-b-2 border-zinc-700 w-[85%] md:w-[72.5%]">Request</th>
-              <th className="hidden md:table-cell p-3 text-left font-medium text-zinc-500 border-b-2 border-zinc-700 w-[8%]">Transfer</th>
-              <th className="hidden md:table-cell p-3 text-left font-medium text-zinc-500 border-b-2 border-zinc-700 w-[7%]">Duration</th>
-            </tr>
-          </thead>
-          <tbody>
-            {filteredFlows.map(flow => (
-              <FlowRow
-                key={getFlowId(flow) || 'unknown'}
-                flow={flow}
-                isSelected={(() => {
-                  const flowId = getFlowId(flow);
-                  return flowId ? selectedFlowIds.has(flowId) : false;
-                })()}
-                onMouseDown={handleFlowMouseDown}
-                onMouseEnter={handleRowMouseEnter}
-              />
-            ))}
-          </tbody>
-        </table>
+      <main className="flex-grow" ref={mainTableRef}>
+        <FlowsGrid
+            flows={filteredFlows}
+            onRowClicked={(flow) => handleFlowMouseDown(flow)}
+            onGridReady={onGridReady}
+        />
       </main>
 
       {isFlowsTruncated && (
