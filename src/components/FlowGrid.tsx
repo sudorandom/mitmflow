@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { AgGridReact } from 'ag-grid-react';
 import { ColDef, ICellRendererParams } from 'ag-grid-community';
 import { Flow } from '../gen/mitmflow/v1/mitmflow_pb';
@@ -89,11 +89,18 @@ const FlowGrid: React.FC<FlowGridProps> = ({ flows, onRowClicked }) => {
         { headerName: 'Duration', cellRenderer: DurationRenderer, width: 120 },
     ];
 
+    const defaultColDef = useMemo(() => {
+        return {
+            flex: 1,
+        };
+    }, []);
+
     return (
         <div className="ag-theme-alpine-dark" style={{ height: '100%', width: '100%' }} data-testid="flow-grid">
             <AgGridReact
                 rowData={flows}
                 columnDefs={columnDefs}
+                defaultColDef={defaultColDef}
                 onRowClicked={(event) => onRowClicked(event.data)}
                 suppressColumnVirtualisation={process.env.NODE_ENV === 'test'}
             />
