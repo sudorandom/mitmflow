@@ -118,6 +118,17 @@ const App: React.FC = () => {
   const lastSelectedFlowId = useRef<string | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   const bulkDownloadRef = useRef<HTMLDivElement>(null); // New ref for bulk download menu
+  const gridApiRef = useRef<any>(null);
+
+  const onGridReady = (params: any) => {
+    gridApiRef.current = params.api;
+  };
+
+  useEffect(() => {
+    if (gridApiRef.current) {
+      gridApiRef.current.setQuickFilter(filterText);
+    }
+  }, [filterText]);
 
   const downloadFlowContent = useCallback((flow: Flow, type: 'har' | 'flow-json' | 'request' | 'response') => {
     const httpFlow = flow.flow.case === 'httpFlow' ? flow.flow.value : null;
@@ -306,7 +317,6 @@ const App: React.FC = () => {
   useEffect(() => {
     localStorage.setItem('maxBodySize', String(maxBodySize));
   }, [maxBodySize]);
-
 
   // --- Event Handlers ---
   const handleDownloadSelectedFlows = (format: 'har' | 'json') => {
