@@ -87,7 +87,6 @@ export const FlowsGrid: React.FC<FlowsGridProps> = ({ flows, onRowClicked, onGri
 
     return (
         <div className="ag-theme-alpine h-full">
-            <h1>Hello World</h1>
             <AgGridReact
                 rowData={flows}
                 columnDefs={columnDefs}

@@ -12,7 +12,7 @@ import { ContentFormat, getFlowId, getTimestamp } from './utils';
 import { DetailsPanel } from './components/DetailsPanel';
 import SettingsModal from './components/SettingsModal';
 import useFilterStore from './store';
-import { FlowsTable } from './components/FlowsTable';
+import { FlowsGrid } from './components/FlowsGrid';
 
 const getHarContent = (content: Uint8Array | undefined, contentType: string | undefined) => {
   if (!content || content.length === 0) {
@@ -70,6 +70,7 @@ const generateHarBlob = (flowsToExport: Flow[]): Blob => {
   return new Blob([JSON.stringify(har, null, 2)], { type: 'application/json;charset=utf-8' });
 };
 
+
 // --- MAIN APP COMPONENT ---
 
 declare global {
@@ -90,6 +91,8 @@ const App: React.FC = () => {
   const {
     text: filterText,
     setText: setFilterText,
+    flowTypes,
+    http,
     clearFilters
   } = useFilterStore();
   const [selectedFlow, setSelectedFlow] = useState<Flow | null>(null);
@@ -318,6 +321,104 @@ const App: React.FC = () => {
     localStorage.setItem('maxBodySize', String(maxBodySize));
   }, [maxBodySize]);
 
+  // --- Derived State (Filtering) ---
+  const filteredFlows = useMemo(() => {
+    const filter = filterText.toLowerCase();
+
+    return flows.filter(flow => {
+      if (!flow.flow) return false;
+
+      // --- General Text Filter ---
+      if (filter) {
+        let isMatch = false;
+        const clientIp = flow.flow.value?.client?.peernameHost || '';
+        const serverIp = flow.flow.value?.server?.addressHost || '';
+        if (!flow.flow.case) {
+          return false;
+        }
+        switch (flow.flow.case) {
+          case 'httpFlow':
+            const httpFlow = flow.flow.value;
+            const url = httpFlow.request?.prettyUrl || httpFlow.request?.url || '';
+            const sni = httpFlow.client?.sni || '';
+            const filterTextHttp = `${url} ${httpFlow.request?.method} ${httpFlow.response?.statusCode} ${sni} ${clientIp} ${serverIp}`.toLowerCase();
+            isMatch = filterTextHttp.includes(filter);
+            break;
+          case 'dnsFlow':
+            const dnsFlow = flow.flow.value;
+            const domainName = dnsFlow.request?.questions[0]?.name || '';
+            isMatch = `${domainName} ${clientIp} ${serverIp}`.toLowerCase().includes(filter);
+            break;
+          case 'tcpFlow':
+            const tcpFlow = flow.flow.value;
+            const tcpServer = tcpFlow.server;
+            isMatch = `${tcpServer?.addressHost}:${tcpServer?.addressPort} ${clientIp} ${serverIp}`.toLowerCase().includes(filter);
+            break;
+          case 'udpFlow':
+            const udpFlow = flow.flow.value;
+            const udpServer = udpFlow.server;
+            isMatch = `${udpServer?.addressHost}:${udpServer?.addressPort} ${clientIp} ${serverIp}`.toLowerCase().includes(filter);
+            break;
+        }
+        if (!isMatch) return false;
+      }
+
+      // --- Advanced Filters ---
+      // Flow Type Filter (OR logic)
+      if (flowTypes.length > 0) {
+        if (!flow.flow?.case) {
+          return false;
+        }
+        const flowType = flow.flow.case.replace('Flow', '').toLowerCase();
+        if (!flowTypes.includes(flowType as any)) {
+          return false;
+        }
+      }
+
+      // HTTP Specific Filters (AND logic)
+      if (flow.flow.case === 'httpFlow') {
+        const httpFlow = flow.flow.value;
+
+        // HTTP Method Filter
+        if (http.methods.length > 0 && !http.methods.includes(httpFlow.request?.method || '')) {
+          return false;
+        }
+
+        // HTTP Status Code Filter
+        if (http.statusCodes.length > 0) {
+            const statusCode = httpFlow.response?.statusCode?.toString() || '';
+            const matches = http.statusCodes.some(sc => {
+                if (sc.endsWith('xx')) {
+                    const prefix = sc.slice(0, 1);
+                    return statusCode.startsWith(prefix);
+                }
+                if (sc.includes('-')) {
+                    const [start, end] = sc.split('-').map(Number);
+                    const code = Number(statusCode);
+                    return code >= start && code <= end;
+                }
+                return statusCode === sc;
+            });
+            if (!matches) {
+                return false;
+            }
+        }
+
+        // HTTP Content Type Filter
+        if (http.contentTypes.length > 0) {
+            const reqContentType = httpFlow.request?.effectiveContentType || '';
+            const resContentType = httpFlow.response?.effectiveContentType || '';
+            const matches = http.contentTypes.some(ct => reqContentType.includes(ct) || resContentType.includes(ct));
+            if (!matches) {
+                return false;
+            }
+        }
+      }
+
+      return true; // If all filters pass
+    });
+  }, [flows, filterText, flowTypes, http.methods, http.statusCodes, http.contentTypes]);
+
   // --- Event Handlers ---
   const handleDownloadSelectedFlows = (format: 'har' | 'json') => {
     const selectedFlows = flows.filter(flow => {
@@ -375,16 +476,6 @@ const App: React.FC = () => {
     });
   }, []);
 
-  const handleRowClick = useCallback((flow: Flow) => {
-    const flowId = getFlowId(flow);
-    if (flowId) {
-      setSelectedFlow(flow);
-      setSelectedFlowId(flowId);
-      setSelectedFlowIds(new Set([flowId]));
-      setIsPanelMinimized(false);
-    }
-  }, []);
-
   const handleFlowMouseDown = useCallback((flow: Flow, event?: React.MouseEvent) => {
     if (event) { // Only set isDragging if it's a mouse event
       setIsDragging(true);
@@ -393,21 +484,21 @@ const App: React.FC = () => {
     const currentFlowId = getFlowId(flow);
 
     if (!currentFlowId) {
-      return; // Should not happen if flows is correct
+      return; // Should not happen if filteredFlows is correct
     }
 
     if (event?.shiftKey && lastSelectedFlowId.current) {
-      const lastIndex = flows.findIndex(f => {
+      const lastIndex = filteredFlows.findIndex(f => {
         const fFlowId = getFlowId(f);
         return fFlowId && fFlowId === lastSelectedFlowId.current;
       });
-      const currentIndex = flows.findIndex(f => {
+      const currentIndex = filteredFlows.findIndex(f => {
         const fFlowId = getFlowId(f);
         return fFlowId && fFlowId === currentFlowId;
       });
       const [start, end] = [lastIndex, currentIndex].sort((a, b) => a - b);
       for (let i = start; i <= end; i++) {
-        const f = flows[i];
+        const f = filteredFlows[i];
         if (f) {
             const fFlowId = getFlowId(f);
             if (fFlowId) {
@@ -431,7 +522,7 @@ const App: React.FC = () => {
     setSelectedFlowId(currentFlowId);
     lastSelectedFlowId.current = currentFlowId;
     setIsPanelMinimized(false);
-  }, [flows, selectedFlowIds]);
+  }, [filteredFlows, selectedFlowIds]);
 
   const handleClosePanel = useCallback(() => {
     setSelectedFlow(null);
@@ -456,7 +547,7 @@ const App: React.FC = () => {
 
       if ((e.metaKey || e.ctrlKey) && e.key === 'a') {
         e.preventDefault();
-        const allFlowIds = new Set(flows.map(f => getFlowId(f)).filter((id): id is string => id !== undefined));
+        const allFlowIds = new Set(filteredFlows.map(f => getFlowId(f)).filter((id): id is string => id !== undefined));
         setSelectedFlowIds(allFlowIds);
         return;
       }
@@ -464,16 +555,16 @@ const App: React.FC = () => {
       if (e.key !== 'ArrowUp' && e.key !== 'ArrowDown' && e.key !== 'PageUp' && e.key !== 'PageDown') {
         return;
       }
-
+      
       e.preventDefault(); // Prevent page scrolling
 
-      if (flows.length === 0) {
+      if (filteredFlows.length === 0) {
         return;
       }
 
       let currentIndex = -1;
       if (selectedFlowId) {
-        currentIndex = flows.findIndex(f => {
+        currentIndex = filteredFlows.findIndex(f => {
           const flowId = getFlowId(f);
           return flowId && flowId === selectedFlowId;
         });
@@ -481,25 +572,25 @@ const App: React.FC = () => {
 
       let nextIndex = -1;
       if (e.key === 'ArrowDown') {
-        nextIndex = Math.min(currentIndex + 1, flows.length - 1);
+        nextIndex = Math.min(currentIndex + 1, filteredFlows.length - 1);
         if (currentIndex === -1) nextIndex = 0; // Start from top if nothing is selected
       } else if (e.key === 'ArrowUp') { // ArrowUp
         nextIndex = Math.max(currentIndex - 1, 0);
         if (currentIndex === -1) nextIndex = 0; // Start from top if nothing is selected
       } else if (e.key === 'PageDown') {
-        nextIndex = Math.min(currentIndex + 10, flows.length - 1);
+        nextIndex = Math.min(currentIndex + 10, filteredFlows.length - 1);
         if (currentIndex === -1) nextIndex = 0; // Start from top if nothing is selected
       } else if (e.key === 'PageUp') {
         nextIndex = Math.max(currentIndex - 10, 0);
         if (currentIndex === -1) nextIndex = 0; // Start from top if nothing is selected
       }
-
+      
       if (nextIndex !== currentIndex && nextIndex > -1) {
-        const nextFlow = flows[nextIndex];
+        const nextFlow = filteredFlows[nextIndex];
         if (nextFlow) {
           // This will update selection and open/update the details panel
           handleFlowMouseDown(nextFlow);
-
+          
           // Scroll the item into view
           const nextFlowId = getFlowId(nextFlow);
           const rowElement = nextFlowId ? mainTableRef.current?.querySelector(`[data-flow-id="${nextFlowId}"]`) : null;
@@ -515,7 +606,7 @@ const App: React.FC = () => {
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
     };
-  }, [flows, selectedFlowId, handleFlowMouseDown]); // Add dependencies
+  }, [filteredFlows, selectedFlowId, handleFlowMouseDown]); // Add dependencies
 
   // --- Close panel on Escape key ---
   useEffect(() => {
@@ -695,15 +786,11 @@ const App: React.FC = () => {
       />
 
       {/* --- Flow Table --- */}
-      <main className="flex-grow overflow-y-auto" ref={mainTableRef}>
-        <FlowsTable
-          flows={flows}
-          onRowClick={handleFlowMouseDown}
-          onRowMouseEnter={handleRowMouseEnter}
-          selectedFlowIds={selectedFlowIds}
-          getFlowId={getFlowId}
-          globalFilter={filterText}
-          setGlobalFilter={setFilterText}
+      <main className="flex-grow" ref={mainTableRef}>
+        <FlowsGrid
+            flows={filteredFlows}
+            onRowClicked={(flow) => handleFlowMouseDown(flow)}
+            onGridReady={onGridReady}
         />
       </main>
 
