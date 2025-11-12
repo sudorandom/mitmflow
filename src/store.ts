@@ -3,6 +3,12 @@ import { persist } from 'zustand/middleware';
 
 export type FlowType = 'http' | 'dns' | 'tcp' | 'udp';
 
+interface HttpFilterState {
+  methods: string[];
+  contentTypes: string[];
+  statusCodes: string[];
+}
+
 interface FilterState {
   // General Filters
   text: string;
@@ -13,14 +19,11 @@ interface FilterState {
   setFlowTypes: (flowTypes: FlowType[]) => void;
 
   // HTTP Specific Filters
-  http: {
-    methods: string[];
-    setMethods: (methods: string[]) => void;
-    contentTypes: string[];
-    setContentTypes: (contentTypes: string[]) => void;
-    statusCodes: string[];
-    setStatusCodes: (statusCodes: string[]) => void;
-  };
+  http: HttpFilterState;
+  setHttpMethods: (methods: string[]) => void;
+  setHttpContentTypes: (contentTypes: string[]) => void;
+  setHttpStatusCodes: (statusCodes: string[]) => void;
+
 
   // Actions
   clearFilters: () => void;
@@ -35,15 +38,15 @@ const useFilterStore = create<FilterState>()(
       setFlowTypes: (flowTypes) => set({ flowTypes }),
       http: {
         methods: [],
-        setMethods: (methods) =>
-          set((state) => ({ http: { ...state.http, methods } })),
         contentTypes: [],
-        setContentTypes: (contentTypes) =>
-          set((state) => ({ http: { ...state.http, contentTypes } })),
         statusCodes: [],
-        setStatusCodes: (statusCodes) =>
-          set((state) => ({ http: { ...state.http, statusCodes } })),
       },
+      setHttpMethods: (methods) =>
+        set((state) => ({ http: { ...state.http, methods } })),
+      setHttpContentTypes: (contentTypes) =>
+        set((state) => ({ http: { ...state.http, contentTypes } })),
+      setHttpStatusCodes: (statusCodes) =>
+        set((state) => ({ http: { ...state.http, statusCodes } })),
       clearFilters: () =>
         set((state) => ({
           text: '',
@@ -58,6 +61,11 @@ const useFilterStore = create<FilterState>()(
     }),
     {
       name: 'filter-storage', // name of the item in the storage (must be unique)
+      partialize: (state) => ({
+        text: state.text,
+        flowTypes: state.flowTypes,
+        http: state.http,
+      }),
     }
   )
 );

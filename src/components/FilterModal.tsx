@@ -34,6 +34,7 @@ const STATUS_CODE_OPTIONS = [
 const CONTENT_TYPE_OPTIONS = [
     { value: 'application/json', label: 'application/json' },
     { value: 'application/xml', label: 'application/xml' },
+    { value: 'application/js', label: 'application/js' },
     { value: 'text/html', label: 'text/html' },
     { value: 'text/plain', label: 'text/plain' },
     { value: 'image/jpeg', label: 'image/jpeg' },
@@ -50,7 +51,10 @@ const FilterModal: React.FC<FilterModalProps> = ({ isOpen, onClose }) => {
   const {
     flowTypes,
     setFlowTypes,
-    http: { methods, contentTypes, statusCodes, setMethods, setContentTypes, setStatusCodes },
+    http: { methods, contentTypes, statusCodes },
+    setHttpMethods,
+    setHttpContentTypes,
+    setHttpStatusCodes,
     clearFilters,
   } = useFilterStore();
 
@@ -65,7 +69,7 @@ const FilterModal: React.FC<FilterModalProps> = ({ isOpen, onClose }) => {
     const newMethods = methods.includes(method)
       ? methods.filter((m) => m !== method)
       : [...methods, method];
-    setMethods(newMethods);
+    setHttpMethods(newMethods);
   };
 
   if (!isOpen) {
@@ -130,7 +134,7 @@ const FilterModal: React.FC<FilterModalProps> = ({ isOpen, onClose }) => {
                     isMulti
                     options={STATUS_CODE_OPTIONS}
                     value={statusCodes.map(sc => ({ value: sc, label: sc }))}
-                    onChange={(selected) => setStatusCodes(selected.map(s => s.value))}
+                    onChange={(selected) => setHttpStatusCodes(selected.map(s => s.value))}
                     className="text-black"
                     placeholder="e.g., 200, 4xx, 500-599"
                 />
@@ -143,7 +147,7 @@ const FilterModal: React.FC<FilterModalProps> = ({ isOpen, onClose }) => {
                     isMulti
                     options={CONTENT_TYPE_OPTIONS}
                     value={contentTypes.map(ct => ({ value: ct, label: ct }))}
-                    onChange={(selected) => setContentTypes(selected.map(s => s.value))}
+                    onChange={(selected) => setHttpContentTypes(selected.map(s => s.value))}
                     className="text-black"
                     placeholder="e.g., application/json, text/html"
                 />
