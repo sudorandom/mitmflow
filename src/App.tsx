@@ -131,7 +131,7 @@ const App: React.FC = () => {
     let filename: string;
 
     if (type === 'flow-json') {
-      blob = new Blob([JSON.stringify(toJson(flow), null, 2)], { type: 'application/json;charset=utf-8' });
+      blob = new Blob([JSON.stringify(toJson(FlowSchema, flow), null, 2)], { type: 'application/json;charset=utf-8' });
       filename = `${getFlowId(flow)}.json`;
     } else {
       if (!httpFlow) return;

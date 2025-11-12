@@ -265,7 +265,9 @@ export const getFlowTitle = (flow: Flow): string => {
     switch (flow.flow.case) {
         case 'httpFlow':
             const httpFlow = flow.flow.value;
-            return `${httpFlow.response?.statusCode ?? '...'} ${httpFlow.request?.method} ${httpFlow.request?.prettyUrl || httpFlow.request?.url}`;
+            const url = (httpFlow.request?.prettyUrl || httpFlow.request?.url) ?? '';
+            const urlWithoutQuery = url.split('?')[0];
+            return `${httpFlow.response?.statusCode ?? '...'} ${httpFlow.request?.method} ${urlWithoutQuery}`;
         case 'dnsFlow':
             const dnsFlow = flow.flow.value;
             return `${dnsFlow.response ? 'OK' : 'ERROR'} dns://${dnsFlow.server?.addressHost}`;

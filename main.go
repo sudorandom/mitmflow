@@ -124,7 +124,9 @@ func (s *MITMFlowServer) preprocessRequest(req *mitmflowv1.Request) {
 	}
 
 	switch {
-	case strings.Contains(contentType, "application/proto") || strings.Contains(contentType, "application/protobuf"):
+	case strings.Contains(contentType, "application/proto"),
+		strings.Contains(contentType, "application/protobuf"),
+		strings.Contains(contentType, "application/x-protobuf"):
 		opts := protoscope.WriterOptions{}
 		protoscopeOutput := protoscope.Write(req.Content, opts)
 		req.ContentProtoscopeFrames = []string{protoscopeOutput}
@@ -164,7 +166,9 @@ func (s *MITMFlowServer) preprocessResponse(resp *mitmflowv1.Response) {
 	}
 
 	switch {
-	case strings.Contains(contentType, "application/proto") || strings.Contains(contentType, "application/protobuf"):
+	case strings.Contains(contentType, "application/proto"),
+		strings.Contains(contentType, "application/protobuf"),
+		strings.Contains(contentType, "application/x-protobuf"):
 		opts := protoscope.WriterOptions{}
 		protoscopeOutput := protoscope.Write(resp.Content, opts)
 		resp.ContentProtoscopeFrames = []string{protoscopeOutput}

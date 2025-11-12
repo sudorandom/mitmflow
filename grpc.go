@@ -16,9 +16,14 @@ import (
 )
 
 func parseGrpcFrames(content []byte, trailers map[string]string) ([]string, error) {
+	// For grpc messages, if there is not enough content for a full frame, we should
+	// emit a ContentProtoscopeFrames with an empty string.
+	if len(content) < 5 {
+		return []string{""}, nil
+	}
 	var frames []string
 	buf := bytes.NewBuffer(content)
-	for buf.Len() > 5 {
+	for buf.Len() >= 5 {
 		prefix := make([]byte, 5)
 		if _, err := io.ReadFull(buf, prefix); err != nil {
 			return nil, err
@@ -70,9 +75,12 @@ func parseGrpcFrames(content []byte, trailers map[string]string) ([]string, erro
 }
 
 func parseGrpcWebFrames(content []byte, headers map[string]string, trailers map[string]string) ([]string, error) {
+	if len(content) < 5 {
+		return []string{""}, nil
+	}
 	var frames []string
 	buf := bytes.NewBuffer(content)
-	for buf.Len() > 5 {
+	for buf.Len() >= 5 {
 		prefix := make([]byte, 1)
 		if _, err := io.ReadFull(buf, prefix); err != nil {
 			return nil, err

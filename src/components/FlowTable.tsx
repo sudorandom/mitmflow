@@ -58,7 +58,9 @@ const FlowTable = forwardRef<AgGridReact, FlowTableProps>(
                     switch (flow.flow.case) {
                         case 'httpFlow':
                             const httpFlow = flow.flow.value;
-                            return `${httpFlow.request?.method} ${httpFlow.request?.prettyUrl || httpFlow.request?.url}`;
+                            const url = (httpFlow.request?.prettyUrl || httpFlow.request?.url) ?? '';
+                            const urlWithoutQuery = url.split('?')[0];
+                            return `${httpFlow.request?.method} ${urlWithoutQuery}`;
                         case 'dnsFlow':
                             const dnsFlow = flow.flow.value;
                             return dnsFlow.request?.questions[0]?.name || '';

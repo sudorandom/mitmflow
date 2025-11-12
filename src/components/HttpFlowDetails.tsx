@@ -147,6 +147,16 @@ export const HttpFlowDetails: React.FC<{
 }> = ({ flow, requestFormat, setRequestFormat, responseFormat, setResponseFormat, contentRef }) => {
     const httpFlow = flow.flow.case === 'httpFlow' ? flow.flow.value : null;
 
+    const queryParams = useMemo(() => {
+        const urlString = httpFlow?.request?.prettyUrl || httpFlow?.request?.url;
+        if (!urlString || !urlString.includes('?')) {
+            return null;
+        }
+        const queryString = urlString.substring(urlString.indexOf('?') + 1);
+        const params = new URLSearchParams(queryString);
+        return params.size > 0 ? params : null;
+    }, [httpFlow?.request]);
+
     if (!httpFlow) {
         return null;
     }
