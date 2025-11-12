@@ -129,6 +129,7 @@ const FlowTable = forwardRef<AgGridReact, FlowTableProps>(
                     onSelectionChanged={(event) => onSelectionChanged(event.api.getSelectedRows())}
                     onRowClicked={(e: RowClickedEvent) => onRowClicked(e.data, e.event as unknown as React.MouseEvent)}
                     getRowId={(params) => getFlowId(params.data)}
+                    headerHeight={25}
                 />
             </div>
         );
