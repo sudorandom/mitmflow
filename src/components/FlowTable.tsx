@@ -14,7 +14,6 @@ interface FlowTableProps {
 const FlowTable: React.FC<FlowTableProps> = ({ flows, onSelectionChanged, onRowClicked }) => {
     const columnDefs = [
         { headerName: "", field: "checkbox", width: 50, headerCheckboxSelection: true, checkboxSelection: true },
-        { headerName: "", field: "icon", width: 50, cellRenderer: IconCellRenderer },
         { headerName: "Status", field: "status", width: 100, cellRenderer: StatusCellRenderer },
         { headerName: "Request", field: "request", flex: 1, cellRenderer: RequestCellRenderer },
         { headerName: "Transfer", field: "transfer", width: 150, cellRenderer: TransferCellRenderer },

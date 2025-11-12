@@ -27,23 +27,28 @@ export const StatusCellRenderer: React.FC<ICellRendererParams> = (params) => {
 
 export const RequestCellRenderer: React.FC<ICellRendererParams> = (params) => {
     const flow = params.data as Flow;
+
+    let requestText = '';
     if (flow.flow?.case === 'httpFlow') {
         const httpFlow = flow.flow.value;
-        return <span>{httpFlow.request?.method} {httpFlow.request?.prettyUrl || httpFlow.request?.url}</span>;
-    }
-    if (flow.flow?.case === 'dnsFlow') {
+        requestText = `${httpFlow.request?.method} ${httpFlow.request?.prettyUrl || httpFlow.request?.url}`;
+    } else if (flow.flow?.case === 'dnsFlow') {
         const dnsFlow = flow.flow.value;
-        return <span>{dnsFlow.request?.questions[0]?.name}</span>;
-    }
-    if (flow.flow?.case === 'tcpFlow') {
+        requestText = dnsFlow.request?.questions[0]?.name || '';
+    } else if (flow.flow?.case === 'tcpFlow') {
         const tcpFlow = flow.flow.value;
-        return <span>{tcpFlow.server?.addressHost}:{tcpFlow.server?.addressPort}</span>;
-    }
-    if (flow.flow?.case === 'udpFlow') {
+        requestText = `${tcpFlow.server?.addressHost}:${tcpFlow.server?.addressPort}`;
+    } else if (flow.flow?.case === 'udpFlow') {
         const udpFlow = flow.flow.value;
-        return <span>{udpFlow.server?.addressHost}:{udpFlow.server?.addressPort}</span>;
+        requestText = `${udpFlow.server?.addressHost}:${udpFlow.server?.addressPort}`;
     }
-    return null;
+
+    return (
+        <div className="flex items-center gap-2">
+            <FlowIcon flow={flow} />
+            <span className="truncate">{requestText}</span>
+        </div>
+    );
 };
 
 export const TransferCellRenderer: React.FC<ICellRendererParams> = (params) => {
