@@ -5,13 +5,9 @@ import { createClient } from "@connectrpc/connect";
 import { Service, Flow, FlowSchema } from "./gen/mitmflow/v1/mitmflow_pb";
 import { toJson } from "@bufbuild/protobuf";
 import { DnsFlowDetails } from './components/DnsFlowDetails';
-import { DnsFlowRow } from './components/DnsFlowRow';
 import { HttpFlowDetails } from './components/HttpFlowDetails';
-import { HttpFlowRow } from './components/HttpFlowRow';
 import { TcpFlowDetails } from './components/TcpFlowDetails';
-import { TcpFlowRow } from './components/TcpFlowRow';
 import { UdpFlowDetails } from './components/UdpFlowDetails';
-import { UdpFlowRow } from './components/UdpFlowRow';
 import { ContentFormat, getFlowId, getTimestamp } from './utils';
 import { DetailsPanel } from './components/DetailsPanel';
 import FilterModal from './components/FilterModal';
@@ -74,32 +70,7 @@ const generateHarBlob = (flowsToExport: Flow[]): Blob => {
   return new Blob([JSON.stringify(har, null, 2)], { type: 'application/json;charset=utf-8' });
 };
 
-/**
- * Renders a single flow row in the table
- */
-const FlowRow: React.FC<{
-    flow: Flow;
-    isSelected: boolean;
-    onMouseDown: (flow: Flow, event: React.MouseEvent) => void;
-    onMouseEnter: (flow: Flow) => void;
-}> = ({ flow, isSelected, onMouseDown, onMouseEnter }) => {
-    if (!flow.flow) {
-        return null;
-    }
-
-    switch (flow.flow.case) {
-        case 'httpFlow':
-            return <HttpFlowRow flow={flow} isSelected={isSelected} onMouseDown={onMouseDown} onMouseEnter={onMouseEnter} />;
-        case 'dnsFlow':
-            return <DnsFlowRow flow={flow} isSelected={isSelected} onMouseDown={onMouseDown} onMouseEnter={onMouseEnter} />;
-        case 'tcpFlow':
-            return <TcpFlowRow flow={flow} isSelected={isSelected} onMouseDown={onMouseDown} onMouseEnter={onMouseEnter} />;
-        case 'udpFlow':
-            return <UdpFlowRow flow={flow} isSelected={isSelected} onMouseDown={onMouseDown} onMouseEnter={onMouseEnter} />;
-        default:
-            return null;
-    }
-};
+import FlowTable from './components/FlowTable';
 
 // --- MAIN APP COMPONENT ---
 
@@ -502,6 +473,17 @@ const App: React.FC = () => {
     });
   }, []);
 
+  const handleSelectionChanged = (selectedFlows: Flow[]) => {
+    const newSelectedFlowIds = new Set(selectedFlows.map(getFlowId).filter((id): id is string => !!id));
+    setSelectedFlowIds(newSelectedFlowIds);
+  };
+
+  const handleRowClicked = (flow: Flow) => {
+    setSelectedFlow(flow);
+    setSelectedFlowId(getFlowId(flow));
+    setIsPanelMinimized(false);
+  };
+
   const handleFlowMouseDown = useCallback((flow: Flow, event?: React.MouseEvent) => {
     if (event) { // Only set isDragging if it's a mouse event
       setIsDragging(true);
@@ -842,32 +824,12 @@ const App: React.FC = () => {
       />
 
       {/* --- Flow Table --- */}
-      <main className="flex-grow overflow-y-auto" ref={mainTableRef}> {/* Add ref */}
-        <table className="w-full border-collapse text-sm">
-          <thead className="sticky top-0 bg-zinc-800">
-            <tr>
-              <th className="p-3 text-left font-medium text-zinc-500 border-b-2 border-zinc-700 w-[5%] md:w-[2.5%]"></th>
-              <th className="p-3 text-left font-medium text-zinc-500 border-b-2 border-zinc-700 w-[5%] md:w-[5%]">Status</th>
-              <th className="p-3 text-left font-medium text-zinc-500 border-b-2 border-zinc-700 w-[85%] md:w-[72.5%]">Request</th>
-              <th className="hidden md:table-cell p-3 text-left font-medium text-zinc-500 border-b-2 border-zinc-700 w-[8%]">Transfer</th>
-              <th className="hidden md:table-cell p-3 text-left font-medium text-zinc-500 border-b-2 border-zinc-700 w-[7%]">Duration</th>
-            </tr>
-          </thead>
-          <tbody>
-            {filteredFlows.map(flow => (
-              <FlowRow
-                key={getFlowId(flow) || 'unknown'}
-                flow={flow}
-                isSelected={(() => {
-                  const flowId = getFlowId(flow);
-                  return flowId ? selectedFlowIds.has(flowId) : false;
-                })()}
-                onMouseDown={handleFlowMouseDown}
-                onMouseEnter={handleRowMouseEnter}
-              />
-            ))}
-          </tbody>
-        </table>
+      <main className="flex-grow" ref={mainTableRef}> {/* Add ref */}
+        <FlowTable
+            flows={filteredFlows}
+            onSelectionChanged={handleSelectionChanged}
+            onRowClicked={handleRowClicked}
+        />
       </main>
 
       {isFlowsTruncated && (
