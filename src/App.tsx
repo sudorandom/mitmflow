@@ -109,8 +109,6 @@ const App: React.FC = () => {
   const [detailsPanelHeight, setDetailsPanelHeight] = useState<number | null>(null);
   const [requestFormats, setRequestFormats] = useState<Map<string, ContentFormat>>(new Map());
   const [responseFormats, setResponseFormats] = useState<Map<string, ContentFormat>>(new Map());
-  const [isDownloadOpen, setDownloadOpen] = useState(false);
-  const [isInfoTooltipOpen, setIsInfoTooltipOpen] = useState(false);
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
   const [maxFlows, setMaxFlows] = useState(() => {
     const savedMaxFlows = localStorage.getItem('maxFlows');
@@ -467,12 +465,6 @@ const App: React.FC = () => {
     setSelectedFlowIds(newSelectedFlowIds);
   };
 
-  const handleRowClicked = (flow: Flow) => {
-    setSelectedFlow(flow);
-    setSelectedFlowId(getFlowId(flow));
-    setIsPanelMinimized(false);
-  };
-
   const handleFlowMouseDown = useCallback((flow: Flow, event?: React.MouseEvent) => {
     if (event) { // Only set isDragging if it's a mouse event
       setIsDragging(true);
@@ -817,7 +809,7 @@ const App: React.FC = () => {
         <FlowTable
             flows={filteredFlows}
             onSelectionChanged={handleSelectionChanged}
-            onRowClicked={handleRowClicked}
+            onRowClicked={handleFlowMouseDown}
         />
       </main>
 
@@ -834,6 +826,7 @@ const App: React.FC = () => {
         onClose={handleClosePanel}
         panelHeight={detailsPanelHeight}
         setPanelHeight={setDetailsPanelHeight}
+        downloadFlowContent={downloadFlowContent}
       >
         {selectedFlow?.flow?.case === 'httpFlow' && (
           <HttpFlowDetails
@@ -842,11 +835,6 @@ const App: React.FC = () => {
             setRequestFormat={(format) => handleSetRequestFormat(selectedFlowId!, format)}
             responseFormat={responseFormats.get(selectedFlowId!) || 'auto'}
             setResponseFormat={(format) => handleSetResponseFormat(selectedFlowId!, format)}
-            downloadFlowContent={downloadFlowContent}
-            isDownloadOpen={isDownloadOpen}
-            setDownloadOpen={setDownloadOpen}
-            isInfoTooltipOpen={isInfoTooltipOpen}
-            setIsInfoTooltipOpen={setIsInfoTooltipOpen}
             contentRef={contentRef}
           />
         )}

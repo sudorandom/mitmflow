@@ -4,12 +4,12 @@ import 'ag-grid-community/styles/ag-grid.css';
 import 'ag-grid-community/styles/ag-theme-alpine.css';
 import { Flow } from '../gen/mitmflow/v1/mitmflow_pb';
 import { getFlowId } from '../utils';
-import { DurationCellRenderer, RequestCellRenderer, StatusCellRenderer, TransferCellRenderer } from './cellRenderers';
+import { DurationCellRenderer, InTransferCellRenderer, OutTransferCellRenderer, RequestCellRenderer, StatusCellRenderer } from './cellRenderers';
 
 interface FlowTableProps {
     flows: Flow[];
     onSelectionChanged: (selectedFlows: Flow[]) => void;
-    onRowClicked: (event: RowClickedEvent) => void;
+    onRowClicked: (flow: Flow, event: React.MouseEvent) => void;
 }
 
 const FlowTable = forwardRef<AgGridReact, FlowTableProps>(
@@ -18,7 +18,8 @@ const FlowTable = forwardRef<AgGridReact, FlowTableProps>(
             { headerName: "", width: 50, headerCheckboxSelection: true, checkboxSelection: true },
             { headerName: "Status", field: "status", width: 100, cellRenderer: StatusCellRenderer },
             { headerName: "Request", field: "request", flex: 1, cellRenderer: RequestCellRenderer },
-            { headerName: "Transfer", field: "transfer", width: 150, cellRenderer: TransferCellRenderer },
+            { headerName: "In", field: "inTransfer", width: 100, cellRenderer: InTransferCellRenderer },
+            { headerName: "Out", field: "outTransfer", width: 100, cellRenderer: OutTransferCellRenderer },
             { headerName: "Duration", field: "duration", width: 150, cellRenderer: DurationCellRenderer },
         ];
 
@@ -31,7 +32,7 @@ const FlowTable = forwardRef<AgGridReact, FlowTableProps>(
                     rowSelection="multiple"
                     suppressRowClickSelection={true}
                     onSelectionChanged={(event) => onSelectionChanged(event.api.getSelectedRows())}
-                    onRowClicked={onRowClicked}
+                    onRowClicked={(e: RowClickedEvent) => onRowClicked(e.data, e.event as unknown as React.MouseEvent)}
                     getRowId={(params) => getFlowId(params.data)}
                 />
             </div>

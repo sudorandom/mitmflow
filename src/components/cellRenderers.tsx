@@ -54,16 +54,20 @@ export const RequestCellRenderer: React.FC<ICellRendererParams> = (params) => {
     );
 };
 
-export const TransferCellRenderer: React.FC<ICellRendererParams> = (params) => {
+export const InTransferCellRenderer: React.FC<ICellRendererParams> = (params) => {
     const flow = params.data as Flow;
     if (flow.flow?.case === 'httpFlow') {
         const httpFlow = flow.flow.value;
-        return (
-            <div className="flex flex-col">
-                <span>out: {formatBytes(httpFlow.request?.content?.length)}</span>
-                <span>in: {formatBytes(httpFlow.response?.content?.length)}</span>
-            </div>
-        );
+        return <span>{formatBytes(httpFlow.response?.content?.length)}</span>;
+    }
+    return null;
+};
+
+export const OutTransferCellRenderer: React.FC<ICellRendererParams> = (params) => {
+    const flow = params.data as Flow;
+    if (flow.flow?.case === 'httpFlow') {
+        const httpFlow = flow.flow.value;
+        return <span>{formatBytes(httpFlow.request?.content?.length)}</span>;
     }
     return null;
 };
