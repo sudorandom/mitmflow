@@ -16,6 +16,8 @@
     "@connectrpc/connect-web": "^2.1.0",
     "@dnspect/dns-ts": "^0.4.0",
     "@tanstack/react-table": "^8.21.3",
+    "ag-grid-community": "^31.3.2",
+    "ag-grid-react": "^31.3.2",
     "dns-suite": "^1.2.13",
     "eslint-plugin-react": "^7.37.5",
     "globals": "^16.5.0",

@@ -50,7 +50,7 @@ const FilterModal: React.FC<FilterModalProps> = ({ isOpen, onClose }) => {
   const {
     flowTypes,
     setFlowTypes,
-    http,
+    http: { methods, contentTypes, statusCodes, setMethods, setContentTypes, setStatusCodes },
     clearFilters,
   } = useFilterStore();
 
@@ -62,10 +62,10 @@ const FilterModal: React.FC<FilterModalProps> = ({ isOpen, onClose }) => {
   };
 
   const handleHttpMethodChange = (method: string) => {
-    const newMethods = http.methods.includes(method)
-      ? http.methods.filter((m) => m !== method)
-      : [...http.methods, method];
-    http.setMethods(newMethods);
+    const newMethods = methods.includes(method)
+      ? methods.filter((m) => m !== method)
+      : [...methods, method];
+    setMethods(newMethods);
   };
 
   if (!isOpen) {
@@ -113,7 +113,7 @@ const FilterModal: React.FC<FilterModalProps> = ({ isOpen, onClose }) => {
                     <label key={method} className="flex items-center space-x-2 cursor-pointer">
                       <input
                         type="checkbox"
-                        checked={http.methods.includes(method)}
+                        checked={methods.includes(method)}
                         onChange={() => handleHttpMethodChange(method)}
                         className="form-checkbox h-5 w-5 rounded bg-zinc-700 border-zinc-600 text-orange-500 focus:ring-orange-500"
                       />
@@ -129,8 +129,8 @@ const FilterModal: React.FC<FilterModalProps> = ({ isOpen, onClose }) => {
                 <CreatableSelect
                     isMulti
                     options={STATUS_CODE_OPTIONS}
-                    value={http.statusCodes.map(sc => ({ value: sc, label: sc }))}
-                    onChange={(selected) => http.setStatusCodes(selected.map(s => s.value))}
+                    value={statusCodes.map(sc => ({ value: sc, label: sc }))}
+                    onChange={(selected) => setStatusCodes(selected.map(s => s.value))}
                     className="text-black"
                     placeholder="e.g., 200, 4xx, 500-599"
                 />
@@ -142,8 +142,8 @@ const FilterModal: React.FC<FilterModalProps> = ({ isOpen, onClose }) => {
                 <CreatableSelect
                     isMulti
                     options={CONTENT_TYPE_OPTIONS}
-                    value={http.contentTypes.map(ct => ({ value: ct, label: ct }))}
-                    onChange={(selected) => http.setContentTypes(selected.map(s => s.value))}
+                    value={contentTypes.map(ct => ({ value: ct, label: ct }))}
+                    onChange={(selected) => setContentTypes(selected.map(s => s.value))}
                     className="text-black"
                     placeholder="e.g., application/json, text/html"
                 />

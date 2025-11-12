@@ -59,10 +59,10 @@ test('renders the details panel when a flow is selected', async () => {
 
     render(<App />);
 
-    const flowRow = await screen.findByText(/http:\/\/example.com/i);
-    fireEvent.mouseDown(flowRow);
+    const flowCell = await screen.findByRole('gridcell', { name: /http:\/\/example.com/i });
+    fireEvent.click(flowCell.parentElement!); // Click the parent row
 
-    const requestTab = screen.getByRole('button', { name: /Request/i });
+    const requestTab = await screen.findByRole('button', { name: /Request/i });
     expect(requestTab).toBeInTheDocument();
 });
 
@@ -104,6 +104,6 @@ test('adds flows to the list', async () => {
 
     render(<App />);
 
-    const flowRow = await screen.findByText(/http:\/\/example.com/i);
-    expect(flowRow).toBeInTheDocument();
+    const flowCell = await screen.findByRole('gridcell', { name: /http:\/\/example.com/i });
+    expect(flowCell).toBeInTheDocument();
 });
