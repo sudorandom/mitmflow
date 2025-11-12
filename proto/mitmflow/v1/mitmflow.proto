@@ -90,9 +90,20 @@ enum ViaProtocol {
 }
 
 message Cert {
-  // Simplified for now, just storing the full certificate content as bytes.
-  // In a real scenario, this might be a more structured message.
   bytes content = 1;
+  //  def fingerprint(self) -> bytes:
+  //   issuer: list[tuple[str, str]]
+  //   notbefore: datetime.datetime
+  //   notafter: datetime.datetime
+  //   def has_expired(self) -> bool:
+  //   subject: list[tuple[str, str]]
+  //   serial: int
+  //   is_ca: bool
+  //   keyinfo: tuple[str, int]
+  //   cn: str | None
+  //   organization: str | None
+  //   altnames: cryptography.x509.extensions.GeneralNames
+  //   crl_distribution_points: list[str]
 }
 
 message Via {

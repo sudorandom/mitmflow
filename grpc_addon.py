@@ -5,7 +5,7 @@ from mitmproxy import ctx, http
 from datetime import datetime
 import mitmflow.v1.mitmflow_pb2 as mitmflow_pb2
 import mitmflow.v1.mitmflow_connect as mitmflow_connect
-from mitmflow.v1.mitmflow_pb2 import ConnectionState, TransportProtocol, TLSVersion, Cert
+from mitmflow.v1.mitmflow_pb2 import ConnectionState, TransportProtocol, TLSVersion, Cert, ViaProtocol
 from mitmproxy.net.dns import classes
 from mitmproxy.net.dns import types
 
@@ -17,20 +17,30 @@ def _to_grpc_client_conn(conn: mitmproxy.connection.Client) -> mitmflow_pb2.Clie
     if conn.sockname:
         c.sockname_host = conn.sockname[0]
         c.sockname_port = conn.sockname[1]
-    c.state = ConnectionState.CONNECTION_STATE_OPEN # mitmproxy doesn't expose a direct state mapping
+    if conn.state == mitmproxy.connection.ConnectionState.CLOSED:
+        c.state = ConnectionState.CONNECTION_STATE_CLOSED
+    elif conn.state == mitmproxy.connection.ConnectionState.CAN_READ:
+        c.state = ConnectionState.CONNECTION_STATE_CAN_READ
+    elif conn.state == mitmproxy.connection.ConnectionState.CAN_WRITE:
+        c.state = ConnectionState.CONNECTION_STATE_CAN_WRITE
+    elif conn.state == mitmproxy.connection.ConnectionState.OPEN:
+        c.state = ConnectionState.CONNECTION_STATE_OPEN
     c.id = str(conn.id)
-    # mitmproxy doesn't expose transport protocol directly, assuming TCP for HTTP flows
-    c.transport_protocol = TransportProtocol.TRANSPORT_PROTOCOL_TCP
+    if conn.transport_protocol == 'tcp':
+        c.transport_protocol = TransportProtocol.TRANSPORT_PROTOCOL_TCP
+    elif conn.transport_protocol == 'udp':
+        c.transport_protocol = TransportProtocol.TRANSPORT_PROTOCOL_UDP
     if conn.error:
         c.error = str(conn.error)
     c.tls = conn.tls_established
-    # certificate_list - mitmproxy doesn't expose this directly for client conn
     if conn.alpn:
         c.alpn = conn.alpn
-    # alpn_offers - mitmproxy doesn't expose this directly
+    if conn.alpn_offers:
+        c.alpn_offers.extend(conn.alpn_offers)
+    if conn.cipher:
+        c.cipher = conn.cipher
     if conn.cipher_list:
-        c.cipher = ",".join(conn.cipher_list)
-    # cipher_list - mitmproxy doesn't expose this directly
+        c.cipher_list.extend(conn.cipher_list)
     if conn.tls_version:
         # Map mitmproxy TLS version string to protobuf enum
         if conn.tls_version == "TLSv1.3":
@@ -43,6 +53,14 @@ def _to_grpc_client_conn(conn: mitmproxy.connection.Client) -> mitmflow_pb2.Clie
             c.tls_version = TLSVersion.TLS_VERSION_TLSV1
         elif conn.tls_version == "SSLv3":
             c.tls_version = TLSVersion.TLS_VERSION_SSLV3
+        elif conn.tls_version == "DTLSv0.9":
+            c.tls_version = TLSVersion.TLS_VERSION_DTLSV0_9
+        elif conn.tls_version == "DTLSv1":
+            c.tls_version = TLSVersion.TLS_VERSION_DTLSV1
+        elif conn.tls_version == "DTLSv1.2":
+            c.tls_version = TLSVersion.TLS_VERSION_DTLSV1_2
+        elif conn.tls_version == "QUICv1":
+            c.tls_version = TLSVersion.TLS_VERSION_QUICV1
     if conn.sni:
         c.sni = conn.sni
     if conn.timestamp_start:
@@ -55,6 +73,30 @@ def _to_grpc_client_conn(conn: mitmproxy.connection.Client) -> mitmflow_pb2.Clie
     c.proxy_mode = str(conn.proxy_mode) if conn.proxy_mode else ""
     return c
 
+def _to_grpc_via(via: tuple) -> mitmflow_pb2.Via:
+    v = mitmflow_pb2.Via()
+    if via[0] == "http":
+        v.protocol = ViaProtocol.VIA_PROTOCOL_HTTP
+    elif via[0] == "https":
+        v.protocol = ViaProtocol.VIA_PROTOCOL_HTTPS
+    elif via[0] == "http3":
+        v.protocol = ViaProtocol.VIA_PROTOCOL_HTTP3
+    elif via[0] == "tls":
+        v.protocol = ViaProtocol.VIA_PROTOCOL_TLS
+    elif via[0] == "dtls":
+        v.protocol = ViaProtocol.VIA_PROTOCOL_DTLS
+    elif via[0] == "tcp":
+        v.protocol = ViaProtocol.VIA_PROTOCOL_TCP
+    elif via[0] == "udp":
+        v.protocol = ViaProtocol.VIA_PROTOCOL_UDP
+    elif via[0] == "dns":
+        v.protocol = ViaProtocol.VIA_PROTOCOL_DNS
+    elif via[0] == "quic":
+        v.protocol = ViaProtocol.VIA_PROTOCOL_QUIC
+    v.host = via[1][0]
+    v.port = via[1][1]
+    return v
+
 def _to_grpc_server_conn(conn: mitmproxy.connection.Server) -> mitmflow_pb2.ServerConn:
     s = mitmflow_pb2.ServerConn()
     if conn.peername:
@@ -63,20 +105,31 @@ def _to_grpc_server_conn(conn: mitmproxy.connection.Server) -> mitmflow_pb2.Serv
     if conn.sockname:
         s.sockname_host = conn.sockname[0]
         s.sockname_port = conn.sockname[1]
-    s.state = ConnectionState.CONNECTION_STATE_OPEN # mitmproxy doesn't expose a direct state mapping
+    if conn.state == mitmproxy.connection.ConnectionState.CLOSED:
+        s.state = ConnectionState.CONNECTION_STATE_CLOSED
+    elif conn.state == mitmproxy.connection.ConnectionState.CAN_READ:
+        s.state = ConnectionState.CONNECTION_STATE_CAN_READ
+    elif conn.state == mitmproxy.connection.ConnectionState.CAN_WRITE:
+        s.state = ConnectionState.CONNECTION_STATE_CAN_WRITE
+    elif conn.state == mitmproxy.connection.ConnectionState.OPEN:
+        s.state = ConnectionState.CONNECTION_STATE_OPEN
     s.id = str(conn.id)
-    # mitmproxy doesn't expose transport protocol directly, assuming TCP for HTTP flows
-    s.transport_protocol = TransportProtocol.TRANSPORT_PROTOCOL_TCP
+    if conn.transport_protocol == 'tcp':
+        s.transport_protocol = TransportProtocol.TRANSPORT_PROTOCOL_TCP
+    elif conn.transport_protocol == 'udp':
+        s.transport_protocol = TransportProtocol.TRANSPORT_PROTOCOL_UDP
     if conn.error:
         s.error = str(conn.error)
     s.tls = conn.tls_established
-    # certificate_list - mitmproxy doesn't expose this directly for server conn
+    # certificate_list - TODO
     if conn.alpn:
         s.alpn = conn.alpn
-    # alpn_offers - mitmproxy doesn't expose this directly
+    if conn.alpn_offers:
+        s.alpn_offers.extend(conn.alpn_offers)
+    if conn.cipher:
+        s.cipher = conn.cipher
     if conn.cipher_list:
-        s.cipher = ",".join(conn.cipher_list)
-    # cipher_list - mitmproxy doesn't expose this directly
+        s.cipher_list.extend(conn.cipher_list)
     if conn.tls_version:
         # Map mitmproxy TLS version string to protobuf enum
         if conn.tls_version == "TLSv1.3":
@@ -89,6 +142,14 @@ def _to_grpc_server_conn(conn: mitmproxy.connection.Server) -> mitmflow_pb2.Serv
             s.tls_version = TLSVersion.TLS_VERSION_TLSV1
         elif conn.tls_version == "SSLv3":
             s.tls_version = TLSVersion.TLS_VERSION_SSLV3
+        elif conn.tls_version == "DTLSv0.9":
+            s.tls_version = TLSVersion.TLS_VERSION_DTLSV0_9
+        elif conn.tls_version == "DTLSv1":
+            s.tls_version = TLSVersion.TLS_VERSION_DTLSV1
+        elif conn.tls_version == "DTLSv1.2":
+            s.tls_version = TLSVersion.TLS_VERSION_DTLSV1_2
+        elif conn.tls_version == "QUICv1":
+            s.tls_version = TLSVersion.TLS_VERSION_QUICV1
     if conn.sni:
         s.sni = conn.sni
     if conn.timestamp_start:
@@ -102,7 +163,8 @@ def _to_grpc_server_conn(conn: mitmproxy.connection.Server) -> mitmflow_pb2.Serv
         s.address_port = conn.address[1]
     if conn.timestamp_tcp_setup:
         s.timestamp_tcp_setup.FromDatetime(datetime.fromtimestamp(conn.timestamp_tcp_setup))
-    # via - mitmproxy doesn't expose this directly
+    if conn.via:
+        s.via.CopyFrom(_to_grpc_via(conn.via))
     return s
 
 def to_grpc_flow(flow: http.HTTPFlow) -> mitmflow_pb2.HTTPFlow:
