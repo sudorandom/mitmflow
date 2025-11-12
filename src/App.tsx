@@ -357,8 +357,25 @@ const App: React.FC = () => {
         if (!flow.flow?.case) {
           return false;
         }
-        const flowType = flow.flow.case.replace('Flow', '').toLowerCase();
-        if (!flowTypes.includes(flowType as any)) {
+        let currentFlowTypes: FlowType[];
+
+        // Special handling for HTTP flows that are actually DNS-over-HTTP
+        if (flow.flow.case === 'httpFlow') {
+          const httpFlow = flow.flow.value;
+          const reqContentType = httpFlow.request?.effectiveContentType;
+          const resContentType = httpFlow.response?.effectiveContentType;
+
+          if (reqContentType === 'application/dns-message' || resContentType === 'application/dns-message') {
+            currentFlowTypes = ['dns']; // Only consider it DNS, not HTTP
+          } else {
+            currentFlowTypes = ['http']; // Regular HTTP flow
+          }
+        } else {
+          currentFlowTypes = [flow.flow.case.replace('Flow', '').toLowerCase() as FlowType];
+        }
+
+        // Check if any of the currentFlowTypes are included in the selected flowTypes
+        if (!currentFlowTypes.some(type => flowTypes.includes(type))) {
           return false;
         }
       }
