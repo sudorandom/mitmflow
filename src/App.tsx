@@ -43,6 +43,8 @@ const generateHarBlob = (flowsToExport: Flow[]): Blob => {
           return [{
             startedDateTime: new Date(getTimestamp(httpFlow.timestampStart)).toISOString(),
             time: httpFlow.durationMs,
+            timings: {},
+            cache: {},
             request: {
               method: httpFlow.request?.method || '',
               url: httpFlow.request?.prettyUrl || httpFlow.request?.url || '',
@@ -179,19 +181,6 @@ const App: React.FC = () => {
   const handleMouseUp = useCallback(() => {
     setIsDragging(false);
   }, []);
-
-  const handleRowMouseEnter = (flow: Flow) => {
-    if (isDragging) {
-      const newSelectedFlowIds = new Set(selectedFlowIds);
-      if (flow) {
-        const flowId = getFlowId(flow);
-        if (flowId) {
-          newSelectedFlowIds.add(flowId);
-        }
-      }
-      setSelectedFlowIds(newSelectedFlowIds);
-    }
-  };
 
   // --- Data Fetching ---
   useEffect(() => {

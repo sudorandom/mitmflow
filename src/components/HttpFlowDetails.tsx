@@ -32,7 +32,7 @@ export const RequestResponseView: React.FC<RequestResponseViewProps> = ({ fullCo
     }, [fullContent]);
 
     const bodySize = bodyContent?.data ? (typeof bodyContent.data === 'string' ? bodyContent.data.length : bodyContent.data.byteLength) : 0;
-    const showBodyByDefault = (bodySize > 0 && bodySize < 1024) || bodyContent?.effectiveFormat === 'image';
+    const showBodyByDefault = (bodySize > 0 && bodySize < 10 * 1024) || bodyContent?.effectiveFormat === 'image';
 
     const effectiveFormat = bodyContent?.effectiveFormat || format;
 
