@@ -3,7 +3,8 @@ import { AgGridReact } from 'ag-grid-react';
 import 'ag-grid-community/styles/ag-grid.css';
 import 'ag-grid-community/styles/ag-theme-alpine.css';
 import { Flow } from '../gen/mitmflow/v1/mitmflow_pb';
-import { DurationCellRenderer, IconCellRenderer, RequestCellRenderer, StatusCellRenderer, TransferCellRenderer } from './cellRenderers';
+import { getFlowId } from '../utils';
+import { DurationCellRenderer, RequestCellRenderer, StatusCellRenderer, TransferCellRenderer } from './cellRenderers';
 
 interface FlowTableProps {
     flows: Flow[];
@@ -29,6 +30,7 @@ const FlowTable: React.FC<FlowTableProps> = ({ flows, onSelectionChanged, onRowC
                 suppressRowClickSelection={true}
                 onSelectionChanged={(event) => onSelectionChanged(event.api.getSelectedRows())}
                 onRowClicked={(event) => onRowClicked(event.data)}
+                getRowId={(params) => getFlowId(params.data)}
             />
         </div>
     );

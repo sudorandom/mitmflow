@@ -31,7 +31,10 @@ export const RequestCellRenderer: React.FC<ICellRendererParams> = (params) => {
     let requestText = '';
     if (flow.flow?.case === 'httpFlow') {
         const httpFlow = flow.flow.value;
-        requestText = `${httpFlow.request?.method} ${httpFlow.request?.prettyUrl || httpFlow.request?.url}`;
+        const url = httpFlow.request?.prettyUrl || httpFlow.request?.url || '';
+        const queryIndex = url.indexOf('?');
+        const baseUrl = queryIndex !== -1 ? url.substring(0, queryIndex) : url;
+        requestText = `${httpFlow.request?.method} ${baseUrl}`;
     } else if (flow.flow?.case === 'dnsFlow') {
         const dnsFlow = flow.flow.value;
         requestText = dnsFlow.request?.questions[0]?.name || '';
