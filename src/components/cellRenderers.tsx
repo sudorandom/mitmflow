@@ -3,7 +3,7 @@ import { ICellRendererParams } from 'ag-grid-community';
 import { Flow } from '../gen/mitmflow/v1/mitmflow_pb';
 import FlowIcon from './FlowIcon';
 import { StatusPill } from './StatusPill';
-import { formatBytes, formatDuration } from '../utils';
+import { formatBytes, formatDuration, formatTimestamp, getFlowTimestampStart, getTimestamp } from '../utils';
 
 export const IconCellRenderer: React.FC<ICellRendererParams> = (params) => {
     return <FlowIcon flow={params.data} />;
@@ -77,6 +77,16 @@ export const DurationCellRenderer: React.FC<ICellRendererParams> = (params) => {
     if (flow.flow?.case === 'httpFlow') {
         const httpFlow = flow.flow.value;
         return <span>{formatDuration(httpFlow.durationMs)}</span>;
+    }
+    return null;
+};
+
+export const TimestampCellRenderer: React.FC<ICellRendererParams> = (params) => {
+    const flow = params.data as Flow;
+    const timestamp = getFlowTimestampStart(flow);
+    if (timestamp) {
+        const ms = getTimestamp(timestamp);
+        return <span>{formatTimestamp(ms)}</span>;
     }
     return null;
 };

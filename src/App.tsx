@@ -126,44 +126,48 @@ const App: React.FC = () => {
 
   const downloadFlowContent = useCallback((flow: Flow, type: 'har' | 'flow-json' | 'request' | 'response') => {
     const httpFlow = flow.flow.case === 'httpFlow' ? flow.flow.value : null;
-    if (!httpFlow) return;
 
     let blob: Blob;
     let filename: string;
 
-    const requestAsText = (() => {
-      if (!httpFlow.request) return '';
-      const requestLine = `${httpFlow.request.method} ${httpFlow.request.url} ${httpFlow.request.httpVersion}`;
-      const headers = Object.entries(httpFlow.request.headers).map(([k, v]) => `${k}: ${v}`).join('\n');
-      return `${requestLine}\n${headers}`;
-    })();
+    if (type === 'flow-json') {
+      blob = new Blob([JSON.stringify(toJson(flow), null, 2)], { type: 'application/json;charset=utf-8' });
+      filename = `${getFlowId(flow)}.json`;
+    } else {
+      if (!httpFlow) return;
 
-    const responseAsText = (() => {
-      if (!httpFlow.response) return '';
-      const statusLine = `${httpFlow.response.httpVersion} ${httpFlow.response.statusCode}`;
-      const headers = Object.entries(httpFlow.response.headers).map(([k, v]) => `${k}: ${v}`).join('\n');
-      return `${statusLine}\n${headers}`;
-    })();
+      const requestAsText = (() => {
+        if (!httpFlow.request) return '';
+        const requestLine = `${httpFlow.request.method} ${httpFlow.request.url} ${httpFlow.request.httpVersion}`;
+        const headers = Object.entries(httpFlow.request.headers).map(([k, v]) => `${k}: ${v}`).join('\n');
+        const body = httpFlow.request.content ? new TextDecoder().decode(httpFlow.request.content) : '';
+        return `${requestLine}\n${headers}\n\n${body}`;
+      })();
+  
+      const responseAsText = (() => {
+        if (!httpFlow.response) return '';
+        const statusLine = `${httpFlow.response.httpVersion} ${httpFlow.response.statusCode}`;
+        const headers = Object.entries(httpFlow.response.headers).map(([k, v]) => `${k}: ${v}`).join('\n');
+        const body = httpFlow.response.content ? new TextDecoder().decode(httpFlow.response.content) : '';
+        return `${statusLine}\n${headers}\n\n${body}`;
+      })();
 
-    switch (type) {
-      case 'har':
-        blob = generateHarBlob([flow]);
-        filename = `${httpFlow.id}.har`;
-        break;
-      case 'flow-json':
-        blob = new Blob([JSON.stringify(toJson(FlowSchema, flow), null, 2)], { type: 'application/json;charset=utf-8' });
-        filename = `${httpFlow.id}.json`;
-        break;
-      case 'request':
-        blob = new Blob([requestAsText], { type: 'text/plain;charset=utf-8' });
-        filename = `${httpFlow.id}_request.txt`;
-        break;
-      case 'response':
-        blob = new Blob([responseAsText], { type: 'text/plain;charset=utf-8' });
-        filename = `${httpFlow.id}_response.txt`;
-        break;
-      default:
-        return;
+      switch (type) {
+        case 'har':
+          blob = generateHarBlob([flow]);
+          filename = `${httpFlow.id}.har`;
+          break;
+        case 'request':
+          blob = new Blob([requestAsText], { type: 'text/plain;charset=utf-8' });
+          filename = `${httpFlow.id}_request.txt`;
+          break;
+        case 'response':
+          blob = new Blob([responseAsText], { type: 'text/plain;charset=utf-8' });
+          filename = `${httpFlow.id}_response.txt`;
+          break;
+        default:
+          return;
+      }
     }
 
     const url = URL.createObjectURL(blob);
@@ -370,18 +374,23 @@ const App: React.FC = () => {
 
         // HTTP Status Code Filter
         if (http.statusCodes.length > 0) {
-            const statusCode = httpFlow.response?.statusCode?.toString() || '';
+            const flowStatusCode = httpFlow.response?.statusCode;
+            if (flowStatusCode === undefined || flowStatusCode === null) {
+                // If no status code, it cannot match any status code filter
+                return false;
+            }
+            const statusCodeStr = flowStatusCode.toString();
             const matches = http.statusCodes.some(sc => {
                 if (sc.endsWith('xx')) {
                     const prefix = sc.slice(0, 1);
-                    return statusCode.startsWith(prefix);
+                    return statusCodeStr.startsWith(prefix);
                 }
                 if (sc.includes('-')) {
                     const [start, end] = sc.split('-').map(Number);
-                    const code = Number(statusCode);
+                    const code = Number(statusCodeStr);
                     return code >= start && code <= end;
                 }
-                return statusCode === sc;
+                return statusCodeStr === sc;
             });
             if (!matches) {
                 return false;

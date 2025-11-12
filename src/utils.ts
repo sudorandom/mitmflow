@@ -1,5 +1,6 @@
-import { Flow } from "./gen/mitmflow/v1/mitmflow_pb";
+import { Flow, HTTPFlow, DNSFlow, TCPFlow, UDPFlow } from "./gen/mitmflow/v1/mitmflow_pb";
 import { Message } from "@dnspect/dns-ts";
+import { Timestamp } from "@bufbuild/protobuf";
 
 export type ContentFormat = 'auto' | 'text' | 'json' | 'protobuf' | 'grpc' | 'grpc-web' | 'xml' | 'binary' | 'image' | 'dns' | 'javascript' | 'html';
 
@@ -20,7 +21,7 @@ export const formatTimestamp = (ts: number): string => {
     hour: '2-digit',
     minute: '2-digit',
     second: '2-digit'
-  }) + '.' + date.getMilliseconds().toString().padStart(3, '0');
+  });
 };
 
 export const getHeader = (headers: { [key:string]: string } | undefined, name: string): string | undefined => {
@@ -174,6 +175,24 @@ export const getFlowId = (flow: Flow | undefined | null): string | undefined => 
         return flow.flow.value.id;
     case 'udpFlow':
         return flow.flow.value.id;
+    default:
+      return undefined;
+  }
+};
+
+export const getFlowTimestampStart = (flow: Flow | undefined | null): Timestamp | undefined => {
+  if (!flow || !flow.flow) {
+    return undefined;
+  }
+  switch (flow.flow.case) {
+    case 'httpFlow':
+      return flow.flow.value.timestampStart;
+    case 'dnsFlow':
+      return flow.flow.value.timestampStart;
+    case 'tcpFlow':
+        return flow.flow.value.timestampStart;
+    case 'udpFlow':
+        return flow.flow.value.timestampStart;
     default:
       return undefined;
   }

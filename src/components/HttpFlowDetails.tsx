@@ -144,11 +144,6 @@ export const HttpFlowDetails: React.FC<{
     responseFormat: ContentFormat;
     setResponseFormat: (format: ContentFormat) => void;
     contentRef: React.RefObject<HTMLDivElement>;
-    downloadFlowContent: (flow: Flow, type: 'har' | 'flow-json' | 'request' | 'response') => void;
-    isDownloadOpen: boolean;
-    setDownloadOpen: (isOpen: boolean) => void;
-    isInfoTooltipOpen: boolean;
-    setIsInfoTooltipOpen: (isOpen: boolean) => void;
 }> = ({ flow, requestFormat, setRequestFormat, responseFormat, setResponseFormat, contentRef }) => {
     const httpFlow = flow.flow.case === 'httpFlow' ? flow.flow.value : null;
 
