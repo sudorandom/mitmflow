@@ -267,16 +267,16 @@ export const getFlowTitle = (flow: Flow): string => {
             const httpFlow = flow.flow.value;
             const url = (httpFlow.request?.prettyUrl || httpFlow.request?.url) ?? '';
             const urlWithoutQuery = url.split('?')[0];
-            return `${httpFlow.response?.statusCode ?? '...'} ${httpFlow.request?.method} ${urlWithoutQuery}`;
+            return `${httpFlow.request?.method} ${urlWithoutQuery}`;
         case 'dnsFlow':
             const dnsFlow = flow.flow.value;
-            return `${dnsFlow.response ? 'OK' : 'ERROR'} dns://${dnsFlow.server?.addressHost}`;
+            return `dns://${dnsFlow.server?.addressHost}`;
         case 'tcpFlow':
             const tcpFlow = flow.flow.value;
-            return `TCP ${tcpFlow.client?.peernameHost}:${tcpFlow.client?.peernamePort} -> ${tcpFlow.server?.addressHost}:${tcpFlow.server?.addressPort}`;
+            return `tcp://${tcpFlow.client?.peernameHost}:${tcpFlow.client?.peernamePort} -> ${tcpFlow.server?.addressHost}:${tcpFlow.server?.addressPort}`;
         case 'udpFlow':
             const udpFlow = flow.flow.value;
-            return `UDP ${udpFlow.client?.peernameHost}:${udpFlow.client?.peernamePort} -> ${udpFlow.server?.addressHost}:${udpFlow.server?.addressPort}`;
+            return `udp://${udpFlow.client?.peernameHost}:${udpFlow.client?.peernamePort} -> ${udpFlow.server?.addressHost}:${udpFlow.server?.addressPort}`;
         default:
             return '';
     }
