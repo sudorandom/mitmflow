@@ -68,7 +68,7 @@ export const RequestResponseView: React.FC<RequestResponseViewProps> = ({ fullCo
                     </pre>
                 </>
             )}
-            {flowPart?.contentProtoscopeFrames && flowPart.contentProtoscopeFrames.length > 0 ? (
+            {flowPart?.contentProtoscopeFrames && flowPart.contentProtoscopeFrames.length > 0 && ['protobuf', 'grpc', 'grpc-web'].includes(effectiveFormat) ? (
                 // Render protoscope frames if they exist
                 <div>
                     {flowPart.contentProtoscopeFrames.map((frame, index) => (
