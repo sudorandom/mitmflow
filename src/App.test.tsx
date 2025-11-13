@@ -1,4 +1,4 @@
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { vi, test, expect } from 'vitest';
 import App from './App';
 import { createClient } from '@connectrpc/connect';
@@ -104,6 +104,8 @@ test('adds flows to the list', async () => {
 
     render(<App />);
 
-    const flowCell = await screen.findByRole('gridcell', { name: /http:\/\/example.com/i });
-    expect(flowCell).toBeInTheDocument();
+    await waitFor(async () => {
+        const flowCell = await screen.findByRole('gridcell', { name: /http:\/\/example.com/i });
+        expect(flowCell).toBeInTheDocument();
+    });
 });

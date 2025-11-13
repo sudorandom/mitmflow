@@ -99,9 +99,8 @@ const App: React.FC = () => {
     clearFilters
   } = useFilterStore();
   const [isFilterModalOpen, setIsFilterModalOpen] = useState(false);
-  const [selectedFlow, setSelectedFlow] = useState<Flow | null>(null);
   const [isPanelMinimized, setIsPanelMinimized] = useState(false);
-  const [selectedFlowId, setSelectedFlowId] = useState<string | null>(null);
+  const [focusedFlowId, setFocusedFlowId] = useState<string | null>(null);
   const [selectedFlowIds, setSelectedFlowIds] = useState<Set<string>>(new Set()); // New state for multi-select
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isBulkDownloadOpen, setIsBulkDownloadOpen] = useState(false); // New state for bulk download menu
@@ -455,8 +454,7 @@ const App: React.FC = () => {
   const handleClearFlows = () => {
     setFlows([]); // Clear the main flows array
     setIsFlowsTruncated(false);
-    setSelectedFlow(null);
-    setSelectedFlowId(null);
+    setFocusedFlowId(null);
     setSelectedFlowIds(new Set());
     setRequestFormats(new Map()); // Clear formats when flows are cleared
     setResponseFormats(new Map()); // Clear formats when flows are cleared
@@ -484,31 +482,19 @@ const App: React.FC = () => {
   };
 
   const handleFlowMouseDown = useCallback((flow: Flow, event?: React.MouseEvent) => {
-    const newSelectedFlowIds = new Set(selectedFlowIds);
     const currentFlowId = getFlowId(flow);
+    if (!currentFlowId) return;
 
-    if (!currentFlowId) {
-      return; // Should not happen if filteredFlows is correct
-    }
+    const newSelectedFlowIds = new Set(selectedFlowIds);
 
     if (event?.shiftKey && lastSelectedFlowId.current) {
-      const lastIndex = filteredFlows.findIndex(f => {
-        const fFlowId = getFlowId(f);
-        return fFlowId && fFlowId === lastSelectedFlowId.current;
-      });
-      const currentIndex = filteredFlows.findIndex(f => {
-        const fFlowId = getFlowId(f);
-        return fFlowId && fFlowId === currentFlowId;
-      });
+      const lastIndex = filteredFlows.findIndex(f => getFlowId(f) === lastSelectedFlowId.current);
+      const currentIndex = filteredFlows.findIndex(f => getFlowId(f) === currentFlowId);
       const [start, end] = [lastIndex, currentIndex].sort((a, b) => a - b);
+
       for (let i = start; i <= end; i++) {
-        const f = filteredFlows[i];
-        if (f) {
-            const fFlowId = getFlowId(f);
-            if (fFlowId) {
-              newSelectedFlowIds.add(fFlowId);
-            }
-        }
+        const flowId = getFlowId(filteredFlows[i]);
+        if (flowId) newSelectedFlowIds.add(flowId);
       }
       setSelectedFlowIds(newSelectedFlowIds);
     } else if (event?.metaKey || event?.ctrlKey) {
@@ -518,17 +504,17 @@ const App: React.FC = () => {
         newSelectedFlowIds.add(currentFlowId);
       }
       setSelectedFlowIds(newSelectedFlowIds);
+    } else {
+      // Default click: just focus the row.
+      setFocusedFlowId(currentFlowId);
     }
 
-    setSelectedFlow(flow);
-    setSelectedFlowId(currentFlowId);
     lastSelectedFlowId.current = currentFlowId;
     setIsPanelMinimized(false);
   }, [filteredFlows, selectedFlowIds]);
 
   const handleClosePanel = useCallback(() => {
-    setSelectedFlow(null);
-    setSelectedFlowId(null);
+    setFocusedFlowId(null);
     setDetailsPanelHeight(null); // Reset height when panel is closed
   }, []); // Memoize with useCallback
 
@@ -554,10 +540,26 @@ const App: React.FC = () => {
         return;
       }
 
-      if (e.key !== 'ArrowUp' && e.key !== 'ArrowDown' && e.key !== 'PageUp' && e.key !== 'PageDown') {
+      // Handle selection on Enter/Space
+      if (e.key === 'Enter' || e.key === ' ') {
+        if (focusedFlowId) {
+          e.preventDefault();
+          const newSelectedFlowIds = new Set(selectedFlowIds);
+          if (newSelectedFlowIds.has(focusedFlowId)) {
+            newSelectedFlowIds.delete(focusedFlowId);
+          } else {
+            newSelectedFlowIds.add(focusedFlowId);
+          }
+          setSelectedFlowIds(newSelectedFlowIds);
+        }
         return;
       }
-      
+
+      const navigationKeys = ['ArrowUp', 'ArrowDown', 'PageUp', 'PageDown', 'Home', 'End'];
+      if (!navigationKeys.includes(e.key)) {
+        return;
+      }
+
       e.preventDefault(); // Prevent page scrolling
 
       if (filteredFlows.length === 0) {
@@ -565,41 +567,44 @@ const App: React.FC = () => {
       }
 
       let currentIndex = -1;
-      if (selectedFlowId) {
-        currentIndex = filteredFlows.findIndex(f => {
-          const flowId = getFlowId(f);
-          return flowId && flowId === selectedFlowId;
-        });
+      if (focusedFlowId) {
+        currentIndex = filteredFlows.findIndex(f => getFlowId(f) === focusedFlowId);
       }
 
-      let nextIndex = -1;
+      let nextIndex = currentIndex; // Default to current
+
       if (e.key === 'ArrowDown') {
         nextIndex = Math.min(currentIndex + 1, filteredFlows.length - 1);
-        if (currentIndex === -1) nextIndex = 0; // Start from top if nothing is selected
-      } else if (e.key === 'ArrowUp') { // ArrowUp
+        if (currentIndex === -1) nextIndex = 0;
+      } else if (e.key === 'ArrowUp') {
         nextIndex = Math.max(currentIndex - 1, 0);
-        if (currentIndex === -1) nextIndex = 0; // Start from top if nothing is selected
+        if (currentIndex === -1) nextIndex = 0;
       } else if (e.key === 'PageDown') {
         nextIndex = Math.min(currentIndex + 10, filteredFlows.length - 1);
-        if (currentIndex === -1) nextIndex = 0; // Start from top if nothing is selected
+        if (currentIndex === -1) nextIndex = 10;
       } else if (e.key === 'PageUp') {
         nextIndex = Math.max(currentIndex - 10, 0);
-        if (currentIndex === -1) nextIndex = 0; // Start from top if nothing is selected
+        if (currentIndex === -1) nextIndex = 0;
+      } else if (e.key === 'Home') {
+        nextIndex = 0;
+      } else if (e.key === 'End') {
+        nextIndex = filteredFlows.length - 1;
       }
-      
+
       if (nextIndex !== currentIndex && nextIndex > -1) {
         const nextFlow = filteredFlows[nextIndex];
         if (nextFlow) {
-          // This will update selection and open/update the details panel
-          handleFlowMouseDown(nextFlow);
-          
-          // Scroll the item into view
           const nextFlowId = getFlowId(nextFlow);
-          const rowElement = nextFlowId ? mainTableRef.current?.querySelector(`[data-flow-id="${nextFlowId}"]`) : null;
-          rowElement?.scrollIntoView({
-            behavior: 'smooth',
-            block: 'nearest',
-          });
+          if (nextFlowId) {
+            setFocusedFlowId(nextFlowId);
+
+            // Scroll the item into view
+            const rowElement = mainTableRef.current?.querySelector(`[row-id="${nextFlowId}"]`);
+            rowElement?.scrollIntoView({
+              behavior: 'smooth',
+              block: 'nearest',
+            });
+          }
         }
       }
     };
@@ -608,7 +613,21 @@ const App: React.FC = () => {
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
     };
-  }, [filteredFlows, selectedFlowId, handleFlowMouseDown]); // Add dependencies
+  }, [filteredFlows, focusedFlowId, handleFlowMouseDown]);
+
+  useEffect(() => {
+    // If there are flows but nothing is focused, focus the first one.
+    if (filteredFlows.length > 0 && !focusedFlowId) {
+      const firstFlowId = getFlowId(filteredFlows[0]);
+      if (firstFlowId) {
+        setFocusedFlowId(firstFlowId);
+      }
+    }
+    // If the focused flow is no longer in the list (due to filtering), clear focus.
+    if (focusedFlowId && !filteredFlows.some(f => getFlowId(f) === focusedFlowId)) {
+      setFocusedFlowId(null);
+    }
+  }, [filteredFlows, focusedFlowId]);
 
   // --- Close panel on Escape key ---
   useEffect(() => {
@@ -624,6 +643,11 @@ const App: React.FC = () => {
       window.removeEventListener('keydown', handleKeyDown);
     };
   }, [handleClosePanel]);
+
+  const focusedFlow = useMemo(() => {
+    if (!focusedFlowId) return null;
+    return filteredFlows.find(f => getFlowId(f) === focusedFlowId) || null;
+  }, [focusedFlowId, filteredFlows]);
 
   return (
     <div className="bg-zinc-900 text-zinc-300 font-sans h-screen flex flex-col">
@@ -821,6 +845,7 @@ const App: React.FC = () => {
       <main className="flex-grow" ref={mainTableRef}> {/* Add ref */}
         <FlowTable
             flows={filteredFlows}
+            focusedFlowId={focusedFlowId}
             onSelectionChanged={handleSelectionChanged}
             onRowClicked={handleFlowMouseDown}
         />
@@ -834,31 +859,31 @@ const App: React.FC = () => {
 
       {/* --- Details Panel --- */}
       <DetailsPanel
-        flow={selectedFlow}
+        flow={focusedFlow}
         isMinimized={isPanelMinimized}
         onClose={handleClosePanel}
         panelHeight={detailsPanelHeight}
         setPanelHeight={setDetailsPanelHeight}
         downloadFlowContent={downloadFlowContent}
       >
-        {selectedFlow?.flow?.case === 'httpFlow' && (
+        {focusedFlow?.flow?.case === 'httpFlow' && (
           <HttpFlowDetails
-            flow={selectedFlow}
-            requestFormat={requestFormats.get(selectedFlowId!) || 'auto'}
-            setRequestFormat={(format) => handleSetRequestFormat(selectedFlowId!, format)}
-            responseFormat={responseFormats.get(selectedFlowId!) || 'auto'}
-            setResponseFormat={(format) => handleSetResponseFormat(selectedFlowId!, format)}
+            flow={focusedFlow}
+            requestFormat={requestFormats.get(focusedFlowId!) || 'auto'}
+            setRequestFormat={(format) => handleSetRequestFormat(focusedFlowId!, format)}
+            responseFormat={responseFormats.get(focusedFlowId!) || 'auto'}
+            setResponseFormat={(format) => handleSetResponseFormat(focusedFlowId!, format)}
             contentRef={contentRef}
           />
         )}
-        {selectedFlow?.flow?.case === 'dnsFlow' && (
-          <DnsFlowDetails flow={selectedFlow} />
+        {focusedFlow?.flow?.case === 'dnsFlow' && (
+          <DnsFlowDetails flow={focusedFlow} />
         )}
-        {selectedFlow?.flow?.case === 'tcpFlow' && (
-            <TcpFlowDetails flow={selectedFlow} />
+        {focusedFlow?.flow?.case === 'tcpFlow' && (
+            <TcpFlowDetails flow={focusedFlow} />
         )}
-        {selectedFlow?.flow?.case === 'udpFlow' && (
-            <UdpFlowDetails flow={selectedFlow} />
+        {focusedFlow?.flow?.case === 'udpFlow' && (
+            <UdpFlowDetails flow={focusedFlow} />
         )}
       </DetailsPanel>
     </div>
