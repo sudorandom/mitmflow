@@ -410,12 +410,23 @@ func (ViaProtocol) EnumDescriptor() ([]byte, []int) {
 }
 
 type Cert struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// Simplified for now, just storing the full certificate content as bytes.
-	// In a real scenario, this might be a more structured message.
-	Content       []byte `protobuf:"bytes,1,opt,name=content,proto3" json:"content,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state                 protoimpl.MessageState `protogen:"open.v1"`
+	Content               []byte                 `protobuf:"bytes,1,opt,name=content,proto3" json:"content,omitempty"`
+	Fingerprint           []byte                 `protobuf:"bytes,2,opt,name=fingerprint,proto3" json:"fingerprint,omitempty"`
+	Issuers               map[string]string      `protobuf:"bytes,3,rep,name=issuers,proto3" json:"issuers,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	Notbefore             *timestamppb.Timestamp `protobuf:"bytes,4,opt,name=notbefore,proto3" json:"notbefore,omitempty"`
+	Notafter              *timestamppb.Timestamp `protobuf:"bytes,5,opt,name=notafter,proto3" json:"notafter,omitempty"`
+	Hasexpired            bool                   `protobuf:"varint,6,opt,name=hasexpired,proto3" json:"hasexpired,omitempty"`
+	Subjects              map[string]string      `protobuf:"bytes,7,rep,name=subjects,proto3" json:"subjects,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	Serial                string                 `protobuf:"bytes,8,opt,name=serial,proto3" json:"serial,omitempty"`
+	IsCa                  bool                   `protobuf:"varint,9,opt,name=is_ca,json=isCa,proto3" json:"is_ca,omitempty"`
+	Keyinfo               map[string]int64       `protobuf:"bytes,10,rep,name=keyinfo,proto3" json:"keyinfo,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"varint,2,opt,name=value"`
+	Cn                    *string                `protobuf:"bytes,11,opt,name=cn,proto3,oneof" json:"cn,omitempty"`
+	Organization          *string                `protobuf:"bytes,12,opt,name=organization,proto3,oneof" json:"organization,omitempty"`
+	Altnames              []string               `protobuf:"bytes,13,rep,name=altnames,proto3" json:"altnames,omitempty"`
+	CrlDistributionPoints []string               `protobuf:"bytes,14,rep,name=crl_distribution_points,json=crlDistributionPoints,proto3" json:"crl_distribution_points,omitempty"`
+	unknownFields         protoimpl.UnknownFields
+	sizeCache             protoimpl.SizeCache
 }
 
 func (x *Cert) Reset() {
@@ -451,6 +462,97 @@ func (*Cert) Descriptor() ([]byte, []int) {
 func (x *Cert) GetContent() []byte {
 	if x != nil {
 		return x.Content
+	}
+	return nil
+}
+
+func (x *Cert) GetFingerprint() []byte {
+	if x != nil {
+		return x.Fingerprint
+	}
+	return nil
+}
+
+func (x *Cert) GetIssuers() map[string]string {
+	if x != nil {
+		return x.Issuers
+	}
+	return nil
+}
+
+func (x *Cert) GetNotbefore() *timestamppb.Timestamp {
+	if x != nil {
+		return x.Notbefore
+	}
+	return nil
+}
+
+func (x *Cert) GetNotafter() *timestamppb.Timestamp {
+	if x != nil {
+		return x.Notafter
+	}
+	return nil
+}
+
+func (x *Cert) GetHasexpired() bool {
+	if x != nil {
+		return x.Hasexpired
+	}
+	return false
+}
+
+func (x *Cert) GetSubjects() map[string]string {
+	if x != nil {
+		return x.Subjects
+	}
+	return nil
+}
+
+func (x *Cert) GetSerial() string {
+	if x != nil {
+		return x.Serial
+	}
+	return ""
+}
+
+func (x *Cert) GetIsCa() bool {
+	if x != nil {
+		return x.IsCa
+	}
+	return false
+}
+
+func (x *Cert) GetKeyinfo() map[string]int64 {
+	if x != nil {
+		return x.Keyinfo
+	}
+	return nil
+}
+
+func (x *Cert) GetCn() string {
+	if x != nil && x.Cn != nil {
+		return *x.Cn
+	}
+	return ""
+}
+
+func (x *Cert) GetOrganization() string {
+	if x != nil && x.Organization != nil {
+		return *x.Organization
+	}
+	return ""
+}
+
+func (x *Cert) GetAltnames() []string {
+	if x != nil {
+		return x.Altnames
+	}
+	return nil
+}
+
+func (x *Cert) GetCrlDistributionPoints() []string {
+	if x != nil {
+		return x.CrlDistributionPoints
 	}
 	return nil
 }
@@ -2423,9 +2525,36 @@ var File_mitmflow_v1_mitmflow_proto protoreflect.FileDescriptor
 
 const file_mitmflow_v1_mitmflow_proto_rawDesc = "" +
 	"\n" +
-	"\x1amitmflow/v1/mitmflow.proto\x12\vmitmflow.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1fgoogle/protobuf/timestamp.proto\" \n" +
+	"\x1amitmflow/v1/mitmflow.proto\x12\vmitmflow.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\x91\x06\n" +
 	"\x04Cert\x12\x18\n" +
-	"\acontent\x18\x01 \x01(\fR\acontent\"c\n" +
+	"\acontent\x18\x01 \x01(\fR\acontent\x12 \n" +
+	"\vfingerprint\x18\x02 \x01(\fR\vfingerprint\x128\n" +
+	"\aissuers\x18\x03 \x03(\v2\x1e.mitmflow.v1.Cert.IssuersEntryR\aissuers\x128\n" +
+	"\tnotbefore\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\tnotbefore\x126\n" +
+	"\bnotafter\x18\x05 \x01(\v2\x1a.google.protobuf.TimestampR\bnotafter\x12\x1e\n" +
+	"\n" +
+	"hasexpired\x18\x06 \x01(\bR\n" +
+	"hasexpired\x12;\n" +
+	"\bsubjects\x18\a \x03(\v2\x1f.mitmflow.v1.Cert.SubjectsEntryR\bsubjects\x12\x16\n" +
+	"\x06serial\x18\b \x01(\tR\x06serial\x12\x13\n" +
+	"\x05is_ca\x18\t \x01(\bR\x04isCa\x128\n" +
+	"\akeyinfo\x18\n" +
+	" \x03(\v2\x1e.mitmflow.v1.Cert.KeyinfoEntryR\akeyinfo\x12\x13\n" +
+	"\x02cn\x18\v \x01(\tH\x00R\x02cn\x88\x01\x01\x12'\n" +
+	"\forganization\x18\f \x01(\tH\x01R\forganization\x88\x01\x01\x12\x1a\n" +
+	"\baltnames\x18\r \x03(\tR\baltnames\x126\n" +
+	"\x17crl_distribution_points\x18\x0e \x03(\tR\x15crlDistributionPoints\x1a:\n" +
+	"\fIssuersEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\x1a;\n" +
+	"\rSubjectsEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\x1a:\n" +
+	"\fKeyinfoEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
+	"\x05value\x18\x02 \x01(\x03R\x05value:\x028\x01B\x05\n" +
+	"\x03_cnB\x0f\n" +
+	"\r_organization\"c\n" +
 	"\x03Via\x124\n" +
 	"\bprotocol\x18\x01 \x01(\x0e2\x18.mitmflow.v1.ViaProtocolR\bprotocol\x12\x12\n" +
 	"\x04host\x18\x02 \x01(\tR\x04host\x12\x12\n" +
@@ -2752,7 +2881,7 @@ func file_mitmflow_v1_mitmflow_proto_rawDescGZIP() []byte {
 }
 
 var file_mitmflow_v1_mitmflow_proto_enumTypes = make([]protoimpl.EnumInfo, 5)
-var file_mitmflow_v1_mitmflow_proto_msgTypes = make([]protoimpl.MessageInfo, 26)
+var file_mitmflow_v1_mitmflow_proto_msgTypes = make([]protoimpl.MessageInfo, 29)
 var file_mitmflow_v1_mitmflow_proto_goTypes = []any{
 	(EventType)(0),                // 0: mitmflow.v1.EventType
 	(ConnectionState)(0),          // 1: mitmflow.v1.ConnectionState
@@ -2781,81 +2910,89 @@ var file_mitmflow_v1_mitmflow_proto_goTypes = []any{
 	(*HTTPFlow)(nil),              // 24: mitmflow.v1.HTTPFlow
 	(*Request)(nil),               // 25: mitmflow.v1.Request
 	(*Response)(nil),              // 26: mitmflow.v1.Response
-	nil,                           // 27: mitmflow.v1.Request.HeadersEntry
-	nil,                           // 28: mitmflow.v1.Request.TrailersEntry
-	nil,                           // 29: mitmflow.v1.Response.HeadersEntry
-	nil,                           // 30: mitmflow.v1.Response.TrailersEntry
-	(*timestamppb.Timestamp)(nil), // 31: google.protobuf.Timestamp
+	nil,                           // 27: mitmflow.v1.Cert.IssuersEntry
+	nil,                           // 28: mitmflow.v1.Cert.SubjectsEntry
+	nil,                           // 29: mitmflow.v1.Cert.KeyinfoEntry
+	nil,                           // 30: mitmflow.v1.Request.HeadersEntry
+	nil,                           // 31: mitmflow.v1.Request.TrailersEntry
+	nil,                           // 32: mitmflow.v1.Response.HeadersEntry
+	nil,                           // 33: mitmflow.v1.Response.TrailersEntry
+	(*timestamppb.Timestamp)(nil), // 34: google.protobuf.Timestamp
 }
 var file_mitmflow_v1_mitmflow_proto_depIdxs = []int32{
-	4,  // 0: mitmflow.v1.Via.protocol:type_name -> mitmflow.v1.ViaProtocol
-	1,  // 1: mitmflow.v1.ClientConn.state:type_name -> mitmflow.v1.ConnectionState
-	2,  // 2: mitmflow.v1.ClientConn.transport_protocol:type_name -> mitmflow.v1.TransportProtocol
-	5,  // 3: mitmflow.v1.ClientConn.certificate_list:type_name -> mitmflow.v1.Cert
-	3,  // 4: mitmflow.v1.ClientConn.tls_version:type_name -> mitmflow.v1.TLSVersion
-	31, // 5: mitmflow.v1.ClientConn.timestamp_start:type_name -> google.protobuf.Timestamp
-	31, // 6: mitmflow.v1.ClientConn.timestamp_end:type_name -> google.protobuf.Timestamp
-	31, // 7: mitmflow.v1.ClientConn.timestamp_tls_setup:type_name -> google.protobuf.Timestamp
-	5,  // 8: mitmflow.v1.ClientConn.mitmcert:type_name -> mitmflow.v1.Cert
-	1,  // 9: mitmflow.v1.ServerConn.state:type_name -> mitmflow.v1.ConnectionState
-	2,  // 10: mitmflow.v1.ServerConn.transport_protocol:type_name -> mitmflow.v1.TransportProtocol
-	5,  // 11: mitmflow.v1.ServerConn.certificate_list:type_name -> mitmflow.v1.Cert
-	3,  // 12: mitmflow.v1.ServerConn.tls_version:type_name -> mitmflow.v1.TLSVersion
-	31, // 13: mitmflow.v1.ServerConn.timestamp_start:type_name -> google.protobuf.Timestamp
-	31, // 14: mitmflow.v1.ServerConn.timestamp_end:type_name -> google.protobuf.Timestamp
-	31, // 15: mitmflow.v1.ServerConn.timestamp_tls_setup:type_name -> google.protobuf.Timestamp
-	31, // 16: mitmflow.v1.ServerConn.timestamp_tcp_setup:type_name -> google.protobuf.Timestamp
-	6,  // 17: mitmflow.v1.ServerConn.via:type_name -> mitmflow.v1.Via
-	13, // 18: mitmflow.v1.ExportFlowRequest.flow:type_name -> mitmflow.v1.Flow
-	0,  // 19: mitmflow.v1.ExportFlowRequest.event_type:type_name -> mitmflow.v1.EventType
-	13, // 20: mitmflow.v1.StreamFlowsResponse.flow:type_name -> mitmflow.v1.Flow
-	24, // 21: mitmflow.v1.Flow.http_flow:type_name -> mitmflow.v1.HTTPFlow
-	22, // 22: mitmflow.v1.Flow.dns_flow:type_name -> mitmflow.v1.DNSFlow
-	15, // 23: mitmflow.v1.Flow.tcp_flow:type_name -> mitmflow.v1.TCPFlow
-	17, // 24: mitmflow.v1.Flow.udp_flow:type_name -> mitmflow.v1.UDPFlow
-	31, // 25: mitmflow.v1.TCPMessage.timestamp:type_name -> google.protobuf.Timestamp
-	7,  // 26: mitmflow.v1.TCPFlow.client:type_name -> mitmflow.v1.ClientConn
-	8,  // 27: mitmflow.v1.TCPFlow.server:type_name -> mitmflow.v1.ServerConn
-	14, // 28: mitmflow.v1.TCPFlow.messages:type_name -> mitmflow.v1.TCPMessage
-	31, // 29: mitmflow.v1.TCPFlow.timestamp_start:type_name -> google.protobuf.Timestamp
-	31, // 30: mitmflow.v1.UDPMessage.timestamp:type_name -> google.protobuf.Timestamp
-	7,  // 31: mitmflow.v1.UDPFlow.client:type_name -> mitmflow.v1.ClientConn
-	8,  // 32: mitmflow.v1.UDPFlow.server:type_name -> mitmflow.v1.ServerConn
-	16, // 33: mitmflow.v1.UDPFlow.messages:type_name -> mitmflow.v1.UDPMessage
-	31, // 34: mitmflow.v1.UDPFlow.timestamp_start:type_name -> google.protobuf.Timestamp
-	31, // 35: mitmflow.v1.WebSocketMessage.timestamp:type_name -> google.protobuf.Timestamp
-	19, // 36: mitmflow.v1.DNSMessage.questions:type_name -> mitmflow.v1.DNSQuestion
-	20, // 37: mitmflow.v1.DNSMessage.answers:type_name -> mitmflow.v1.DNSResourceRecord
-	20, // 38: mitmflow.v1.DNSMessage.authorities:type_name -> mitmflow.v1.DNSResourceRecord
-	20, // 39: mitmflow.v1.DNSMessage.additionals:type_name -> mitmflow.v1.DNSResourceRecord
-	21, // 40: mitmflow.v1.DNSFlow.request:type_name -> mitmflow.v1.DNSMessage
-	21, // 41: mitmflow.v1.DNSFlow.response:type_name -> mitmflow.v1.DNSMessage
-	31, // 42: mitmflow.v1.DNSFlow.timestamp_start:type_name -> google.protobuf.Timestamp
-	7,  // 43: mitmflow.v1.DNSFlow.client:type_name -> mitmflow.v1.ClientConn
-	8,  // 44: mitmflow.v1.DNSFlow.server:type_name -> mitmflow.v1.ServerConn
-	25, // 45: mitmflow.v1.HTTPFlow.request:type_name -> mitmflow.v1.Request
-	26, // 46: mitmflow.v1.HTTPFlow.response:type_name -> mitmflow.v1.Response
-	31, // 47: mitmflow.v1.HTTPFlow.timestamp_start:type_name -> google.protobuf.Timestamp
-	7,  // 48: mitmflow.v1.HTTPFlow.client:type_name -> mitmflow.v1.ClientConn
-	8,  // 49: mitmflow.v1.HTTPFlow.server:type_name -> mitmflow.v1.ServerConn
-	18, // 50: mitmflow.v1.HTTPFlow.websocket_messages:type_name -> mitmflow.v1.WebSocketMessage
-	27, // 51: mitmflow.v1.Request.headers:type_name -> mitmflow.v1.Request.HeadersEntry
-	28, // 52: mitmflow.v1.Request.trailers:type_name -> mitmflow.v1.Request.TrailersEntry
-	31, // 53: mitmflow.v1.Request.timestamp_start:type_name -> google.protobuf.Timestamp
-	31, // 54: mitmflow.v1.Request.timestamp_end:type_name -> google.protobuf.Timestamp
-	29, // 55: mitmflow.v1.Response.headers:type_name -> mitmflow.v1.Response.HeadersEntry
-	30, // 56: mitmflow.v1.Response.trailers:type_name -> mitmflow.v1.Response.TrailersEntry
-	31, // 57: mitmflow.v1.Response.timestamp_start:type_name -> google.protobuf.Timestamp
-	31, // 58: mitmflow.v1.Response.timestamp_end:type_name -> google.protobuf.Timestamp
-	9,  // 59: mitmflow.v1.Service.ExportFlow:input_type -> mitmflow.v1.ExportFlowRequest
-	11, // 60: mitmflow.v1.Service.StreamFlows:input_type -> mitmflow.v1.StreamFlowsRequest
-	10, // 61: mitmflow.v1.Service.ExportFlow:output_type -> mitmflow.v1.ExportFlowResponse
-	12, // 62: mitmflow.v1.Service.StreamFlows:output_type -> mitmflow.v1.StreamFlowsResponse
-	61, // [61:63] is the sub-list for method output_type
-	59, // [59:61] is the sub-list for method input_type
-	59, // [59:59] is the sub-list for extension type_name
-	59, // [59:59] is the sub-list for extension extendee
-	0,  // [0:59] is the sub-list for field type_name
+	27, // 0: mitmflow.v1.Cert.issuers:type_name -> mitmflow.v1.Cert.IssuersEntry
+	34, // 1: mitmflow.v1.Cert.notbefore:type_name -> google.protobuf.Timestamp
+	34, // 2: mitmflow.v1.Cert.notafter:type_name -> google.protobuf.Timestamp
+	28, // 3: mitmflow.v1.Cert.subjects:type_name -> mitmflow.v1.Cert.SubjectsEntry
+	29, // 4: mitmflow.v1.Cert.keyinfo:type_name -> mitmflow.v1.Cert.KeyinfoEntry
+	4,  // 5: mitmflow.v1.Via.protocol:type_name -> mitmflow.v1.ViaProtocol
+	1,  // 6: mitmflow.v1.ClientConn.state:type_name -> mitmflow.v1.ConnectionState
+	2,  // 7: mitmflow.v1.ClientConn.transport_protocol:type_name -> mitmflow.v1.TransportProtocol
+	5,  // 8: mitmflow.v1.ClientConn.certificate_list:type_name -> mitmflow.v1.Cert
+	3,  // 9: mitmflow.v1.ClientConn.tls_version:type_name -> mitmflow.v1.TLSVersion
+	34, // 10: mitmflow.v1.ClientConn.timestamp_start:type_name -> google.protobuf.Timestamp
+	34, // 11: mitmflow.v1.ClientConn.timestamp_end:type_name -> google.protobuf.Timestamp
+	34, // 12: mitmflow.v1.ClientConn.timestamp_tls_setup:type_name -> google.protobuf.Timestamp
+	5,  // 13: mitmflow.v1.ClientConn.mitmcert:type_name -> mitmflow.v1.Cert
+	1,  // 14: mitmflow.v1.ServerConn.state:type_name -> mitmflow.v1.ConnectionState
+	2,  // 15: mitmflow.v1.ServerConn.transport_protocol:type_name -> mitmflow.v1.TransportProtocol
+	5,  // 16: mitmflow.v1.ServerConn.certificate_list:type_name -> mitmflow.v1.Cert
+	3,  // 17: mitmflow.v1.ServerConn.tls_version:type_name -> mitmflow.v1.TLSVersion
+	34, // 18: mitmflow.v1.ServerConn.timestamp_start:type_name -> google.protobuf.Timestamp
+	34, // 19: mitmflow.v1.ServerConn.timestamp_end:type_name -> google.protobuf.Timestamp
+	34, // 20: mitmflow.v1.ServerConn.timestamp_tls_setup:type_name -> google.protobuf.Timestamp
+	34, // 21: mitmflow.v1.ServerConn.timestamp_tcp_setup:type_name -> google.protobuf.Timestamp
+	6,  // 22: mitmflow.v1.ServerConn.via:type_name -> mitmflow.v1.Via
+	13, // 23: mitmflow.v1.ExportFlowRequest.flow:type_name -> mitmflow.v1.Flow
+	0,  // 24: mitmflow.v1.ExportFlowRequest.event_type:type_name -> mitmflow.v1.EventType
+	13, // 25: mitmflow.v1.StreamFlowsResponse.flow:type_name -> mitmflow.v1.Flow
+	24, // 26: mitmflow.v1.Flow.http_flow:type_name -> mitmflow.v1.HTTPFlow
+	22, // 27: mitmflow.v1.Flow.dns_flow:type_name -> mitmflow.v1.DNSFlow
+	15, // 28: mitmflow.v1.Flow.tcp_flow:type_name -> mitmflow.v1.TCPFlow
+	17, // 29: mitmflow.v1.Flow.udp_flow:type_name -> mitmflow.v1.UDPFlow
+	34, // 30: mitmflow.v1.TCPMessage.timestamp:type_name -> google.protobuf.Timestamp
+	7,  // 31: mitmflow.v1.TCPFlow.client:type_name -> mitmflow.v1.ClientConn
+	8,  // 32: mitmflow.v1.TCPFlow.server:type_name -> mitmflow.v1.ServerConn
+	14, // 33: mitmflow.v1.TCPFlow.messages:type_name -> mitmflow.v1.TCPMessage
+	34, // 34: mitmflow.v1.TCPFlow.timestamp_start:type_name -> google.protobuf.Timestamp
+	34, // 35: mitmflow.v1.UDPMessage.timestamp:type_name -> google.protobuf.Timestamp
+	7,  // 36: mitmflow.v1.UDPFlow.client:type_name -> mitmflow.v1.ClientConn
+	8,  // 37: mitmflow.v1.UDPFlow.server:type_name -> mitmflow.v1.ServerConn
+	16, // 38: mitmflow.v1.UDPFlow.messages:type_name -> mitmflow.v1.UDPMessage
+	34, // 39: mitmflow.v1.UDPFlow.timestamp_start:type_name -> google.protobuf.Timestamp
+	34, // 40: mitmflow.v1.WebSocketMessage.timestamp:type_name -> google.protobuf.Timestamp
+	19, // 41: mitmflow.v1.DNSMessage.questions:type_name -> mitmflow.v1.DNSQuestion
+	20, // 42: mitmflow.v1.DNSMessage.answers:type_name -> mitmflow.v1.DNSResourceRecord
+	20, // 43: mitmflow.v1.DNSMessage.authorities:type_name -> mitmflow.v1.DNSResourceRecord
+	20, // 44: mitmflow.v1.DNSMessage.additionals:type_name -> mitmflow.v1.DNSResourceRecord
+	21, // 45: mitmflow.v1.DNSFlow.request:type_name -> mitmflow.v1.DNSMessage
+	21, // 46: mitmflow.v1.DNSFlow.response:type_name -> mitmflow.v1.DNSMessage
+	34, // 47: mitmflow.v1.DNSFlow.timestamp_start:type_name -> google.protobuf.Timestamp
+	7,  // 48: mitmflow.v1.DNSFlow.client:type_name -> mitmflow.v1.ClientConn
+	8,  // 49: mitmflow.v1.DNSFlow.server:type_name -> mitmflow.v1.ServerConn
+	25, // 50: mitmflow.v1.HTTPFlow.request:type_name -> mitmflow.v1.Request
+	26, // 51: mitmflow.v1.HTTPFlow.response:type_name -> mitmflow.v1.Response
+	34, // 52: mitmflow.v1.HTTPFlow.timestamp_start:type_name -> google.protobuf.Timestamp
+	7,  // 53: mitmflow.v1.HTTPFlow.client:type_name -> mitmflow.v1.ClientConn
+	8,  // 54: mitmflow.v1.HTTPFlow.server:type_name -> mitmflow.v1.ServerConn
+	18, // 55: mitmflow.v1.HTTPFlow.websocket_messages:type_name -> mitmflow.v1.WebSocketMessage
+	30, // 56: mitmflow.v1.Request.headers:type_name -> mitmflow.v1.Request.HeadersEntry
+	31, // 57: mitmflow.v1.Request.trailers:type_name -> mitmflow.v1.Request.TrailersEntry
+	34, // 58: mitmflow.v1.Request.timestamp_start:type_name -> google.protobuf.Timestamp
+	34, // 59: mitmflow.v1.Request.timestamp_end:type_name -> google.protobuf.Timestamp
+	32, // 60: mitmflow.v1.Response.headers:type_name -> mitmflow.v1.Response.HeadersEntry
+	33, // 61: mitmflow.v1.Response.trailers:type_name -> mitmflow.v1.Response.TrailersEntry
+	34, // 62: mitmflow.v1.Response.timestamp_start:type_name -> google.protobuf.Timestamp
+	34, // 63: mitmflow.v1.Response.timestamp_end:type_name -> google.protobuf.Timestamp
+	9,  // 64: mitmflow.v1.Service.ExportFlow:input_type -> mitmflow.v1.ExportFlowRequest
+	11, // 65: mitmflow.v1.Service.StreamFlows:input_type -> mitmflow.v1.StreamFlowsRequest
+	10, // 66: mitmflow.v1.Service.ExportFlow:output_type -> mitmflow.v1.ExportFlowResponse
+	12, // 67: mitmflow.v1.Service.StreamFlows:output_type -> mitmflow.v1.StreamFlowsResponse
+	66, // [66:68] is the sub-list for method output_type
+	64, // [64:66] is the sub-list for method input_type
+	64, // [64:64] is the sub-list for extension type_name
+	64, // [64:64] is the sub-list for extension extendee
+	0,  // [0:64] is the sub-list for field type_name
 }
 
 func init() { file_mitmflow_v1_mitmflow_proto_init() }
@@ -2863,6 +3000,7 @@ func file_mitmflow_v1_mitmflow_proto_init() {
 	if File_mitmflow_v1_mitmflow_proto != nil {
 		return
 	}
+	file_mitmflow_v1_mitmflow_proto_msgTypes[0].OneofWrappers = []any{}
 	file_mitmflow_v1_mitmflow_proto_msgTypes[2].OneofWrappers = []any{}
 	file_mitmflow_v1_mitmflow_proto_msgTypes[3].OneofWrappers = []any{}
 	file_mitmflow_v1_mitmflow_proto_msgTypes[8].OneofWrappers = []any{
@@ -2880,7 +3018,7 @@ func file_mitmflow_v1_mitmflow_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_mitmflow_v1_mitmflow_proto_rawDesc), len(file_mitmflow_v1_mitmflow_proto_rawDesc)),
 			NumEnums:      5,
-			NumMessages:   26,
+			NumMessages:   29,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

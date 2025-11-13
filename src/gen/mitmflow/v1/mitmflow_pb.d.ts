@@ -16,12 +16,74 @@ export declare const file_mitmflow_v1_mitmflow: GenFile;
  */
 export declare type Cert = Message<"mitmflow.v1.Cert"> & {
   /**
-   * Simplified for now, just storing the full certificate content as bytes.
-   * In a real scenario, this might be a more structured message.
-   *
    * @generated from field: bytes content = 1;
    */
   content: Uint8Array;
+
+  /**
+   * @generated from field: bytes fingerprint = 2;
+   */
+  fingerprint: Uint8Array;
+
+  /**
+   * @generated from field: map<string, string> issuers = 3;
+   */
+  issuers: { [key: string]: string };
+
+  /**
+   * @generated from field: google.protobuf.Timestamp notbefore = 4;
+   */
+  notbefore?: Timestamp;
+
+  /**
+   * @generated from field: google.protobuf.Timestamp notafter = 5;
+   */
+  notafter?: Timestamp;
+
+  /**
+   * @generated from field: bool hasexpired = 6;
+   */
+  hasexpired: boolean;
+
+  /**
+   * @generated from field: map<string, string> subjects = 7;
+   */
+  subjects: { [key: string]: string };
+
+  /**
+   * @generated from field: string serial = 8;
+   */
+  serial: string;
+
+  /**
+   * @generated from field: bool is_ca = 9;
+   */
+  isCa: boolean;
+
+  /**
+   * @generated from field: map<string, int64> keyinfo = 10;
+   */
+  keyinfo: { [key: string]: bigint };
+
+  /**
+   * @generated from field: optional string cn = 11;
+   */
+  cn?: string;
+
+  /**
+   * @generated from field: optional string organization = 12;
+   */
+  organization?: string;
+
+  /**
+   * @generated from field: repeated string altnames = 13;
+   */
+  altnames: string[];
+
+  /**
+   * @generated from field: repeated string crl_distribution_points = 14;
+   */
+  crlDistributionPoints: string[];
 };
 
 /**

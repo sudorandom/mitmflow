@@ -33,6 +33,9 @@ def _to_grpc_client_conn(conn: mitmproxy.connection.Client) -> mitmflow_pb2.Clie
     if conn.error:
         c.error = str(conn.error)
     c.tls = conn.tls_established
+    if conn.certificate_list:
+        for cert in conn.certificate_list:
+            c.certificate_list.append(_to_grpc_cert(cert))
     if conn.alpn:
         c.alpn = conn.alpn
     if conn.alpn_offers:
@@ -69,7 +72,6 @@ def _to_grpc_client_conn(conn: mitmproxy.connection.Client) -> mitmflow_pb2.Clie
         c.timestamp_end.FromDatetime(datetime.fromtimestamp(conn.timestamp_end))
     if conn.timestamp_tls_setup:
         c.timestamp_tls_setup.FromDatetime(datetime.fromtimestamp(conn.timestamp_tls_setup))
-    # mitmcert - mitmproxy doesn't expose this directly
     c.proxy_mode = str(conn.proxy_mode) if conn.proxy_mode else ""
     return c
 
@@ -97,6 +99,45 @@ def _to_grpc_via(via: tuple) -> mitmflow_pb2.Via:
     v.port = via[1][1]
     return v
 
+def _to_grpc_cert(cert: mitmproxy.tls.Certificate) -> Cert:
+    c = Cert()
+    c.content = cert.to_pem()
+    c.fingerprint = cert.fingerprint()
+    for k, v in cert.issuer:
+        c.issuers[k] = v
+    c.notbefore.FromDatetime(cert.notbefore)
+    c.notafter.FromDatetime(cert.notafter)
+    c.hasexpired = cert.has_expired()
+    for k, v in cert.subject:
+        c.subjects[k] = v
+    c.serial = str(cert.serial)
+    c.is_ca = cert.is_ca
+    if cert.keyinfo:
+        k, v = cert.keyinfo
+        if isinstance(v, int):
+            c.keyinfo[k] = v
+    if cert.cn:
+        c.cn = cert.cn
+    if cert.organization:
+        c.organization = cert.organization
+    if cert.altnames:
+        altnames = []
+        for x in cert.altnames:
+            if isinstance(x, bytes):
+                altnames.append(x.decode('utf-8', 'replace'))
+            else:
+                altnames.append(str(x))
+        c.altnames.extend(altnames)
+    if cert.crl_distribution_points:
+        crls = []
+        for x in cert.crl_distribution_points:
+            if isinstance(x, bytes):
+                crls.append(x.decode('utf-8', 'replace'))
+            else:
+                crls.append(str(x))
+        c.crl_distribution_points.extend(crls)
+    return c
+
 def _to_grpc_server_conn(conn: mitmproxy.connection.Server) -> mitmflow_pb2.ServerConn:
     s = mitmflow_pb2.ServerConn()
     if conn.peername:
@@ -121,7 +162,9 @@ def _to_grpc_server_conn(conn: mitmproxy.connection.Server) -> mitmflow_pb2.Serv
     if conn.error:
         s.error = str(conn.error)
     s.tls = conn.tls_established
-    # certificate_list - TODO
+    if conn.certificate_list:
+        for cert in conn.certificate_list:
+            s.certificate_list.append(_to_grpc_cert(cert))
     if conn.alpn:
         s.alpn = conn.alpn
     if conn.alpn_offers:

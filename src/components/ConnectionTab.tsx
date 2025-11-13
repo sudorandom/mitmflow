@@ -8,6 +8,7 @@ import {
 } from "../gen/mitmflow/v1/mitmflow_pb";
 import { getTimestamp } from '../utils';
 import { TimingRow } from './TimingRow';
+import { CertificateDetails } from "./CertificateDetails";
 
 interface ConnectionTabProps {
     client?: ClientConn;
@@ -35,6 +36,7 @@ export const ConnectionTab: React.FC<ConnectionTabProps> = ({ client, server }) 
                     <div className="text-zinc-500">TLS Cipher List:</div> <div>{client?.cipherList.join(', ') || 'N/A'}</div>
                     <div className="text-zinc-500">TLS Version:</div> <div>{client?.tlsVersion ? TLSVersion[client.tlsVersion] : 'N/A'}</div>
                 </div>
+                {client?.certificateList.map((cert, i) => <CertificateDetails key={i} cert={cert} />)}
             </div>
             <div className="bg-zinc-800 p-4 rounded">
                 <h5 className="font-semibold text-zinc-400 mb-3 border-b border-zinc-700 pb-2">Server</h5>
@@ -51,6 +53,7 @@ export const ConnectionTab: React.FC<ConnectionTabProps> = ({ client, server }) 
                     <div className="text-zinc-500">TLS Cipher List:</div> <div>{server?.cipherList.join(', ') || 'N/A'}</div>
                     <div className="text-zinc-500">TLS Version:</div> <div>{server?.tlsVersion ? TLSVersion[server.tlsVersion] : 'N/A'}</div>
                 </div>
+                {server?.certificateList.map((cert, i) => <CertificateDetails key={i} cert={cert} />)}
             </div>
             <div className="bg-zinc-800 p-4 rounded">
                 <h5 className="font-semibold text-zinc-400 mb-3 border-b border-zinc-700 pb-2">Timing</h5>

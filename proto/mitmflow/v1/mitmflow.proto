@@ -91,19 +91,19 @@ enum ViaProtocol {
 
 message Cert {
   bytes content = 1;
-  //  def fingerprint(self) -> bytes:
-  //   issuer: list[tuple[str, str]]
-  //   notbefore: datetime.datetime
-  //   notafter: datetime.datetime
-  //   def has_expired(self) -> bool:
-  //   subject: list[tuple[str, str]]
-  //   serial: int
-  //   is_ca: bool
-  //   keyinfo: tuple[str, int]
-  //   cn: str | None
-  //   organization: str | None
-  //   altnames: cryptography.x509.extensions.GeneralNames
-  //   crl_distribution_points: list[str]
+  bytes fingerprint = 2;
+  map<string, string> issuers = 3;
+  google.protobuf.Timestamp notbefore = 4;
+  google.protobuf.Timestamp notafter = 5;
+  bool hasexpired = 6;
+  map<string, string> subjects = 7;
+  string serial = 8;
+  bool is_ca = 9;
+  map<string, int64> keyinfo = 10;
+  optional string cn = 11;
+  optional string organization = 12;
+  repeated string altnames = 13;
+  repeated string crl_distribution_points = 14;
 }
 
 message Via {
