@@ -2,6 +2,14 @@
 @tailwind components;
 @tailwind utilities;
 
+.ag-theme-alpine-dark .ag-row-selected {
+    background-color: #3f3f46 !important; /* zinc-700 */
+}
+
+.ag-theme-alpine-dark .ag-row-focused {
+    background-color: #52525b !important; /* zinc-600 */
+}
+
 :root {
   font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
   line-height: 1.5;

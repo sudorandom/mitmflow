@@ -9,12 +9,13 @@ import { DurationCellRenderer, InTransferCellRenderer, OutTransferCellRenderer, 
 
 interface FlowTableProps {
     flows: Flow[];
+    focusedFlowId: string | null;
     onSelectionChanged: (selectedFlows: Flow[]) => void;
     onRowClicked: (flow: Flow, event: React.MouseEvent) => void;
 }
 
 const FlowTable = forwardRef<AgGridReact, FlowTableProps>(
-    function FlowTable({ flows, onSelectionChanged, onRowClicked }, ref) {
+    function FlowTable({ flows, focusedFlowId, onSelectionChanged, onRowClicked }, ref) {
         const columnDefs: ColDef<Flow>[] = [
             { headerName: "", width: 50, headerCheckboxSelection: true, checkboxSelection: true },
             {
@@ -119,6 +120,10 @@ const FlowTable = forwardRef<AgGridReact, FlowTableProps>(
             },
         ];
 
+        const rowClassRules = {
+            'ag-row-focused': (params: any) => params.data && getFlowId(params.data) === focusedFlowId,
+        };
+
         return (
             <div className="ag-theme-alpine-dark" style={{ height: '100%', width: '100%' }}>
                 <AgGridReact
@@ -131,6 +136,7 @@ const FlowTable = forwardRef<AgGridReact, FlowTableProps>(
                     onRowClicked={(e: RowClickedEvent) => onRowClicked(e.data, e.event as unknown as React.MouseEvent)}
                     getRowId={(params: GetRowIdParams<Flow>) => getFlowId(params.data) ?? ''}
                     headerHeight={25}
+                    rowClassRules={rowClassRules}
                 />
             </div>
         );
