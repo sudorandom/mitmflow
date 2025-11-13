@@ -1,5 +1,6 @@
 import React, { forwardRef } from 'react';
-import { AgGridReact, RowClickedEvent } from 'ag-grid-react';
+import { AgGridReact } from 'ag-grid-react';
+import { ColDef, GetRowIdParams, RowClickedEvent, ValueGetterParams } from 'ag-grid-community';
 import 'ag-grid-community/styles/ag-grid.css';
 import 'ag-grid-community/styles/ag-theme-alpine.css';
 import { Flow } from '../gen/mitmflow/v1/mitmflow_pb';
@@ -14,11 +15,10 @@ interface FlowTableProps {
 
 const FlowTable = forwardRef<AgGridReact, FlowTableProps>(
     function FlowTable({ flows, onSelectionChanged, onRowClicked }, ref) {
-        const columnDefs = [
+        const columnDefs: ColDef<Flow>[] = [
             { headerName: "", width: 50, headerCheckboxSelection: true, checkboxSelection: true },
             {
                 headerName: "Timestamp",
-                field: "timestamp",
                 width: 120,
                 cellRenderer: TimestampCellRenderer,
                 headerClass: 'text-center',
@@ -30,16 +30,16 @@ const FlowTable = forwardRef<AgGridReact, FlowTableProps>(
                     const msB = tsB ? getTimestamp(tsB) : 0;
                     return msA - msB;
                 },
-                valueGetter: (params) => params.data,
+                valueGetter: (params: ValueGetterParams<Flow>) => params.data,
                 sortable: true,
             },
             {
                 headerName: "Status",
-                field: "status",
                 width: 100,
                 cellRenderer: StatusCellRenderer,
-                valueGetter: (params) => {
-                    const flow = params.data as Flow;
+                valueGetter: (params: ValueGetterParams<Flow>) => {
+                    const flow = params.data;
+                    if (!flow) return null;
                     if (flow.flow?.case === 'httpFlow') {
                         return flow.flow.value.response?.statusCode;
                     }
@@ -49,12 +49,11 @@ const FlowTable = forwardRef<AgGridReact, FlowTableProps>(
             },
             {
                 headerName: "Request",
-                field: "request",
                 flex: 1,
                 cellRenderer: RequestCellRenderer,
-                valueGetter: (params) => {
-                    const flow = params.data as Flow;
-                    if (!flow.flow) return '';
+                valueGetter: (params: ValueGetterParams<Flow>) => {
+                    const flow = params.data;
+                    if (!flow || !flow.flow) return '';
                     switch (flow.flow.case) {
                         case 'httpFlow':
                             const httpFlow = flow.flow.value;
@@ -78,11 +77,11 @@ const FlowTable = forwardRef<AgGridReact, FlowTableProps>(
             },
             {
                 headerName: "In",
-                field: "inTransfer",
                 width: 100,
                 cellRenderer: InTransferCellRenderer,
-                valueGetter: (params) => {
-                    const flow = params.data as Flow;
+                valueGetter: (params: ValueGetterParams<Flow>) => {
+                    const flow = params.data;
+                    if (!flow) return null;
                     if (flow.flow?.case === 'httpFlow') {
                         return flow.flow.value.response?.content?.length;
                     }
@@ -92,11 +91,11 @@ const FlowTable = forwardRef<AgGridReact, FlowTableProps>(
             },
             {
                 headerName: "Out",
-                field: "outTransfer",
                 width: 100,
                 cellRenderer: OutTransferCellRenderer,
-                valueGetter: (params) => {
-                    const flow = params.data as Flow;
+                valueGetter: (params: ValueGetterParams<Flow>) => {
+                    const flow = params.data;
+                    if (!flow) return null;
                     if (flow.flow?.case === 'httpFlow') {
                         return flow.flow.value.request?.content?.length;
                     }
@@ -106,11 +105,11 @@ const FlowTable = forwardRef<AgGridReact, FlowTableProps>(
             },
             {
                 headerName: "Duration",
-                field: "duration",
                 width: 150,
                 cellRenderer: DurationCellRenderer,
-                valueGetter: (params) => {
-                    const flow = params.data as Flow;
+                valueGetter: (params: ValueGetterParams<Flow>) => {
+                    const flow = params.data;
+                    if (!flow) return null;
                     if (flow.flow?.case === 'httpFlow') {
                         return flow.flow.value.durationMs;
                     }
@@ -130,7 +129,7 @@ const FlowTable = forwardRef<AgGridReact, FlowTableProps>(
                     suppressRowClickSelection={true}
                     onSelectionChanged={(event) => onSelectionChanged(event.api.getSelectedRows())}
                     onRowClicked={(e: RowClickedEvent) => onRowClicked(e.data, e.event as unknown as React.MouseEvent)}
-                    getRowId={(params) => getFlowId(params.data)}
+                    getRowId={(params: GetRowIdParams<Flow>) => getFlowId(params.data) ?? ''}
                     headerHeight={25}
                 />
             </div>
