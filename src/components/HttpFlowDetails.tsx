@@ -157,6 +157,31 @@ export const HttpFlowDetails: React.FC<{
         return params.size > 0 ? params : null;
     }, [httpFlow?.request]);
 
+    const dnsQueryParam = useMemo(() => {
+        return queryParams?.get('dns');
+    }, [queryParams]);
+
+    const requestBodyContent = useMemo(() => {
+        if (dnsQueryParam) {
+            try {
+                // It's base64url encoded.
+                const regularBase64 = dnsQueryParam.replace(/-/g, '+').replace(/_/g, '/');
+                const binaryString = atob(regularBase64);
+                const len = binaryString.length;
+                const bytes = new Uint8Array(len);
+                for (let i = 0; i < len; i++) {
+                    bytes[i] = binaryString.charCodeAt(i);
+                }
+                // Override format to 'dns' and content type
+                return formatContent(bytes, 'dns', 'application/dns-message');
+            } catch (e) {
+                console.error('Failed to parse dns query param:', e);
+                return formatContent(`Failed to parse dns query param: ${e}`, 'text', 'text/plain');
+            }
+        }
+        return formatContent(httpFlow.request?.content, requestFormat, getContentType(httpFlow.request?.headers), httpFlow.request?.effectiveContentType);
+    }, [httpFlow.request, requestFormat, dnsQueryParam]);
+
     if (!httpFlow) {
         return null;
     }
@@ -285,7 +310,7 @@ export const HttpFlowDetails: React.FC<{
                     <RequestResponseView
                         title="Request"
                         fullContent={requestAsText}
-                        bodyContent={formatContent(httpFlow.request?.content, requestFormat, getContentType(httpFlow.request?.headers), httpFlow.request?.effectiveContentType)}
+                        bodyContent={requestBodyContent}
                         format={requestFormat}
                         setFormat={setRequestFormat}
                         headers={httpFlow.request?.headers}

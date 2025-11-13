@@ -1,6 +1,6 @@
-import { Flow, HTTPFlow, DNSFlow, TCPFlow, UDPFlow } from "./gen/mitmflow/v1/mitmflow_pb";
+import { Flow } from "./gen/mitmflow/v1/mitmflow_pb";
 import { Message } from "@dnspect/dns-ts";
-import { Timestamp } from "@bufbuild/protobuf";
+import { Timestamp } from "@bufbuild/protobuf/wkt";
 
 export type ContentFormat = 'auto' | 'text' | 'json' | 'protobuf' | 'grpc' | 'grpc-web' | 'xml' | 'binary' | 'image' | 'dns' | 'javascript' | 'html';
 

@@ -123,7 +123,13 @@ def _to_grpc_cert(cert: mitmproxy.tls.Certificate) -> Cert:
     if cert.altnames:
         altnames = []
         for x in cert.altnames:
-            if isinstance(x, bytes):
+            if hasattr(x, 'value'):
+                value = x.value
+                if isinstance(value, bytes):
+                    altnames.append(value.decode('utf-8', 'replace'))
+                else:
+                    altnames.append(str(value))
+            elif isinstance(x, bytes):
                 altnames.append(x.decode('utf-8', 'replace'))
             else:
                 altnames.append(str(x))
