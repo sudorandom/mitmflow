@@ -103,7 +103,6 @@ const App: React.FC = () => {
   const [isPanelMinimized, setIsPanelMinimized] = useState(false);
   const [selectedFlowId, setSelectedFlowId] = useState<string | null>(null);
   const [selectedFlowIds, setSelectedFlowIds] = useState<Set<string>>(new Set()); // New state for multi-select
-  const [isDragging, setIsDragging] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isBulkDownloadOpen, setIsBulkDownloadOpen] = useState(false); // New state for bulk download menu
   const [detailsPanelHeight, setDetailsPanelHeight] = useState<number | null>(null);
@@ -180,9 +179,7 @@ const App: React.FC = () => {
     URL.revokeObjectURL(url);
   }, []);
 
-  const handleMouseUp = useCallback(() => {
-    setIsDragging(false);
-  }, []);
+
 
   // --- Data Fetching ---
   useEffect(() => {
@@ -269,12 +266,7 @@ const App: React.FC = () => {
   }, [isPaused, maxFlows, maxBodySize]);
 
 
-  useEffect(() => {
-    window.addEventListener('mouseup', handleMouseUp);
-    return () => {
-      window.removeEventListener('mouseup', handleMouseUp);
-    };
-  }, [handleMouseUp]);
+
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -492,9 +484,6 @@ const App: React.FC = () => {
   };
 
   const handleFlowMouseDown = useCallback((flow: Flow, event?: React.MouseEvent) => {
-    if (event) { // Only set isDragging if it's a mouse event
-      setIsDragging(true);
-    }
     const newSelectedFlowIds = new Set(selectedFlowIds);
     const currentFlowId = getFlowId(flow);
 
@@ -521,18 +510,16 @@ const App: React.FC = () => {
             }
         }
       }
+      setSelectedFlowIds(newSelectedFlowIds);
     } else if (event?.metaKey || event?.ctrlKey) {
       if (newSelectedFlowIds.has(currentFlowId)) {
         newSelectedFlowIds.delete(currentFlowId);
       } else {
         newSelectedFlowIds.add(currentFlowId);
       }
-    } else {
-      newSelectedFlowIds.clear();
-      newSelectedFlowIds.add(currentFlowId);
+      setSelectedFlowIds(newSelectedFlowIds);
     }
 
-    setSelectedFlowIds(newSelectedFlowIds);
     setSelectedFlow(flow);
     setSelectedFlowId(currentFlowId);
     lastSelectedFlowId.current = currentFlowId;
