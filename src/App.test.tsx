@@ -163,3 +163,81 @@ test('adds flows to the list', async () => {
     const flowCell = await screen.findByRole('gridcell', { name: /http:\/\/example.com/i });
     expect(flowCell).toBeInTheDocument();
 });
+
+test('clicking a row focuses but does not select it, while ctrl-click selects', async () => {
+    const mockFlow1 = {
+        flow: {
+            flow: {
+                case: 'httpFlow',
+                value: {
+                    id: '1',
+                    request: { url: 'http://example.com/1', method: 'GET', httpVersion: 'HTTP/1.1', headers: {}, content: new Uint8Array() },
+                    response: { statusCode: 200, httpVersion: 'HTTP/1.1', headers: {}, content: new Uint8Array() },
+                },
+            },
+        },
+    };
+    const mockFlow2 = {
+        flow: {
+            flow: {
+                case: 'httpFlow',
+                value: {
+                    id: '2',
+                    request: { url: 'http://example.com/2', method: 'GET', httpVersion: 'HTTP/1.1', headers: {}, content: new Uint8Array() },
+                    response: { statusCode: 200, httpVersion: 'HTTP/1.1', headers: {}, content: new Uint8Array() },
+                },
+            },
+        },
+    };
+
+    mockedCreateClient.mockReturnValue({
+        streamFlows: async function* () {
+            yield mockFlow1;
+            yield mockFlow2;
+            await new Promise(() => { });
+        },
+        exportFlow: async function () {
+            return Promise.resolve({ received: true, message: "ok", flowsProcessed: 0n });
+        }
+    } as unknown as ReturnType<typeof createClient>);
+
+    render(<App />);
+
+    const row1 = await screen.findByText(/http:\/\/example.com\/1/i);
+    const row2 = await screen.findByText(/http:\/\/example.com\/2/i);
+
+    const tr1 = row1.closest('tr');
+    const tr2 = row2.closest('tr');
+
+    expect(tr1).toBeInTheDocument();
+    expect(tr2).toBeInTheDocument();
+
+    const checkbox1 = tr1!.querySelector('input[type="checkbox"]') as HTMLInputElement;
+    const checkbox2 = tr2!.querySelector('input[type="checkbox"]') as HTMLInputElement;
+
+    expect(checkbox1).toBeInTheDocument();
+    expect(checkbox2).toBeInTheDocument();
+
+    // 1. Simple click on first row
+    fireEvent.click(tr1!);
+
+    // Row 1 should be focused (details panel shown), but not selected
+    expect(await screen.findByText('Request')).toBeInTheDocument();
+    expect(checkbox1.checked).toBe(false);
+    expect(checkbox2.checked).toBe(false);
+
+    // 2. Ctrl-click on first row
+    fireEvent.click(tr1!, { ctrlKey: true });
+
+    // Row 1 should be selected
+    expect(checkbox1.checked).toBe(true);
+    expect(checkbox2.checked).toBe(false);
+
+    // 3. Simple click on second row
+    fireEvent.click(tr2!);
+
+    // Row 2 should be focused, and selection should be cleared
+    expect(await screen.findByText('Request')).toBeInTheDocument(); // Details panel should update
+    expect(checkbox1.checked).toBe(false);
+    expect(checkbox2.checked).toBe(false);
+});

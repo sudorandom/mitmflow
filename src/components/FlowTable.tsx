@@ -199,8 +199,9 @@ const FlowTable = forwardRef<AgGridReact, FlowTableProps>(
                             const flowId = getFlowId(flow);
                             const isFocused = flowId && focusedFlowId === flowId;
                             const isSelected = flowId && selectedFlowIds.has(flowId);
-                            // Alternating row color: even rows darker
-                            const baseRow = idx % 2 === 0 ? 'bg-zinc-900' : 'bg-zinc-800';
+                            // Alternating row color: even rows darker.
+                            // By reversing the index, we make sure that new rows at the top don't change the color of existing rows.
+                            const baseRow = (flows.length - 1 - idx) % 2 === 0 ? 'bg-zinc-900' : 'bg-zinc-800';
                             // Focused row: orange border (all sides), remove default border-b
                             const rowClass = isFocused
                                 ? `cursor-pointer border-2 border-orange-500 ${baseRow} bg-orange-950 ${isSelected ? 'bg-zinc-700' : ''}`
@@ -214,11 +215,14 @@ const FlowTable = forwardRef<AgGridReact, FlowTableProps>(
                                     role="row"
                                     className={rowClass}
                                     onClick={e => {
+                                        if ((e.target as HTMLElement).closest('.checkbox-cell')) {
+                                            return;
+                                        }
                                         onRowSelected(flow, { event: e as React.MouseEvent });
                                     }}
                                 >
                                     {/* Checkbox cell */}
-                                    <td className="text-center px-2 py-1">
+                                    <td className="text-center px-2 py-1 checkbox-cell">
                                         <input
                                             type="checkbox"
                                             checked={!!isSelected}

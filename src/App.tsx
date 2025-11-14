@@ -119,6 +119,7 @@ const App: React.FC = () => {
   });
   const contentRef = useRef<HTMLDivElement>(null);
   const mainTableRef = useRef<HTMLDivElement>(null); // Ref for the main table scrolling area
+  const detailsPanelRef = useRef<HTMLDivElement>(null);
   const lastSelectedFlowId = useRef<string | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   const bulkDownloadRef = useRef<HTMLDivElement>(null); // New ref for bulk download menu
@@ -521,9 +522,6 @@ const App: React.FC = () => {
           newSelectedFlowIds.add(currentFlowId);
         }
         setSelectedFlowIds(newSelectedFlowIds);
-      } else {
-        // Simple click, select only this row
-        setSelectedFlowIds(new Set([currentFlowId]));
       }
     }
   }, [filteredFlows, selectedFlowIds]);
