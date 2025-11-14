@@ -8,33 +8,49 @@ stubs:
         "dns_flow": {
           "id": fake_uuid(),
           "request": {
+            "id": fake_int8(),
             "questions": [
               {
-                "name": "example.com",
+                "name": fake_domain_name(),
                 "type": "A",
                 "class": "IN"
               }
-            ]
+            ],
+            "query": true,
+            "op_code": 0,
           },
           "response": {
+            "id": fake_int8(),
+            "authoritative_answer": true,
             "answers": [
               {
-                "name": "example.com",
+                "name": fake_domain_name(),
                 "type": "A",
                 "class": "IN",
                 "ttl": 3600,
-                "data": base64.encode(b'\x01\x02\x03\x04')
+                "data": fake_i_pv4_address()
               }
             ]
           },
           "timestamp_start": fake_date(),
           "duration_ms": fake_float32(),
           "client": {
-            "peername_host": fake_i_pv4_address()
+            "peername_host": fake_i_pv4_address(),
+            "peername_port": fake_int8(),
+            "sockname_host": fake_i_pv4_address(),
+            "sockname_port": 53,
+            "id": fake_uuid()
           },
           "server": {
-            "address_host": fake_i_pv4_address()
-          }
+            "peername_host": fake_i_pv4_address(),
+            "peername_port": 53,
+            "sockname_host": fake_i_pv4_address(),
+            "sockname_port": fake_int8(),
+            "id": fake_uuid(),
+            "address_host": fake_i_pv4_address(),
+            "address_port": 53
+          },
+          "live": false
         }
       }
     }
@@ -46,23 +62,37 @@ stubs:
         "dns_flow": {
           "id": fake_uuid(),
           "request": {
+            "id": fake_int8(),
             "questions": [
               {
-                "name": "example.com",
+                "name": fake_domain_name(),
                 "type": "A",
                 "class": "IN"
               }
-            ]
+            ],
+            "query": true,
+            "op_code": 0,
           },
           "error": "DNS resolution failed",
           "timestamp_start": fake_date(),
           "duration_ms": fake_float32(),
           "client": {
-            "peername_host": fake_i_pv4_address()
+            "peername_host": fake_i_pv4_address(),
+            "peername_port": fake_int8(),
+            "sockname_host": fake_i_pv4_address(),
+            "sockname_port": 53,
+            "id": fake_uuid()
           },
           "server": {
-            "address_host": fake_i_pv4_address()
-          }
+            "peername_host": fake_i_pv4_address(),
+            "peername_port": 53,
+            "sockname_host": fake_i_pv4_address(),
+            "sockname_port": fake_int8(),
+            "id": fake_uuid(),
+            "address_host": fake_i_pv4_address(),
+            "address_port": 53
+          },
+          "live": false
         }
       }
     }
