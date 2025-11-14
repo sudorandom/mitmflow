@@ -1,6 +1,6 @@
 import React, { forwardRef } from 'react';
 import { AgGridReact } from 'ag-grid-react';
-import { ColDef, GetRowIdParams, RowClickedEvent, ValueGetterParams } from 'ag-grid-community';
+import { ColDef, ValueGetterParams } from 'ag-grid-community';
 import 'ag-grid-community/styles/ag-grid.css';
 import 'ag-grid-community/styles/ag-theme-alpine.css';
 import { Flow } from '../gen/mitmflow/v1/mitmflow_pb';
@@ -9,12 +9,15 @@ import { DurationCellRenderer, InTransferCellRenderer, OutTransferCellRenderer, 
 
 interface FlowTableProps {
     flows: Flow[];
-    onSelectionChanged: (selectedFlows: Flow[]) => void;
+    focusedFlowId: string | null;
+    selectedFlowIds: Set<string>;
     onRowClicked: (flow: Flow, event: React.MouseEvent) => void;
+    onFocusRow: (flowId: string) => void;
+    onToggleRowSelection: (flowId: string) => void;
 }
 
 const FlowTable = forwardRef<AgGridReact, FlowTableProps>(
-    function FlowTable({ flows, onSelectionChanged, onRowClicked }, ref) {
+    function FlowTable({ flows, focusedFlowId, selectedFlowIds, onRowClicked, onFocusRow, onToggleRowSelection }, _ref) {
         const columnDefs: ColDef<Flow>[] = [
             { headerName: "", width: 50, headerCheckboxSelection: true, checkboxSelection: true },
             {
@@ -119,19 +122,127 @@ const FlowTable = forwardRef<AgGridReact, FlowTableProps>(
             },
         ];
 
+        // Custom row rendering to support focus/selection visuals and keyboard events
+        // Keyboard navigation for flows table only when focused
+        const handleTableKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+            // Don't navigate if user is typing in the filter input
+            if ((e.target as HTMLElement).id === 'filter-input') return;
+
+            if ((e.metaKey || e.ctrlKey) && e.key === 'a') {
+                e.preventDefault();
+                // Select all
+                // Assume flows is the filtered list
+                onToggleRowSelection('ALL');
+                return;
+            }
+
+            if (e.key !== 'ArrowUp' && e.key !== 'ArrowDown' && e.key !== 'PageUp' && e.key !== 'PageDown') {
+                if (focusedFlowId && (e.key === 'Enter' || e.key === ' ')) {
+                    e.preventDefault();
+                    onToggleRowSelection(focusedFlowId);
+                }
+                return;
+            }
+
+            e.preventDefault();
+            if (!flows.length) return;
+            let currentIndex = -1;
+            if (focusedFlowId) {
+                currentIndex = flows.findIndex(f => getFlowId(f) === focusedFlowId);
+            }
+            let nextIndex = -1;
+            if (e.key === 'ArrowDown') {
+                nextIndex = Math.min(currentIndex + 1, flows.length - 1);
+                if (currentIndex === -1) nextIndex = 0;
+            } else if (e.key === 'ArrowUp') {
+                nextIndex = Math.max(currentIndex - 1, 0);
+                if (currentIndex === -1) nextIndex = 0;
+            } else if (e.key === 'PageDown') {
+                nextIndex = Math.min(currentIndex + 10, flows.length - 1);
+                if (currentIndex === -1) nextIndex = 0;
+            } else if (e.key === 'PageUp') {
+                nextIndex = Math.max(currentIndex - 10, 0);
+                if (currentIndex === -1) nextIndex = 0;
+            }
+            if (nextIndex !== currentIndex && nextIndex > -1) {
+                const nextFlow = flows[nextIndex];
+                if (nextFlow) {
+                    onFocusRow(getFlowId(nextFlow)!);
+                    // Scroll into view
+                    const nextFlowId = getFlowId(nextFlow);
+                    const rowElement = nextFlowId ? document.querySelector(`[data-flow-id="${nextFlowId}"]`) : null;
+                    (rowElement as HTMLElement | null)?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                }
+            }
+        };
         return (
-            <div className="ag-theme-alpine-dark" style={{ height: '100%', width: '100%' }}>
-                <AgGridReact
-                    ref={ref}
-                    rowData={flows}
-                    columnDefs={columnDefs}
-                    rowSelection="multiple"
-                    suppressRowClickSelection={true}
-                    onSelectionChanged={(event) => onSelectionChanged(event.api.getSelectedRows())}
-                    onRowClicked={(e: RowClickedEvent) => onRowClicked(e.data, e.event as unknown as React.MouseEvent)}
-                    getRowId={(params: GetRowIdParams<Flow>) => getFlowId(params.data) ?? ''}
-                    headerHeight={25}
-                />
+            <div
+                className="ag-theme-alpine-dark flex flex-col min-h-0 w-full overflow-auto"
+                tabIndex={0}
+                role="grid"
+                aria-activedescendant={focusedFlowId ? `flow-row-${focusedFlowId}` : undefined}
+                onKeyDown={handleTableKeyDown}
+            >
+                <table className="w-full text-sm flex-shrink-0">
+                    <thead>
+                        <tr>
+                            {columnDefs.map((col, i) => (
+                                <th key={i} className={col.headerClass as string || ''} style={{ width: col.width, textAlign: 'left' }}>{col.headerName}</th>
+                            ))}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {flows.map((flow, idx) => {
+                            const flowId = getFlowId(flow);
+                            const isFocused = flowId && focusedFlowId === flowId;
+                            const isSelected = flowId && selectedFlowIds.has(flowId);
+                            // Alternating row color: even rows darker
+                            const baseRow = idx % 2 === 0 ? 'bg-zinc-900' : 'bg-zinc-800';
+                            // Focused row: orange border (all sides), remove default border-b
+                            const rowClass = isFocused
+                                ? `cursor-pointer border-2 border-orange-500 ${baseRow} bg-orange-950 ${isSelected ? 'bg-zinc-700' : ''}`
+                                : `cursor-pointer border-b border-zinc-700 ${baseRow} ${isSelected ? 'bg-zinc-700' : ''}`;
+                            return (
+                                <tr
+                                    key={flowId}
+                                    id={flowId ? `flow-row-${flowId}` : undefined}
+                                    data-flow-id={flowId}
+                                    tabIndex={-1}
+                                    role="row"
+                                    className={rowClass}
+                                    onClick={e => {
+                                        onFocusRow(flowId!);
+                                        onRowClicked(flow, e as React.MouseEvent);
+                                    }}
+                                    onFocus={() => flowId && onFocusRow(flowId)}
+                                >
+                                    {/* Checkbox cell */}
+                                    <td className="text-center px-2 py-1">
+                                        <input
+                                            type="checkbox"
+                                            checked={!!isSelected}
+                                            onChange={() => flowId && onToggleRowSelection(flowId)}
+                                            tabIndex={-1}
+                                            aria-label="Select row"
+                                        />
+                                    </td>
+                                    {/* Render other columns */}
+                                    {columnDefs.slice(1).map((col, i) => (
+                                        <td key={i} className={`${col.cellClass || ''} px-2 py-1`}>
+                                            {col.cellRenderer
+                                                ? (typeof col.cellRenderer === 'function'
+                                                    ? (col.cellRenderer as any)({ data: flow })
+                                                    : null)
+                                                : (typeof col.valueGetter === 'function'
+                                                    ? col.valueGetter({ data: flow } as ValueGetterParams<Flow>)
+                                                    : null)}
+                                        </td>
+                                    ))}
+                                </tr>
+                            );
+                        })}
+                    </tbody>
+                </table>
             </div>
         );
     });

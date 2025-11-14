@@ -301,6 +301,9 @@ const App: React.FC = () => {
     (http.contentTypes.length > 0 ? 1 : 0) +
     (http.statusCodes.length > 0 ? 1 : 0);
 
+  // --- Types ---
+  type FlowType = 'http' | 'dns' | 'tcp' | 'udp';
+
   // --- Derived State (Filtering) ---
   const filteredFlows = useMemo(() => {
     const filter = filterText.toLowerCase();
@@ -478,10 +481,7 @@ const App: React.FC = () => {
     });
   }, []);
 
-  const handleSelectionChanged = (selectedFlows: Flow[]) => {
-    const newSelectedFlowIds = new Set(selectedFlows.map(getFlowId).filter((id): id is string => !!id));
-    setSelectedFlowIds(newSelectedFlowIds);
-  };
+
 
   const handleFlowMouseDown = useCallback((flow: Flow, event?: React.MouseEvent) => {
     const newSelectedFlowIds = new Set(selectedFlowIds);
@@ -532,83 +532,7 @@ const App: React.FC = () => {
     setDetailsPanelHeight(null); // Reset height when panel is closed
   }, []); // Memoize with useCallback
 
-  // --- Keyboard Navigation Effect ---
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      // Don't navigate if user is typing in the filter input
-      if (e.target === document.getElementById('filter-input')) {
-        return;
-      }
 
-      // If focus is on something outside the flow list (and not the body), do nothing.
-      if (document.activeElement && document.activeElement !== document.body) {
-        if (mainTableRef.current && !mainTableRef.current.contains(document.activeElement)) {
-          return;
-        }
-      }
-
-      if ((e.metaKey || e.ctrlKey) && e.key === 'a') {
-        e.preventDefault();
-        const allFlowIds = new Set(filteredFlows.map(f => getFlowId(f)).filter((id): id is string => id !== undefined));
-        setSelectedFlowIds(allFlowIds);
-        return;
-      }
-
-      if (e.key !== 'ArrowUp' && e.key !== 'ArrowDown' && e.key !== 'PageUp' && e.key !== 'PageDown') {
-        return;
-      }
-      
-      e.preventDefault(); // Prevent page scrolling
-
-      if (filteredFlows.length === 0) {
-        return;
-      }
-
-      let currentIndex = -1;
-      if (selectedFlowId) {
-        currentIndex = filteredFlows.findIndex(f => {
-          const flowId = getFlowId(f);
-          return flowId && flowId === selectedFlowId;
-        });
-      }
-
-      let nextIndex = -1;
-      if (e.key === 'ArrowDown') {
-        nextIndex = Math.min(currentIndex + 1, filteredFlows.length - 1);
-        if (currentIndex === -1) nextIndex = 0; // Start from top if nothing is selected
-      } else if (e.key === 'ArrowUp') { // ArrowUp
-        nextIndex = Math.max(currentIndex - 1, 0);
-        if (currentIndex === -1) nextIndex = 0; // Start from top if nothing is selected
-      } else if (e.key === 'PageDown') {
-        nextIndex = Math.min(currentIndex + 10, filteredFlows.length - 1);
-        if (currentIndex === -1) nextIndex = 0; // Start from top if nothing is selected
-      } else if (e.key === 'PageUp') {
-        nextIndex = Math.max(currentIndex - 10, 0);
-        if (currentIndex === -1) nextIndex = 0; // Start from top if nothing is selected
-      }
-      
-      if (nextIndex !== currentIndex && nextIndex > -1) {
-        const nextFlow = filteredFlows[nextIndex];
-        if (nextFlow) {
-          // This will update selection and open/update the details panel
-          handleFlowMouseDown(nextFlow);
-          
-          // Scroll the item into view
-          const nextFlowId = getFlowId(nextFlow);
-          const rowElement = nextFlowId ? mainTableRef.current?.querySelector(`[data-flow-id="${nextFlowId}"]`) : null;
-          rowElement?.scrollIntoView({
-            behavior: 'smooth',
-            block: 'nearest',
-          });
-        }
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-    return () => {
-      window.removeEventListener('keydown', handleKeyDown);
-    };
-  }, [filteredFlows, selectedFlowId, handleFlowMouseDown]); // Add dependencies
 
   // --- Close panel on Escape key ---
   useEffect(() => {
@@ -817,14 +741,31 @@ const App: React.FC = () => {
         setMaxBodySize={setMaxBodySize}
       />
 
-      {/* --- Flow Table --- */}
-      <main className="flex-grow" ref={mainTableRef}> {/* Add ref */}
-        <FlowTable
+
+      {/* --- Main Content: Table + Details --- */}
+      <div className="flex flex-col flex-grow min-h-0">
+        <div className="flex-grow min-h-0 overflow-auto" ref={mainTableRef}>
+          <FlowTable
             flows={filteredFlows}
-            onSelectionChanged={handleSelectionChanged}
+            focusedFlowId={selectedFlowId}
+            selectedFlowIds={selectedFlowIds}
             onRowClicked={handleFlowMouseDown}
-        />
-      </main>
+            onFocusRow={flowId => setSelectedFlowId(flowId)}
+            onToggleRowSelection={flowId => {
+              setSelectedFlowIds(prev => {
+                const newSet = new Set(prev);
+                if (newSet.has(flowId)) {
+                  newSet.delete(flowId);
+                } else {
+                  newSet.add(flowId);
+                }
+                return newSet;
+              });
+            }}
+          />
+        </div>
+        {/* DetailsPanel remains below, not pushed out */}
+      </div>
 
       {isFlowsTruncated && (
         <footer className="p-2 text-center text-xs text-zinc-500 border-t border-zinc-700">

@@ -24,6 +24,7 @@ export const DetailsPanel: React.FC<DetailsPanelProps> = ({
   children,
   downloadFlowContent,
 }) => {
+  const panelRef = useRef<HTMLDivElement>(null);
   const [isResizing, setIsResizing] = useState(false);
   const [isDownloadOpen, setDownloadOpen] = useState(false);
   const downloadRef = useRef<HTMLDivElement>(null);
@@ -72,6 +73,18 @@ export const DetailsPanel: React.FC<DetailsPanelProps> = ({
   }, [downloadRef]);
 
 
+
+  // Only close on Escape if panel is focused
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && panelRef.current && document.activeElement && panelRef.current.contains(document.activeElement)) {
+        onClose();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [onClose]);
+
   if (!flow) {
     return null;
   }
@@ -80,6 +93,8 @@ export const DetailsPanel: React.FC<DetailsPanelProps> = ({
 
   return (
     <div
+      ref={panelRef}
+      tabIndex={-1}
       className={`relative bg-zinc-900 border-t border-zinc-700 flex flex-col flex-shrink-0 transition-all duration-200 ease-out ${
         isMinimized ? 'h-0' : ''
       }`}

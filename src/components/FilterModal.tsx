@@ -72,13 +72,30 @@ const FilterModal: React.FC<FilterModalProps> = ({ isOpen, onClose }) => {
     setHttpMethods(newMethods);
   };
 
+
+  const modalRef = React.useRef<HTMLDivElement>(null);
+
+  // Only close on Escape if modal is open and focused
+  React.useEffect(() => {
+    if (!isOpen) return;
+    setTimeout(() => { modalRef.current?.focus(); }, 0);
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        e.stopImmediatePropagation();
+        onClose();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown, true); // capture phase
+    return () => window.removeEventListener('keydown', handleKeyDown, true);
+  }, [isOpen, onClose]);
+
   if (!isOpen) {
     return null;
   }
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center">
-      <div className="bg-zinc-800 rounded-lg shadow-xl p-6 w-full max-w-2xl text-white">
+      <div ref={modalRef} tabIndex={0} className="bg-zinc-800 rounded-lg shadow-xl p-6 w-full max-w-2xl text-white">
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-2xl font-semibold">Advanced Filters</h2>
           <button onClick={onClose} className="text-zinc-400 hover:text-white">
