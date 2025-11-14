@@ -17,7 +17,7 @@ interface FlowTableProps {
 }
 
 const FlowTable = forwardRef<AgGridReact, FlowTableProps>(
-    function FlowTable({ flows, focusedFlowId, selectedFlowIds, onRowClicked, onFocusRow, onToggleRowSelection }, _ref) {
+    function FlowTable({ flows, focusedFlowId, selectedFlowIds, onRowClicked, onFocusRow, onToggleRowSelection }, ref) {
         const columnDefs: ColDef<Flow>[] = [
             { headerName: "", width: 50, headerCheckboxSelection: true, checkboxSelection: true },
             {
@@ -182,6 +182,7 @@ const FlowTable = forwardRef<AgGridReact, FlowTableProps>(
                 role="grid"
                 aria-activedescendant={focusedFlowId ? `flow-row-${focusedFlowId}` : undefined}
                 onKeyDown={handleTableKeyDown}
+                ref={ref as React.RefObject<HTMLDivElement>}
             >
                 <table className="w-full text-sm flex-shrink-0">
                     <thead>
@@ -227,17 +228,22 @@ const FlowTable = forwardRef<AgGridReact, FlowTableProps>(
                                         />
                                     </td>
                                     {/* Render other columns */}
-                                    {columnDefs.slice(1).map((col, i) => (
-                                        <td key={i} className={`${col.cellClass || ''} px-2 py-1`}>
-                                            {col.cellRenderer
-                                                ? (typeof col.cellRenderer === 'function'
-                                                    ? (col.cellRenderer as any)({ data: flow })
-                                                    : null)
-                                                : (typeof col.valueGetter === 'function'
-                                                    ? col.valueGetter({ data: flow } as ValueGetterParams<Flow>)
-                                                    : null)}
-                                        </td>
-                                    ))}
+                                    {columnDefs.slice(1).map((col, i) => {
+                                        const content: React.ReactNode = col.cellRenderer && typeof col.cellRenderer === 'function'
+                                            ? (col.cellRenderer as (params: { data: Flow }) => React.ReactNode)({ data: flow })
+                                            : (typeof col.valueGetter === 'function'
+                                                ? col.valueGetter({ data: flow } as ValueGetterParams<Flow>)
+                                                : null);
+                                        return (
+                                            <td
+                                                key={i}
+                                                className={`${col.cellClass || ''} px-2 py-1`}
+                                                role="gridcell"
+                                            >
+                                                {content}
+                                            </td>
+                                        );
+                                    })}
                                 </tr>
                             );
                         })}

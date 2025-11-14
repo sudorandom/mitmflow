@@ -534,20 +534,7 @@ const App: React.FC = () => {
 
 
 
-  // --- Close panel on Escape key ---
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        handleClosePanel();
-      }
-    };
 
-    window.addEventListener('keydown', handleKeyDown);
-
-    return () => {
-      window.removeEventListener('keydown', handleKeyDown);
-    };
-  }, [handleClosePanel]);
 
   return (
     <div className="bg-zinc-900 text-zinc-300 font-sans h-screen flex flex-col">

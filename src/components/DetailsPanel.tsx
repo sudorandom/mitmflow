@@ -74,7 +74,7 @@ export const DetailsPanel: React.FC<DetailsPanelProps> = ({
 
 
 
-  // Only close on Escape if panel is focused
+  // Only close on Escape if panel is focused; do not block other keys
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape' && panelRef.current && document.activeElement && panelRef.current.contains(document.activeElement)) {
@@ -94,7 +94,15 @@ export const DetailsPanel: React.FC<DetailsPanelProps> = ({
   return (
     <div
       ref={panelRef}
-      tabIndex={-1}
+      // Make panel focusable so PageUp/PageDown/Arrow keys scroll naturally instead of being captured by FlowTable.
+      // Using tabIndex=0 allows click-to-focus and keyboard tab navigation; Escape handling already checks focus containment.
+      tabIndex={0}
+      role="region"
+      aria-label="Flow Details"
+      onMouseDown={() => {
+        // Ensure focus moves to panel when user clicks anywhere inside so key events apply to scrolling.
+        panelRef.current?.focus();
+      }}
       className={`relative bg-zinc-900 border-t border-zinc-700 flex flex-col flex-shrink-0 transition-all duration-200 ease-out ${
         isMinimized ? 'h-0' : ''
       }`}
@@ -216,7 +224,10 @@ export const DetailsPanel: React.FC<DetailsPanelProps> = ({
           </button>
         </div>
       </div>
-      {children}
+      {/* Scrollable content area: flex-1 ensures it grows and overflow-auto allows keyboard paging once focused */}
+      <div className="flex-1 min-h-0 overflow-auto">
+        {children}
+      </div>
     </div>
   );
 };
