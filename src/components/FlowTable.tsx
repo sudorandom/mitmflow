@@ -11,13 +11,12 @@ interface FlowTableProps {
     flows: Flow[];
     focusedFlowId: string | null;
     selectedFlowIds: Set<string>;
-    onRowClicked: (flow: Flow, event: React.MouseEvent) => void;
-    onFocusRow: (flowId: string) => void;
+    onRowSelected: (flow: Flow, options: { event?: React.MouseEvent | React.KeyboardEvent }) => void;
     onToggleRowSelection: (flowId: string) => void;
 }
 
 const FlowTable = forwardRef<AgGridReact, FlowTableProps>(
-    function FlowTable({ flows, focusedFlowId, selectedFlowIds, onRowClicked, onFocusRow, onToggleRowSelection }, ref) {
+    function FlowTable({ flows, focusedFlowId, selectedFlowIds, onRowSelected, onToggleRowSelection }, ref) {
         const columnDefs: ColDef<Flow>[] = [
             { headerName: "", width: 50, headerCheckboxSelection: true, checkboxSelection: true },
             {
@@ -122,35 +121,38 @@ const FlowTable = forwardRef<AgGridReact, FlowTableProps>(
             },
         ];
 
-        // Custom row rendering to support focus/selection visuals and keyboard events
-        // Keyboard navigation for flows table only when focused
         const handleTableKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
-            // Don't navigate if user is typing in the filter input
             if ((e.target as HTMLElement).id === 'filter-input') return;
 
-            if ((e.metaKey || e.ctrlKey) && e.key === 'a') {
+            const isNavigationKey = ['ArrowUp', 'ArrowDown', 'PageUp', 'PageDown'].includes(e.key);
+            const isSelectionKey = ['Enter', ' '].includes(e.key);
+            const isSelectAllKey = (e.metaKey || e.ctrlKey) && e.key === 'a';
+
+            if (isSelectAllKey) {
                 e.preventDefault();
-                // Select all
-                // Assume flows is the filtered list
                 onToggleRowSelection('ALL');
                 return;
             }
 
-            if (e.key !== 'ArrowUp' && e.key !== 'ArrowDown' && e.key !== 'PageUp' && e.key !== 'PageDown') {
-                if (focusedFlowId && (e.key === 'Enter' || e.key === ' ')) {
-                    e.preventDefault();
-                    onToggleRowSelection(focusedFlowId);
-                }
+            if (isSelectionKey && focusedFlowId) {
+                e.preventDefault();
+                onToggleRowSelection(focusedFlowId);
                 return;
             }
 
+            if (!isNavigationKey) {
+                return;
+            }
             e.preventDefault();
+
             if (!flows.length) return;
+
             let currentIndex = -1;
             if (focusedFlowId) {
                 currentIndex = flows.findIndex(f => getFlowId(f) === focusedFlowId);
             }
             let nextIndex = -1;
+
             if (e.key === 'ArrowDown') {
                 nextIndex = Math.min(currentIndex + 1, flows.length - 1);
                 if (currentIndex === -1) nextIndex = 0;
@@ -164,14 +166,14 @@ const FlowTable = forwardRef<AgGridReact, FlowTableProps>(
                 nextIndex = Math.max(currentIndex - 10, 0);
                 if (currentIndex === -1) nextIndex = 0;
             }
+
             if (nextIndex !== currentIndex && nextIndex > -1) {
                 const nextFlow = flows[nextIndex];
                 if (nextFlow) {
-                    onFocusRow(getFlowId(nextFlow)!);
-                    // Scroll into view
+                    onRowSelected(nextFlow, { event: e });
                     const nextFlowId = getFlowId(nextFlow);
                     const rowElement = nextFlowId ? document.querySelector(`[data-flow-id="${nextFlowId}"]`) : null;
-                    (rowElement as HTMLElement | null)?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                    rowElement?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
                 }
             }
         };
@@ -212,10 +214,8 @@ const FlowTable = forwardRef<AgGridReact, FlowTableProps>(
                                     role="row"
                                     className={rowClass}
                                     onClick={e => {
-                                        onFocusRow(flowId!);
-                                        onRowClicked(flow, e as React.MouseEvent);
+                                        onRowSelected(flow, { event: e as React.MouseEvent });
                                     }}
-                                    onFocus={() => flowId && onFocusRow(flowId)}
                                 >
                                     {/* Checkbox cell */}
                                     <td className="text-center px-2 py-1">

@@ -179,8 +179,8 @@ export const HttpFlowDetails: React.FC<{
                 return formatContent(`Failed to parse dns query param: ${e}`, 'text', 'text/plain');
             }
         }
-        return formatContent(httpFlow.request?.content, requestFormat, getContentType(httpFlow.request?.headers), httpFlow.request?.effectiveContentType);
-    }, [httpFlow.request, requestFormat, dnsQueryParam]);
+        return formatContent(httpFlow?.request?.content, requestFormat, getContentType(httpFlow?.request?.headers), httpFlow?.request?.effectiveContentType);
+    }, [httpFlow?.request, requestFormat, dnsQueryParam]);
 
     if (!httpFlow) {
         return null;

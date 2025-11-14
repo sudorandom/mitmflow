@@ -15,7 +15,9 @@ interface DetailsPanelProps {
   downloadFlowContent: (flow: Flow, type: 'har' | 'flow-json' | 'request' | 'response') => void;
 }
 
-export const DetailsPanel: React.FC<DetailsPanelProps> = ({
+import { forwardRef } from 'react';
+
+export const DetailsPanel = forwardRef<HTMLDivElement, DetailsPanelProps>(({
   flow,
   isMinimized,
   onClose,
@@ -23,8 +25,7 @@ export const DetailsPanel: React.FC<DetailsPanelProps> = ({
   setPanelHeight,
   children,
   downloadFlowContent,
-}) => {
-  const panelRef = useRef<HTMLDivElement>(null);
+}, ref) => {
   const [isResizing, setIsResizing] = useState(false);
   const [isDownloadOpen, setDownloadOpen] = useState(false);
   const downloadRef = useRef<HTMLDivElement>(null);
@@ -77,13 +78,14 @@ export const DetailsPanel: React.FC<DetailsPanelProps> = ({
   // Only close on Escape if panel is focused; do not block other keys
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && panelRef.current && document.activeElement && panelRef.current.contains(document.activeElement)) {
+      const panelElement = (ref as React.RefObject<HTMLDivElement>)?.current;
+      if (e.key === 'Escape' && panelElement && document.activeElement && panelElement.contains(document.activeElement)) {
         onClose();
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [onClose]);
+  }, [onClose, ref]);
 
   if (!flow) {
     return null;
@@ -93,7 +95,7 @@ export const DetailsPanel: React.FC<DetailsPanelProps> = ({
 
   return (
     <div
-      ref={panelRef}
+      ref={ref}
       // Make panel focusable so PageUp/PageDown/Arrow keys scroll naturally instead of being captured by FlowTable.
       // Using tabIndex=0 allows click-to-focus and keyboard tab navigation; Escape handling already checks focus containment.
       tabIndex={0}
@@ -101,7 +103,7 @@ export const DetailsPanel: React.FC<DetailsPanelProps> = ({
       aria-label="Flow Details"
       onMouseDown={() => {
         // Ensure focus moves to panel when user clicks anywhere inside so key events apply to scrolling.
-        panelRef.current?.focus();
+        (ref as React.RefObject<HTMLDivElement>)?.current?.focus();
       }}
       className={`relative bg-zinc-900 border-t border-zinc-700 flex flex-col flex-shrink-0 transition-all duration-200 ease-out ${
         isMinimized ? 'h-0' : ''
@@ -230,4 +232,4 @@ export const DetailsPanel: React.FC<DetailsPanelProps> = ({
       </div>
     </div>
   );
-};
+});

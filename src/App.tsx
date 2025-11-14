@@ -122,6 +122,7 @@ const App: React.FC = () => {
   const lastSelectedFlowId = useRef<string | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   const bulkDownloadRef = useRef<HTMLDivElement>(null); // New ref for bulk download menu
+  const detailsPanelRef = useRef<HTMLDivElement>(null);
 
   const downloadFlowContent = useCallback((flow: Flow, type: 'har' | 'flow-json' | 'request' | 'response') => {
     const httpFlow = flow.flow.case === 'httpFlow' ? flow.flow.value : null;
@@ -483,47 +484,53 @@ const App: React.FC = () => {
 
 
 
-  const handleFlowMouseDown = useCallback((flow: Flow, event?: React.MouseEvent) => {
-    const newSelectedFlowIds = new Set(selectedFlowIds);
+  const handleFlowSelection = useCallback((flow: Flow, options?: { event?: React.MouseEvent | React.KeyboardEvent }) => {
     const currentFlowId = getFlowId(flow);
-
     if (!currentFlowId) {
-      return; // Should not happen if filteredFlows is correct
+      return;
     }
 
-    if (event?.shiftKey && lastSelectedFlowId.current) {
-      const lastIndex = filteredFlows.findIndex(f => {
-        const fFlowId = getFlowId(f);
-        return fFlowId && fFlowId === lastSelectedFlowId.current;
-      });
-      const currentIndex = filteredFlows.findIndex(f => {
-        const fFlowId = getFlowId(f);
-        return fFlowId && fFlowId === currentFlowId;
-      });
-      const [start, end] = [lastIndex, currentIndex].sort((a, b) => a - b);
-      for (let i = start; i <= end; i++) {
-        const f = filteredFlows[i];
-        if (f) {
-            const fFlowId = getFlowId(f);
-            if (fFlowId) {
-              newSelectedFlowIds.add(fFlowId);
-            }
-        }
-      }
-      setSelectedFlowIds(newSelectedFlowIds);
-    } else if (event?.metaKey || event?.ctrlKey) {
-      if (newSelectedFlowIds.has(currentFlowId)) {
-        newSelectedFlowIds.delete(currentFlowId);
-      } else {
-        newSelectedFlowIds.add(currentFlowId);
-      }
-      setSelectedFlowIds(newSelectedFlowIds);
-    }
-
+    // Update focused and displayed flow
     setSelectedFlow(flow);
     setSelectedFlowId(currentFlowId);
     lastSelectedFlowId.current = currentFlowId;
     setIsPanelMinimized(false);
+
+    if (options?.event && 'key' in options.event) {
+        setTimeout(() => detailsPanelRef.current?.focus(), 0);
+    }
+
+    // Handle multi-selection logic for mouse clicks
+    if (options?.event && 'button' in options.event) { // Check if it's a mouse event
+      const mouseEvent = options.event as React.MouseEvent;
+      const newSelectedFlowIds = new Set(selectedFlowIds);
+
+      if (mouseEvent.shiftKey && lastSelectedFlowId.current) {
+        const lastIndex = filteredFlows.findIndex(f => getFlowId(f) === lastSelectedFlowId.current);
+        const currentIndex = filteredFlows.findIndex(f => getFlowId(f) === currentFlowId);
+        if (lastIndex !== -1 && currentIndex !== -1) {
+          const [start, end] = [lastIndex, currentIndex].sort((a, b) => a - b);
+          for (let i = start; i <= end; i++) {
+            const f = filteredFlows[i];
+            if (f) {
+              const fFlowId = getFlowId(f);
+              if (fFlowId) newSelectedFlowIds.add(fFlowId);
+            }
+          }
+          setSelectedFlowIds(newSelectedFlowIds);
+        }
+      } else if (mouseEvent.metaKey || mouseEvent.ctrlKey) {
+        if (newSelectedFlowIds.has(currentFlowId)) {
+          newSelectedFlowIds.delete(currentFlowId);
+        } else {
+          newSelectedFlowIds.add(currentFlowId);
+        }
+        setSelectedFlowIds(newSelectedFlowIds);
+      } else {
+        // Simple click, select only this row
+        setSelectedFlowIds(new Set([currentFlowId]));
+      }
+    }
   }, [filteredFlows, selectedFlowIds]);
 
   const handleClosePanel = useCallback(() => {
@@ -736,8 +743,7 @@ const App: React.FC = () => {
             flows={filteredFlows}
             focusedFlowId={selectedFlowId}
             selectedFlowIds={selectedFlowIds}
-            onRowClicked={handleFlowMouseDown}
-            onFocusRow={flowId => setSelectedFlowId(flowId)}
+            onRowSelected={handleFlowSelection}
             onToggleRowSelection={flowId => {
               setSelectedFlowIds(prev => {
                 const newSet = new Set(prev);
@@ -762,6 +768,7 @@ const App: React.FC = () => {
 
       {/* --- Details Panel --- */}
       <DetailsPanel
+        ref={detailsPanelRef}
         flow={selectedFlow}
         isMinimized={isPanelMinimized}
         onClose={handleClosePanel}
