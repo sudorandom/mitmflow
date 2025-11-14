@@ -106,7 +106,7 @@ export const RequestResponseView: React.FC<RequestResponseViewProps> = ({ fullCo
                             </a>
                         </div>
                     )}
-                    {(showBodyByDefault || isBodyExpanded) && bodyContent && (
+                    {(showBodyByDefault || isBodyExpanded) && bodyContent && bodySize > 0 && (
                         bodyContent.encoding === 'base64' ? (
                             <img src={`data:${(getContentType(headers) || 'application/octet-stream').split(';')[0]};base64,${bodyContent.data}`} alt="Image content" className="max-w-full h-auto" />
                         ) : bodyContent.encoding === 'binary' ? (
@@ -179,8 +179,8 @@ export const HttpFlowDetails: React.FC<{
                 return formatContent(`Failed to parse dns query param: ${e}`, 'text', 'text/plain');
             }
         }
-        return formatContent(httpFlow.request?.content, requestFormat, getContentType(httpFlow.request?.headers), httpFlow.request?.effectiveContentType);
-    }, [httpFlow.request, requestFormat, dnsQueryParam]);
+        return formatContent(httpFlow?.request?.content, requestFormat, getContentType(httpFlow?.request?.headers), httpFlow?.request?.effectiveContentType);
+    }, [httpFlow?.request, requestFormat, dnsQueryParam]);
 
     if (!httpFlow) {
         return null;
