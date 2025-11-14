@@ -101,9 +101,10 @@ export const DetailsPanel = forwardRef<HTMLDivElement, DetailsPanelProps>(({
       tabIndex={0}
       role="region"
       aria-label="Flow Details"
-      onMouseDown={() => {
+      onMouseDown={(e) => {
         // Ensure focus moves to panel when user clicks anywhere inside so key events apply to scrolling.
-        panelRef.current?.focus();
+        // Use currentTarget to avoid reliance on closure variable if transformed.
+        (e.currentTarget as HTMLDivElement).focus();
       }}
       className={`relative bg-zinc-900 border-t border-zinc-700 flex flex-col flex-shrink-0 transition-all duration-200 ease-out ${
         isMinimized ? 'h-0' : ''

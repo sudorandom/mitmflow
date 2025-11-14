@@ -162,6 +162,18 @@ export const getTimestamp = (ts: TimestampInput): number => {
   return Number(ts.seconds) * 1000 + ts.nanos / 1000000;
 }
 
+// Returns a full human-readable date/time string (local timezone) for a millisecond epoch.
+// Falls back to '...' if timestamp is falsy (0 or undefined) which indicates missing data.
+export const formatDateTime = (ms: number | undefined): string => {
+  if (!ms) return '...';
+  const d = new Date(ms);
+  // Use toLocaleString with explicit options for consistency across environments.
+  return d.toLocaleString(undefined, {
+    year: 'numeric', month: '2-digit', day: '2-digit',
+    hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false
+  });
+};
+
 export const getFlowId = (flow: Flow | undefined | null): string | undefined => {
   if (!flow || !flow.flow) {
     return undefined;

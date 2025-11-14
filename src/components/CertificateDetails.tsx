@@ -1,6 +1,6 @@
 import React from 'react';
 import { Cert } from "../gen/mitmflow/v1/mitmflow_pb";
-import { getTimestamp } from '../utils';
+import { getTimestamp, formatDateTime } from '../utils';
 
 interface CertificateDetailsProps {
     cert: Cert;
@@ -14,8 +14,8 @@ export const CertificateDetails: React.FC<CertificateDetailsProps> = ({ cert }) 
                 <div className="text-zinc-500">Subject CN:</div> <div>{cert.cn}</div>
                 <div className="text-zinc-500">Subject Org:</div> <div>{cert.organization}</div>
                 <div className="text-zinc-500">Issuer:</div> <div>{Object.entries(cert.issuers).map(([k, v]) => `${k}=${v}`).join(', ')}</div>
-                <div className="text-zinc-500">Not Before:</div> <div>{getTimestamp(cert.notbefore)?.toLocaleString()}</div>
-                <div className="text-zinc-500">Not After:</div> <div>{getTimestamp(cert.notafter)?.toLocaleString()}</div>
+                <div className="text-zinc-500">Not Before:</div> <div>{formatDateTime(getTimestamp(cert.notbefore))}</div>
+                <div className="text-zinc-500">Not After:</div> <div>{formatDateTime(getTimestamp(cert.notafter))}</div>
                 <div className="text-zinc-500">Expired:</div> <div>{cert.hasexpired ? 'Yes' : 'No'}</div>
                 <div className="text-zinc-500">Alt Names:</div> <div>{cert.altnames.join(', ')}</div>
                 <div className="text-zinc-500">Serial:</div> <div>{cert.serial}</div>
