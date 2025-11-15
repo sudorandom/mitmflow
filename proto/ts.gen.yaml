@@ -1,0 +1,12 @@
+version: v2
+
+clean: true
+
+inputs:
+ - directory: .
+ - module: buf.build/sudo-random/mitmproxygrpc
+ - module: buf.build/bufbuild/protovalidate
+
+plugins:
+  - remote: buf.build/bufbuild/es:v2.10.0
+    out: ../src/gen

@@ -1,3 +1,6 @@
+generate:
+    cd proto; buf generate --template=go.gen.yaml
+    cd proto; buf generate --template=ts.gen.yaml
 
 gen-images:
     magick stubs/data/test.svg -resize 20x20 stubs/data/test.png

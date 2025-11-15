@@ -2,13 +2,14 @@ import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react'
 import { Search, Pause, Play, Download, Braces, HardDriveDownload, Menu, Filter, X, Settings, Trash } from 'lucide-react';
 import { createConnectTransport } from "@connectrpc/connect-web";
 import { createClient } from "@connectrpc/connect";
-import { Service, Flow, FlowSchema } from "./gen/mitmflow/v1/mitmflow_pb";
+import { Service } from "./gen/mitmflow/v1/mitmflow_pb";
+import { Flow, FlowSchema } from "./gen/mitmproxygrpc/v1/service_pb";
 import { toJson } from "@bufbuild/protobuf";
 import { DnsFlowDetails } from './components/DnsFlowDetails';
 import { HttpFlowDetails } from './components/HttpFlowDetails';
 import { TcpFlowDetails } from './components/TcpFlowDetails';
 import { UdpFlowDetails } from './components/UdpFlowDetails';
-import { ContentFormat, getFlowId, getTimestamp } from './utils';
+import { ContentFormat, getFlowId, getTimestamp, getRequestDetails, getResponseDetails } from './utils';
 import { DetailsPanel } from './components/DetailsPanel';
 import FilterModal from './components/FilterModal';
 import SettingsModal from './components/SettingsModal';
@@ -40,6 +41,8 @@ const generateHarBlob = (flowsToExport: Flow[]): Blob => {
       entries: flowsToExport.flatMap(flow => {
         if (flow?.flow?.case === 'httpFlow') {
           const httpFlow = flow.flow.value;
+          const requestDetails = getRequestDetails(httpFlow.request)
+          const responseDetails = getResponseDetails(httpFlow.response)
           return [{
             startedDateTime: new Date(getTimestamp(httpFlow.timestampStart)).toISOString(),
             time: httpFlow.durationMs,
@@ -52,7 +55,7 @@ const generateHarBlob = (flowsToExport: Flow[]): Blob => {
               headers: httpFlow.request?.headers ? Object.entries(httpFlow.request.headers).map(([name, value]) => ({ name, value })) : [],
               queryString: httpFlow.request?.url ? new URL(httpFlow.request.url).searchParams : new URLSearchParams(),
               cookies: [],
-              postData: getHarContent(httpFlow.request?.content, httpFlow.request?.effectiveContentType)
+              postData: getHarContent(httpFlow.request?.content, requestDetails?.effectiveContentType)
             },
             response: {
               status: httpFlow.response?.statusCode || 0,
@@ -60,7 +63,7 @@ const generateHarBlob = (flowsToExport: Flow[]): Blob => {
               httpVersion: httpFlow.response?.httpVersion || 'HTTP/1.1',
               headers: httpFlow.response?.headers ? Object.entries(httpFlow.response.headers).map(([name, value]) => ({ name, value })) : [],
               cookies: [],
-              content: getHarContent(httpFlow.response?.content, httpFlow.response?.effectiveContentType)
+              content: getHarContent(httpFlow.response?.content, responseDetails?.effectiveContentType)
             },
             serverIPAddress: httpFlow.server?.addressHost || '',
           }];
@@ -357,8 +360,8 @@ const App: React.FC = () => {
         // Special handling for HTTP flows that are actually DNS-over-HTTP
         if (flow.flow.case === 'httpFlow') {
           const httpFlow = flow.flow.value;
-          const reqContentType = httpFlow.request?.effectiveContentType;
-          const resContentType = httpFlow.response?.effectiveContentType;
+          const reqContentType = getRequestDetails(httpFlow.request)?.effectiveContentType;
+          const resContentType = getResponseDetails(httpFlow.response)?.effectiveContentType;
 
           if (reqContentType === 'application/dns-message' || resContentType === 'application/dns-message') {
             currentFlowTypes = ['dns']; // Only consider it DNS, not HTTP
@@ -411,8 +414,8 @@ const App: React.FC = () => {
 
         // HTTP Content Type Filter
         if (http.contentTypes.length > 0) {
-            const reqContentType = httpFlow.request?.effectiveContentType || '';
-            const resContentType = httpFlow.response?.effectiveContentType || '';
+            const reqContentType = getRequestDetails(httpFlow.request)?.effectiveContentType || '';
+            const resContentType = getResponseDetails(httpFlow.response)?.effectiveContentType || '';
             const matches = http.contentTypes.some(ct => reqContentType.includes(ct) || resContentType.includes(ct));
             if (!matches) {
                 return false;

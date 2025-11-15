@@ -1,4 +1,5 @@
 version: v2
 name: buf.build/sudorandom/mitmflow
 deps:
+  - buf.build/sudo-random/mitmproxygrpc
   - buf.build/bufbuild/protovalidate

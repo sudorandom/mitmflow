@@ -1,6 +1,6 @@
 import React from 'react';
 import { ICellRendererParams } from 'ag-grid-community';
-import { Flow } from '../gen/mitmflow/v1/mitmflow_pb';
+import { Flow } from '../gen/mitmproxygrpc/v1/service_pb';
 import FlowIcon from './FlowIcon';
 import { StatusPill } from './StatusPill';
 import { formatBytes, formatDuration, formatTimestamp, getFlowTimestampStart, getTimestamp } from '../utils';

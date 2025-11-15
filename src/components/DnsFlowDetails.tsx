@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Flow } from "../gen/mitmflow/v1/mitmflow_pb";
+import { Flow } from "../gen/mitmproxygrpc/v1/service_pb";
 import { ConnectionTab } from './ConnectionTab';
 
 export const DnsFlowDetails: React.FC<{

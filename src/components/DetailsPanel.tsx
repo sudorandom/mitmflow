@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Download, X, ChevronDown } from 'lucide-react';
-import { Flow } from '../gen/mitmflow/v1/mitmflow_pb';
+import { Flow } from '../gen/mitmproxygrpc/v1/service_pb';
 import { getFlowTitle } from '../utils';
 import FlowIcon from './FlowIcon';
 import { StatusPill } from './StatusPill';

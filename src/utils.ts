@@ -1,6 +1,9 @@
-import { Flow } from "./gen/mitmflow/v1/mitmflow_pb";
+import { Flow, Request, Response } from "./gen/mitmproxygrpc/v1/service_pb";
 import { Message } from "@dnspect/dns-ts";
 import { Timestamp } from "@bufbuild/protobuf/wkt";
+import { getExtension } from "@bufbuild/protobuf";
+import { request_details, response_details } from "./gen/mitmflow/v1/mitmflow_pb";
+
 
 export type ContentFormat = 'auto' | 'text' | 'json' | 'protobuf' | 'grpc' | 'grpc-web' | 'xml' | 'binary' | 'image' | 'dns' | 'javascript' | 'html';
 
@@ -89,8 +92,6 @@ export const formatContent = (content: Uint8Array | string | undefined, format: 
     // Default to text if no content type header
     effectiveFormat = 'text';
   }
-
-  console.log('formatContent - Determined effectiveFormat:', effectiveFormat);
 
   if (!content) {
     // If content is empty, but effectiveFormat is json, return empty string as json
@@ -292,6 +293,20 @@ export const getFlowTitle = (flow: Flow): string => {
         default:
             return '';
     }
+}
+
+export const getRequestDetails = (req: Request | undefined) => {
+  if (!req) {
+    return undefined;
+  }
+  return getExtension(req, request_details);
+}
+
+export const getResponseDetails = (res: Response | undefined) => {
+  if (!res) {
+    return undefined;
+  }
+  return getExtension(res, response_details);
 }
 
 export const formatBytes = (bytes: number | undefined, decimals = 2): string => {

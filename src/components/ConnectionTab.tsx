@@ -1,11 +1,13 @@
 import React from 'react';
 import {
     ClientConn,
-    ConnectionState,
     ServerConn,
+} from "../gen/mitmproxygrpc/v1/service_pb";
+import {
+    ConnectionState,
     TLSVersion,
     TransportProtocol
-} from "../gen/mitmflow/v1/mitmflow_pb";
+} from "../gen/mitmproxygrpc/v1/service_pb";
 import { getTimestamp } from '../utils';
 import { TimingRow } from './TimingRow';
 import { CertificateDetails } from "./CertificateDetails";

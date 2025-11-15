@@ -1,7 +1,7 @@
 import { render, screen } from '@testing-library/react';
 import { describe, it, expect } from 'vitest';
 import { CertificateDetails } from './CertificateDetails';
-import type { Cert } from '../gen/mitmflow/v1/mitmflow_pb';
+import type { Cert } from '../gen/mitmproxygrpc/v1/service_pb';
 import type { Timestamp } from '@bufbuild/protobuf/wkt';
 
 // Minimal Cert shape for test (structural typing)

@@ -12,13 +12,16 @@ import (
 	"sync"
 
 	"connectrpc.com/connect"
+	"github.com/gabriel-vasile/mimetype"
 	"github.com/google/uuid"
 	"github.com/protocolbuffers/protoscope"
 	"github.com/rs/cors"
 	"golang.org/x/net/http2"
 	"golang.org/x/net/http2/h2c"
+	"google.golang.org/protobuf/proto"
 
 	mitmflowv1 "github.com/sudorandom/mitmflow/gen/go/mitmflow/v1"
+	mitmproxygrpcv1 "github.com/sudorandom/mitmflow/gen/go/mitmproxygrpc/v1"
 )
 
 //go:embed all:dist
@@ -29,19 +32,19 @@ var (
 )
 
 type MITMFlowServer struct {
-	subscribers map[string]chan *mitmflowv1.Flow
+	subscribers map[string]chan *mitmproxygrpcv1.Flow
 	mu          sync.RWMutex
 }
 
 func NewMITMFlowServer() *MITMFlowServer {
-	return &MITMFlowServer{subscribers: make(map[string]chan *mitmflowv1.Flow)}
+	return &MITMFlowServer{subscribers: make(map[string]chan *mitmproxygrpcv1.Flow)}
 
 }
 
 func (s *MITMFlowServer) ExportFlow(
 	ctx context.Context,
-	stream *connect.ClientStream[mitmflowv1.ExportFlowRequest],
-) (*connect.Response[mitmflowv1.ExportFlowResponse], error) {
+	stream *connect.ClientStream[mitmproxygrpcv1.ExportFlowRequest],
+) (*connect.Response[mitmproxygrpcv1.ExportFlowResponse], error) {
 	var flowCount uint64
 	for stream.Receive() {
 		flowCount++
@@ -61,12 +64,12 @@ func (s *MITMFlowServer) ExportFlow(
 		return nil, connect.NewError(connect.CodeCanceled, err)
 	}
 	log.Printf("Client disconnected gracefully. Received %d flows in total.", flowCount)
-	res := &connect.Response[mitmflowv1.ExportFlowResponse]{
-		Msg: &mitmflowv1.ExportFlowResponse{
-			Message:        fmt.Sprintf("Received %d flows", flowCount),
-			Received:       true,
-			FlowsProcessed: flowCount,
-		},
+	res := &connect.Response[mitmproxygrpcv1.ExportFlowResponse]{
+		Msg: mitmproxygrpcv1.ExportFlowResponse_builder{
+			Message:        proto.String(fmt.Sprintf("Received %d flows", flowCount)),
+			Received:       proto.Bool(true),
+			FlowsProcessed: proto.Uint64(flowCount),
+		}.Build(),
 	}
 	return res, nil
 }
@@ -76,7 +79,7 @@ func (s *MITMFlowServer) StreamFlows(
 	req *connect.Request[mitmflowv1.StreamFlowsRequest],
 	stream *connect.ServerStream[mitmflowv1.StreamFlowsResponse],
 ) error {
-	ch := make(chan *mitmflowv1.Flow, 50)
+	ch := make(chan *mitmproxygrpcv1.Flow, 50)
 	id := uuid.New().String()
 	s.mu.RLock()
 	s.subscribers[id] = ch
@@ -94,33 +97,38 @@ func (s *MITMFlowServer) StreamFlows(
 		case <-ctx.Done():
 			return nil
 		case flow := <-ch:
-			if err := stream.Send(&mitmflowv1.StreamFlowsResponse{Flow: flow}); err != nil {
+			if err := stream.Send(mitmflowv1.StreamFlowsResponse_builder{Flow: flow}.Build()); err != nil {
 				return err
 			}
 		}
 	}
 }
 
-func (s *MITMFlowServer) preprocessFlow(flow *mitmflowv1.Flow) {
+func (s *MITMFlowServer) preprocessFlow(flow *mitmproxygrpcv1.Flow) {
 	httpFlow := flow.GetHttpFlow()
 	if httpFlow == nil {
 		return
 	}
-	if httpFlow.Request != nil {
-		s.preprocessRequest(httpFlow.Request)
+	if httpFlow.HasRequest() {
+		s.preprocessRequest(httpFlow.GetRequest())
 	}
-	if httpFlow.Response != nil {
-		s.preprocessResponse(httpFlow.Response)
+	if httpFlow.HasResponse() {
+		s.preprocessResponse(httpFlow.GetResponse())
 	}
 }
 
-func (s *MITMFlowServer) preprocessRequest(req *mitmflowv1.Request) {
-	contentType, ok := getContentType(req.Headers)
-	if ok {
-		req.EffectiveContentType = contentType
+func (s *MITMFlowServer) preprocessRequest(req *mitmproxygrpcv1.Request) {
+	details := proto.GetExtension(req, mitmflowv1.E_RequestDetails).(*mitmflowv1.MessageDetails)
+	if details == nil {
+		details = &mitmflowv1.MessageDetails{}
 	}
-	if ct := http.DetectContentType(req.Content); ct != "application/octet-stream" && !strings.HasPrefix(ct, "text/plain") {
-		req.EffectiveContentType = ct
+
+	contentType, ok := getContentType(req.GetHeaders())
+	if ok {
+		details.SetEffectiveContentType(contentType)
+	}
+	if ct := mimetype.Detect(req.GetContent()); ct != nil {
+		details.SetEffectiveContentType(ct.String())
 	}
 
 	switch {
@@ -128,23 +136,24 @@ func (s *MITMFlowServer) preprocessRequest(req *mitmflowv1.Request) {
 		strings.Contains(contentType, "application/protobuf"),
 		strings.Contains(contentType, "application/x-protobuf"):
 		opts := protoscope.WriterOptions{}
-		protoscopeOutput := protoscope.Write(req.Content, opts)
-		req.ContentProtoscopeFrames = []string{protoscopeOutput}
+		protoscopeOutput := protoscope.Write(req.GetContent(), opts)
+		details.SetTextualFrames([]string{protoscopeOutput})
 	case strings.Contains(contentType, "application/grpc-web"):
-		frames, err := parseGrpcWebFrames(req.Content, nil, nil)
+		frames, err := parseGrpcWebFrames(req.GetContent(), nil, nil)
 		if err == nil {
-			req.ContentProtoscopeFrames = frames
+			details.SetTextualFrames(frames)
 		} else {
 			log.Printf("failed to parse grpc-web frames: %v", err)
 		}
 	case strings.Contains(contentType, "application/grpc"):
-		frames, err := parseGrpcFrames(req.Content, nil)
+		frames, err := parseGrpcFrames(req.GetContent(), nil)
 		if err == nil {
-			req.ContentProtoscopeFrames = frames
+			details.SetTextualFrames(frames)
 		} else {
 			log.Printf("failed to parse grpc frames: %v", err)
 		}
 	}
+	proto.SetExtension(req, mitmflowv1.E_RequestDetails, details)
 }
 
 func getContentType(headers map[string]string) (string, bool) {
@@ -156,13 +165,18 @@ func getContentType(headers map[string]string) (string, bool) {
 	return "", false
 }
 
-func (s *MITMFlowServer) preprocessResponse(resp *mitmflowv1.Response) {
-	contentType, ok := getContentType(resp.Headers)
-	if ok {
-		resp.EffectiveContentType = contentType
+func (s *MITMFlowServer) preprocessResponse(resp *mitmproxygrpcv1.Response) {
+	details := proto.GetExtension(resp, mitmflowv1.E_ResponseDetails).(*mitmflowv1.MessageDetails)
+	if details == nil {
+		details = &mitmflowv1.MessageDetails{}
 	}
-	if ct := http.DetectContentType(resp.Content); ct != "application/octet-stream" && !strings.HasPrefix(ct, "text/plain") {
-		resp.EffectiveContentType = ct
+
+	contentType, ok := getContentType(resp.GetHeaders())
+	if ok {
+		details.SetEffectiveContentType(contentType)
+	}
+	if ct := mimetype.Detect(resp.GetContent()); ct != nil {
+		details.SetEffectiveContentType(ct.String())
 	}
 
 	switch {
@@ -170,31 +184,32 @@ func (s *MITMFlowServer) preprocessResponse(resp *mitmflowv1.Response) {
 		strings.Contains(contentType, "application/protobuf"),
 		strings.Contains(contentType, "application/x-protobuf"):
 		opts := protoscope.WriterOptions{}
-		protoscopeOutput := protoscope.Write(resp.Content, opts)
-		resp.ContentProtoscopeFrames = []string{protoscopeOutput}
+		protoscopeOutput := protoscope.Write(resp.GetContent(), opts)
+		details.SetTextualFrames([]string{protoscopeOutput})
 	case strings.Contains(contentType, "application/grpc-web"):
-		frames, err := parseGrpcWebFrames(resp.Content, resp.Headers, resp.Trailers)
+		frames, err := parseGrpcWebFrames(resp.GetContent(), resp.GetHeaders(), resp.GetTrailers())
 		if err == nil {
-			resp.ContentProtoscopeFrames = frames
+			details.SetTextualFrames(frames)
 		} else {
 			log.Printf("failed to parse grpc-web frames: %v", err)
 		}
 	case strings.Contains(contentType, "application/grpc"):
-		frames, err := parseGrpcFrames(resp.Content, resp.Trailers)
+		frames, err := parseGrpcFrames(resp.GetContent(), resp.GetTrailers())
 		if err == nil {
-			resp.ContentProtoscopeFrames = frames
+			details.SetTextualFrames(frames)
 		} else {
 			log.Printf("failed to parse grpc frames: %v", err)
 		}
 	}
+	proto.SetExtension(resp, mitmflowv1.E_ResponseDetails, details)
 }
 
 func main() {
 	flag.Parse()
 	mux := http.NewServeMux()
 	server := NewMITMFlowServer()
-	path, handler := mitmflowv1.NewServiceHandler(server)
-	mux.Handle(path, handler)
+	mux.Handle(mitmflowv1.NewServiceHandler(server))
+	mux.Handle(mitmproxygrpcv1.NewServiceHandler(server))
 
 	log.Printf("Starting server on %s", *addr)
 
