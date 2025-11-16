@@ -2,8 +2,6 @@ import React from 'react';
 import {
     ClientConn,
     ServerConn,
-} from "../gen/mitmproxygrpc/v1/service_pb";
-import {
     ConnectionState,
     TLSVersion,
     TransportProtocol

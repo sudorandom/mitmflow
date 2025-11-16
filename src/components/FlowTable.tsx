@@ -3,7 +3,7 @@ import { AgGridReact } from 'ag-grid-react';
 import { ColDef, ValueGetterParams } from 'ag-grid-community';
 import 'ag-grid-community/styles/ag-grid.css';
 import 'ag-grid-community/styles/ag-theme-alpine.css';
-import { Flow } from '../gen/mitmproxygrpc/v1/service_pb';
+import { Flow } from '../gen/mitmflow/v1/mitmflow_pb';
 import { getFlowId, getFlowTimestampStart, getTimestamp } from '../utils';
 import { DurationCellRenderer, InTransferCellRenderer, OutTransferCellRenderer, RequestCellRenderer, StatusCellRenderer, TimestampCellRenderer } from './cellRenderers';
 

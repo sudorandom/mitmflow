@@ -1,12 +1,12 @@
 import React, { useState, useMemo } from 'react';
-import { Flow, Request, Response } from "../gen/mitmproxygrpc/v1/service_pb";
+import { Request, Response } from "../gen/mitmproxygrpc/v1/service_pb";
+import { Flow, MessageDetails } from "../gen/mitmflow/v1/mitmflow_pb";
 import { Light as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { atomOneDark } from 'react-syntax-highlighter/dist/esm/styles/hljs'; // A simple, light theme
 import HexViewer from '../HexViewer';
 import { ContentFormat, FormattedContent, formatContent, getContentType, getTimestamp, formatSize, formatBytes } from '../utils';
 import { ConnectionTab } from './ConnectionTab';
 import { TimingRow } from './TimingRow';
-import { getRequestDetails, getResponseDetails } from '../utils';
 
 const formatHeaders = (headers: { [key: string]: string }): string => {
     return Object.entries(headers)
@@ -22,24 +22,16 @@ type RequestResponseViewProps = {
     setFormat: (format: ContentFormat) => void;
     headers?: { [key: string]: string }; // To help with auto-selection
     flowPart?: Request | Response;
+    details?: MessageDetails;
 };
 
-export const RequestResponseView: React.FC<RequestResponseViewProps> = ({ fullContent, bodyContent, format, setFormat, headers, flowPart }) => {
+export const RequestResponseView: React.FC<RequestResponseViewProps> = ({ fullContent, bodyContent, format, setFormat, headers, flowPart, details }) => {
     const [isBodyExpanded, setIsBodyExpanded] = useState(false);
     const headerText = useMemo(() => {
         if (!fullContent) return 'No content captured.';
         const parts = fullContent.split('\n\n');
         return parts[0];
     }, [fullContent]);
-
-    const details = useMemo(() => {
-        if (!flowPart) return undefined;
-        if (flowPart.$typeName === 'mitmproxy.v1.Request') {
-            return getRequestDetails(flowPart as Request);
-        } else {
-            return getResponseDetails(flowPart as Response);
-        }
-    }, [flowPart]);
 
     const bodySize = bodyContent?.data ? (typeof bodyContent.data === 'string' ? bodyContent.data.length : bodyContent.data.byteLength) : 0;
     const showBodyByDefault = (bodySize > 0 && bodySize < 10 * 1024) || bodyContent?.effectiveFormat === 'image';
@@ -78,7 +70,7 @@ export const RequestResponseView: React.FC<RequestResponseViewProps> = ({ fullCo
                     </pre>
                 </>
             )}
-            {details?.textualFrames && details.textualFrames.length > 0 && ['protobuf', 'grpc', 'grpc-web'].includes(effectiveFormat) ? (
+            {details?.textualFrames && details.textualFrames.length > 0 && ['protobuf', 'grpc', 'grpc-web', 'dns'].includes(effectiveFormat) ? (
                 // Render protoscope frames if they exist
                 <div>
                     {details.textualFrames.map((frame, index) => (
@@ -87,7 +79,7 @@ export const RequestResponseView: React.FC<RequestResponseViewProps> = ({ fullCo
                                 <h4 className="text-sm font-semibold mb-1">Frame {index + 1}</h4>
                             )}
                             <SyntaxHighlighter
-                                language={'protobuf'}
+                                language={effectiveFormat === 'dns' ? 'json' : 'protobuf'}
                                 style={atomOneDark}
                                 customStyle={{
                                     backgroundColor: '#27272a',
@@ -189,8 +181,7 @@ export const HttpFlowDetails: React.FC<{
                 return formatContent(`Failed to parse dns query param: ${e}`, 'text', 'text/plain');
             }
         }
-        const details = httpFlow?.request ? getRequestDetails(httpFlow.request) : undefined;
-        return formatContent(httpFlow?.request?.content, requestFormat, getContentType(httpFlow?.request?.headers), details?.effectiveContentType);
+        return formatContent(httpFlow?.request?.content, requestFormat, getContentType(httpFlow?.request?.headers), flow.httpFlowExtra?.request?.effectiveContentType);
     }, [httpFlow?.request, requestFormat, dnsQueryParam]);
 
     if (!httpFlow) {
@@ -223,8 +214,6 @@ export const HttpFlowDetails: React.FC<{
     }, [httpFlow?.response]);
 
     const firstRequestByteTimestamp = getTimestamp(httpFlow.request?.timestampStart);
-    const requestDetails = httpFlow.request ? getRequestDetails(httpFlow.request) : undefined;
-    const responseDetails = httpFlow.response ? getResponseDetails(httpFlow.response) : undefined;
 
     return (
         <>
@@ -282,17 +271,17 @@ export const HttpFlowDetails: React.FC<{
                                 </div>
 
                                 <div className="text-zinc-500">Request Content-Type:</div> <div className="break-all">{getContentType(httpFlow.request?.headers) || 'N/A'}</div>
-                                {requestDetails?.effectiveContentType && getContentType(httpFlow.request?.headers) !== requestDetails?.effectiveContentType && (
+                                {flow.httpFlowExtra?.request?.effectiveContentType && getContentType(httpFlow.request?.headers) !== flow.httpFlowExtra?.request?.effectiveContentType && (
                                     <>
                                         <div className="text-zinc-500">Detected Request Content-Type:</div>
-                                        <div className="break-all">{requestDetails?.effectiveContentType}</div>
+                                        <div className="break-all">{flow.httpFlowExtra?.request?.effectiveContentType}</div>
                                     </>
                                 )}
                                 <div className="text-zinc-500">Response Content-Type:</div> <div className="break-all">{getContentType(httpFlow.response?.headers) || 'N/A'}</div>
-                                {responseDetails?.effectiveContentType && getContentType(httpFlow.response?.headers) !== responseDetails?.effectiveContentType && (
+                                {flow.httpFlowExtra?.response?.effectiveContentType && getContentType(httpFlow.response?.headers) !== flow.httpFlowExtra?.response?.effectiveContentType && (
                                     <>
                                         <div className="text-zinc-500">Detected Response Content-Type:</div>
-                                        <div className="break-all">{responseDetails?.effectiveContentType}</div>
+                                        <div className="break-all">{flow.httpFlowExtra?.response?.effectiveContentType}</div>
                                     </>
                                 )}
                             </div>
@@ -328,17 +317,19 @@ export const HttpFlowDetails: React.FC<{
                         setFormat={setRequestFormat}
                         headers={httpFlow.request?.headers}
                         flowPart={httpFlow.request}
+                        details={flow.httpFlowExtra?.request}
                     />
                 )}
                 {selectedTab === 'response' && (
                     <RequestResponseView
                         title="Response"
                         fullContent={responseAsText}
-                        bodyContent={formatContent(httpFlow.response?.content, responseFormat, getContentType(httpFlow.response?.headers), responseDetails?.effectiveContentType)}
+                        bodyContent={formatContent(httpFlow.response?.content, responseFormat, getContentType(httpFlow.response?.headers), flow.httpFlowExtra?.response?.effectiveContentType)}
                         format={responseFormat}
                         setFormat={setResponseFormat}
                         headers={httpFlow.response?.headers}
                         flowPart={httpFlow.response}
+                        details={flow.httpFlowExtra?.response}
                     />
                 )}
                 {selectedTab === 'websocket' && (

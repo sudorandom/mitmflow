@@ -2,10 +2,7 @@ edition = "2023";
 
 package mitmflow.v1;
 
-import "google/protobuf/go_features.proto";
 import "mitmproxygrpc/v1/service.proto";
-
-option features.field_presence = EXPLICIT;
 
 service Service {
   rpc StreamFlows(StreamFlowsRequest) returns (stream StreamFlowsResponse) {}
@@ -14,18 +11,25 @@ service Service {
 message StreamFlowsRequest {}
 
 message StreamFlowsResponse {
-  mitmproxy.v1.Flow flow = 1;
+  Flow flow = 1;
+}
+
+message Flow {
+  oneof flow {
+    mitmproxy.v1.HTTPFlow http_flow = 1;
+    mitmproxy.v1.TCPFlow tcp_flow = 2;
+    mitmproxy.v1.UDPFlow udp_flow = 3;
+    mitmproxy.v1.DNSFlow dns_flow = 4;
+  }
+  HTTPFlowExtra http_flow_extra = 5;
+}
+
+message HTTPFlowExtra {
+  MessageDetails request = 1;
+  MessageDetails response = 2;
 }
 
 message MessageDetails {
   repeated string textual_frames = 1;
   string effective_content_type = 2;
-}
-
-extend mitmproxy.v1.Request {
-  MessageDetails request_details = 2666;
-}
-
-extend mitmproxy.v1.Response {
-  MessageDetails response_details = 2666;
 }

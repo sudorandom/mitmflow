@@ -1,25 +1,11 @@
-import { Flow, Request, Response } from "./gen/mitmproxygrpc/v1/service_pb";
-import { Message } from "@dnspect/dns-ts";
-import { Timestamp } from "@bufbuild/protobuf/wkt";
-import { getExtension } from "@bufbuild/protobuf";
-import { request_details, response_details } from "./gen/mitmflow/v1/mitmflow_pb";
+import { Flow } from "./gen/mitmflow/v1/mitmflow_pb";
 
 
 export type ContentFormat = 'auto' | 'text' | 'json' | 'protobuf' | 'grpc' | 'grpc-web' | 'xml' | 'binary' | 'image' | 'dns' | 'javascript' | 'html';
 
-const parseDnsPacket = (content: Uint8Array): string => {
-    try {
-        const dnsPacket = Message.unpack(content);
-        return JSON.stringify(dnsPacket.toJsonObject(), null, 2);
-    } catch (e) {
-        console.error('Failed to parse DNS packet:', e);
-        return 'Failed to parse DNS packet';
-    }
-}
-
 export const formatTimestamp = (ts: number): string => {
-  const date = new Date(ts);
-  return date.toLocaleTimeString('en-US', {
+  const d = new Date(ts);
+  return d.toLocaleTimeString('en-US', {
     hour12: false,
     hour: '2-digit',
     minute: '2-digit',
@@ -129,7 +115,6 @@ export const formatContent = (content: Uint8Array | string | undefined, format: 
     case 'text':
       return { data: contentAsString, encoding: 'text', effectiveFormat: effectiveFormat };
     case 'dns':
-        return { data: parseDnsPacket(contentAsUint8Array), encoding: 'text', effectiveFormat: 'json' };
     case 'image': {
       let binary = '';
       contentAsUint8Array.forEach((byte) => {
@@ -293,20 +278,6 @@ export const getFlowTitle = (flow: Flow): string => {
         default:
             return '';
     }
-}
-
-export const getRequestDetails = (req: Request | undefined) => {
-  if (!req) {
-    return undefined;
-  }
-  return getExtension(req, request_details);
-}
-
-export const getResponseDetails = (res: Response | undefined) => {
-  if (!res) {
-    return undefined;
-  }
-  return getExtension(res, response_details);
 }
 
 export const formatBytes = (bytes: number | undefined, decimals = 2): string => {

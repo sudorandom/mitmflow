@@ -3,11 +3,13 @@ package main
 import (
 	"context"
 	"embed"
+	"encoding/base64"
 	"flag"
 	"fmt"
 	"io/fs"
 	"log"
 	"net/http"
+	"net/url"
 	"strings"
 	"sync"
 
@@ -32,12 +34,12 @@ var (
 )
 
 type MITMFlowServer struct {
-	subscribers map[string]chan *mitmproxygrpcv1.Flow
+	subscribers map[string]chan *mitmflowv1.Flow
 	mu          sync.RWMutex
 }
 
 func NewMITMFlowServer() *MITMFlowServer {
-	return &MITMFlowServer{subscribers: make(map[string]chan *mitmproxygrpcv1.Flow)}
+	return &MITMFlowServer{subscribers: make(map[string]chan *mitmflowv1.Flow)}
 
 }
 
@@ -49,11 +51,26 @@ func (s *MITMFlowServer) ExportFlow(
 	for stream.Receive() {
 		flowCount++
 		req := stream.Msg()
-		s.preprocessFlow(req.GetFlow())
+		inFlow := req.GetFlow()
+		flow := &mitmflowv1.Flow{}
+		switch inFlow.WhichFlow() {
+		case mitmproxygrpcv1.Flow_HttpFlow_case:
+			flow.SetHttpFlow(inFlow.GetHttpFlow())
+		case mitmproxygrpcv1.Flow_DnsFlow_case:
+			flow.SetDnsFlow(inFlow.GetDnsFlow())
+		case mitmproxygrpcv1.Flow_TcpFlow_case:
+			flow.SetTcpFlow(inFlow.GetTcpFlow())
+		case mitmproxygrpcv1.Flow_UdpFlow_case:
+			flow.SetUdpFlow(inFlow.GetUdpFlow())
+		default:
+			log.Printf("unknown flow type: %T", inFlow.WhichFlow())
+			continue
+		}
+		s.preprocessFlow(flow)
 		s.mu.RLock()
 		for _, ch := range s.subscribers {
 			select {
-			case ch <- req.GetFlow():
+			case ch <- flow:
 			default:
 				// subscriber is not ready, drop the flow
 			}
@@ -79,7 +96,7 @@ func (s *MITMFlowServer) StreamFlows(
 	req *connect.Request[mitmflowv1.StreamFlowsRequest],
 	stream *connect.ServerStream[mitmflowv1.StreamFlowsResponse],
 ) error {
-	ch := make(chan *mitmproxygrpcv1.Flow, 50)
+	ch := make(chan *mitmflowv1.Flow, 50)
 	id := uuid.New().String()
 	s.mu.RLock()
 	s.subscribers[id] = ch
@@ -104,31 +121,45 @@ func (s *MITMFlowServer) StreamFlows(
 	}
 }
 
-func (s *MITMFlowServer) preprocessFlow(flow *mitmproxygrpcv1.Flow) {
+func (s *MITMFlowServer) preprocessFlow(flow *mitmflowv1.Flow) {
 	httpFlow := flow.GetHttpFlow()
 	if httpFlow == nil {
 		return
 	}
+	extra := &mitmflowv1.HTTPFlowExtra{}
 	if httpFlow.HasRequest() {
-		s.preprocessRequest(httpFlow.GetRequest())
+		details := &mitmflowv1.MessageDetails{}
+		s.preprocessRequest(httpFlow.GetRequest(), details)
+		extra.SetRequest(details)
 	}
 	if httpFlow.HasResponse() {
-		s.preprocessResponse(httpFlow.GetResponse())
+		details := &mitmflowv1.MessageDetails{}
+		s.preprocessResponse(httpFlow.GetResponse(), details)
+		extra.SetResponse(details)
 	}
+	flow.SetHttpFlowExtra(extra)
 }
 
-func (s *MITMFlowServer) preprocessRequest(req *mitmproxygrpcv1.Request) {
-	details := proto.GetExtension(req, mitmflowv1.E_RequestDetails).(*mitmflowv1.MessageDetails)
-	if details == nil {
-		details = &mitmflowv1.MessageDetails{}
-	}
-
+func (s *MITMFlowServer) preprocessRequest(req *mitmproxygrpcv1.Request, details *mitmflowv1.MessageDetails) {
 	contentType, ok := getContentType(req.GetHeaders())
 	if ok {
 		details.SetEffectiveContentType(contentType)
 	}
 	if ct := mimetype.Detect(req.GetContent()); ct != nil {
-		details.SetEffectiveContentType(ct.String())
+		detectedContentType := ct.String()
+		switch detectedContentType {
+		case "text/plain", "application/octet-stream":
+			// do not override common generic content types
+		default:
+			details.SetEffectiveContentType(detectedContentType)
+		}
+	}
+
+	var dnsQuery string
+	if u, err := url.Parse(req.GetUrl()); err == nil {
+		if val, ok := u.Query()["dns"]; ok && len(val) > 0 {
+			dnsQuery = val[0]
+		}
 	}
 
 	switch {
@@ -138,6 +169,21 @@ func (s *MITMFlowServer) preprocessRequest(req *mitmproxygrpcv1.Request) {
 		opts := protoscope.WriterOptions{}
 		protoscopeOutput := protoscope.Write(req.GetContent(), opts)
 		details.SetTextualFrames([]string{protoscopeOutput})
+	case dnsQuery != "":
+		// For DoH GET requests, the dns parameter is base64url-encoded.
+		packet, err := base64.RawURLEncoding.DecodeString(dnsQuery)
+		if err != nil {
+			log.Printf("failed to decode DoH query param: %v", err)
+		}
+		frame, err := parseDnsPacket(packet)
+		if err == nil {
+			details.SetTextualFrames([]string{frame})
+		}
+	case strings.Contains(contentType, "application/dns-message"):
+		frame, err := parseDnsPacket(req.GetContent())
+		if err == nil {
+			details.SetTextualFrames([]string{frame})
+		}
 	case strings.Contains(contentType, "application/grpc-web"):
 		frames, err := parseGrpcWebFrames(req.GetContent(), nil, nil)
 		if err == nil {
@@ -153,7 +199,6 @@ func (s *MITMFlowServer) preprocessRequest(req *mitmproxygrpcv1.Request) {
 			log.Printf("failed to parse grpc frames: %v", err)
 		}
 	}
-	proto.SetExtension(req, mitmflowv1.E_RequestDetails, details)
 }
 
 func getContentType(headers map[string]string) (string, bool) {
@@ -165,18 +210,19 @@ func getContentType(headers map[string]string) (string, bool) {
 	return "", false
 }
 
-func (s *MITMFlowServer) preprocessResponse(resp *mitmproxygrpcv1.Response) {
-	details := proto.GetExtension(resp, mitmflowv1.E_ResponseDetails).(*mitmflowv1.MessageDetails)
-	if details == nil {
-		details = &mitmflowv1.MessageDetails{}
-	}
-
+func (s *MITMFlowServer) preprocessResponse(resp *mitmproxygrpcv1.Response, details *mitmflowv1.MessageDetails) {
 	contentType, ok := getContentType(resp.GetHeaders())
 	if ok {
 		details.SetEffectiveContentType(contentType)
 	}
 	if ct := mimetype.Detect(resp.GetContent()); ct != nil {
-		details.SetEffectiveContentType(ct.String())
+		detectedContentType := ct.String()
+		switch detectedContentType {
+		case "text/plain", "application/octet-stream":
+			// do not override common generic content types
+		default:
+			details.SetEffectiveContentType(detectedContentType)
+		}
 	}
 
 	switch {
@@ -186,6 +232,11 @@ func (s *MITMFlowServer) preprocessResponse(resp *mitmproxygrpcv1.Response) {
 		opts := protoscope.WriterOptions{}
 		protoscopeOutput := protoscope.Write(resp.GetContent(), opts)
 		details.SetTextualFrames([]string{protoscopeOutput})
+	case strings.Contains(contentType, "application/dns-message"):
+		frame, err := parseDnsPacket(resp.GetContent())
+		if err == nil {
+			details.SetTextualFrames([]string{frame})
+		}
 	case strings.Contains(contentType, "application/grpc-web"):
 		frames, err := parseGrpcWebFrames(resp.GetContent(), resp.GetHeaders(), resp.GetTrailers())
 		if err == nil {
@@ -201,7 +252,6 @@ func (s *MITMFlowServer) preprocessResponse(resp *mitmproxygrpcv1.Response) {
 			log.Printf("failed to parse grpc frames: %v", err)
 		}
 	}
-	proto.SetExtension(resp, mitmflowv1.E_ResponseDetails, details)
 }
 
 func main() {

@@ -10,7 +10,6 @@ import (
 	v1 "github.com/sudorandom/mitmflow/gen/go/mitmproxygrpc/v1"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
-	_ "google.golang.org/protobuf/types/gofeaturespb"
 	reflect "reflect"
 	unsafe "unsafe"
 )
@@ -67,7 +66,7 @@ func (b0 StreamFlowsRequest_builder) Build() *StreamFlowsRequest {
 
 type StreamFlowsResponse struct {
 	state           protoimpl.MessageState `protogen:"opaque.v1"`
-	xxx_hidden_Flow *v1.Flow               `protobuf:"bytes,1,opt,name=flow"`
+	xxx_hidden_Flow *Flow                  `protobuf:"bytes,1,opt,name=flow"`
 	unknownFields   protoimpl.UnknownFields
 	sizeCache       protoimpl.SizeCache
 }
@@ -97,14 +96,14 @@ func (x *StreamFlowsResponse) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-func (x *StreamFlowsResponse) GetFlow() *v1.Flow {
+func (x *StreamFlowsResponse) GetFlow() *Flow {
 	if x != nil {
 		return x.xxx_hidden_Flow
 	}
 	return nil
 }
 
-func (x *StreamFlowsResponse) SetFlow(v *v1.Flow) {
+func (x *StreamFlowsResponse) SetFlow(v *Flow) {
 	x.xxx_hidden_Flow = v
 }
 
@@ -122,7 +121,7 @@ func (x *StreamFlowsResponse) ClearFlow() {
 type StreamFlowsResponse_builder struct {
 	_ [0]func() // Prevents comparability and use of unkeyed literals for the builder.
 
-	Flow *v1.Flow
+	Flow *Flow
 }
 
 func (b0 StreamFlowsResponse_builder) Build() *StreamFlowsResponse {
@@ -130,6 +129,383 @@ func (b0 StreamFlowsResponse_builder) Build() *StreamFlowsResponse {
 	b, x := &b0, m0
 	_, _ = b, x
 	x.xxx_hidden_Flow = b.Flow
+	return m0
+}
+
+type Flow struct {
+	state                    protoimpl.MessageState `protogen:"opaque.v1"`
+	xxx_hidden_Flow          isFlow_Flow            `protobuf_oneof:"flow"`
+	xxx_hidden_HttpFlowExtra *HTTPFlowExtra         `protobuf:"bytes,5,opt,name=http_flow_extra,json=httpFlowExtra"`
+	unknownFields            protoimpl.UnknownFields
+	sizeCache                protoimpl.SizeCache
+}
+
+func (x *Flow) Reset() {
+	*x = Flow{}
+	mi := &file_mitmflow_v1_mitmflow_proto_msgTypes[2]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *Flow) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Flow) ProtoMessage() {}
+
+func (x *Flow) ProtoReflect() protoreflect.Message {
+	mi := &file_mitmflow_v1_mitmflow_proto_msgTypes[2]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+func (x *Flow) GetHttpFlow() *v1.HTTPFlow {
+	if x != nil {
+		if x, ok := x.xxx_hidden_Flow.(*flow_HttpFlow); ok {
+			return x.HttpFlow
+		}
+	}
+	return nil
+}
+
+func (x *Flow) GetTcpFlow() *v1.TCPFlow {
+	if x != nil {
+		if x, ok := x.xxx_hidden_Flow.(*flow_TcpFlow); ok {
+			return x.TcpFlow
+		}
+	}
+	return nil
+}
+
+func (x *Flow) GetUdpFlow() *v1.UDPFlow {
+	if x != nil {
+		if x, ok := x.xxx_hidden_Flow.(*flow_UdpFlow); ok {
+			return x.UdpFlow
+		}
+	}
+	return nil
+}
+
+func (x *Flow) GetDnsFlow() *v1.DNSFlow {
+	if x != nil {
+		if x, ok := x.xxx_hidden_Flow.(*flow_DnsFlow); ok {
+			return x.DnsFlow
+		}
+	}
+	return nil
+}
+
+func (x *Flow) GetHttpFlowExtra() *HTTPFlowExtra {
+	if x != nil {
+		return x.xxx_hidden_HttpFlowExtra
+	}
+	return nil
+}
+
+func (x *Flow) SetHttpFlow(v *v1.HTTPFlow) {
+	if v == nil {
+		x.xxx_hidden_Flow = nil
+		return
+	}
+	x.xxx_hidden_Flow = &flow_HttpFlow{v}
+}
+
+func (x *Flow) SetTcpFlow(v *v1.TCPFlow) {
+	if v == nil {
+		x.xxx_hidden_Flow = nil
+		return
+	}
+	x.xxx_hidden_Flow = &flow_TcpFlow{v}
+}
+
+func (x *Flow) SetUdpFlow(v *v1.UDPFlow) {
+	if v == nil {
+		x.xxx_hidden_Flow = nil
+		return
+	}
+	x.xxx_hidden_Flow = &flow_UdpFlow{v}
+}
+
+func (x *Flow) SetDnsFlow(v *v1.DNSFlow) {
+	if v == nil {
+		x.xxx_hidden_Flow = nil
+		return
+	}
+	x.xxx_hidden_Flow = &flow_DnsFlow{v}
+}
+
+func (x *Flow) SetHttpFlowExtra(v *HTTPFlowExtra) {
+	x.xxx_hidden_HttpFlowExtra = v
+}
+
+func (x *Flow) HasFlow() bool {
+	if x == nil {
+		return false
+	}
+	return x.xxx_hidden_Flow != nil
+}
+
+func (x *Flow) HasHttpFlow() bool {
+	if x == nil {
+		return false
+	}
+	_, ok := x.xxx_hidden_Flow.(*flow_HttpFlow)
+	return ok
+}
+
+func (x *Flow) HasTcpFlow() bool {
+	if x == nil {
+		return false
+	}
+	_, ok := x.xxx_hidden_Flow.(*flow_TcpFlow)
+	return ok
+}
+
+func (x *Flow) HasUdpFlow() bool {
+	if x == nil {
+		return false
+	}
+	_, ok := x.xxx_hidden_Flow.(*flow_UdpFlow)
+	return ok
+}
+
+func (x *Flow) HasDnsFlow() bool {
+	if x == nil {
+		return false
+	}
+	_, ok := x.xxx_hidden_Flow.(*flow_DnsFlow)
+	return ok
+}
+
+func (x *Flow) HasHttpFlowExtra() bool {
+	if x == nil {
+		return false
+	}
+	return x.xxx_hidden_HttpFlowExtra != nil
+}
+
+func (x *Flow) ClearFlow() {
+	x.xxx_hidden_Flow = nil
+}
+
+func (x *Flow) ClearHttpFlow() {
+	if _, ok := x.xxx_hidden_Flow.(*flow_HttpFlow); ok {
+		x.xxx_hidden_Flow = nil
+	}
+}
+
+func (x *Flow) ClearTcpFlow() {
+	if _, ok := x.xxx_hidden_Flow.(*flow_TcpFlow); ok {
+		x.xxx_hidden_Flow = nil
+	}
+}
+
+func (x *Flow) ClearUdpFlow() {
+	if _, ok := x.xxx_hidden_Flow.(*flow_UdpFlow); ok {
+		x.xxx_hidden_Flow = nil
+	}
+}
+
+func (x *Flow) ClearDnsFlow() {
+	if _, ok := x.xxx_hidden_Flow.(*flow_DnsFlow); ok {
+		x.xxx_hidden_Flow = nil
+	}
+}
+
+func (x *Flow) ClearHttpFlowExtra() {
+	x.xxx_hidden_HttpFlowExtra = nil
+}
+
+const Flow_Flow_not_set_case case_Flow_Flow = 0
+const Flow_HttpFlow_case case_Flow_Flow = 1
+const Flow_TcpFlow_case case_Flow_Flow = 2
+const Flow_UdpFlow_case case_Flow_Flow = 3
+const Flow_DnsFlow_case case_Flow_Flow = 4
+
+func (x *Flow) WhichFlow() case_Flow_Flow {
+	if x == nil {
+		return Flow_Flow_not_set_case
+	}
+	switch x.xxx_hidden_Flow.(type) {
+	case *flow_HttpFlow:
+		return Flow_HttpFlow_case
+	case *flow_TcpFlow:
+		return Flow_TcpFlow_case
+	case *flow_UdpFlow:
+		return Flow_UdpFlow_case
+	case *flow_DnsFlow:
+		return Flow_DnsFlow_case
+	default:
+		return Flow_Flow_not_set_case
+	}
+}
+
+type Flow_builder struct {
+	_ [0]func() // Prevents comparability and use of unkeyed literals for the builder.
+
+	// Fields of oneof xxx_hidden_Flow:
+	HttpFlow *v1.HTTPFlow
+	TcpFlow  *v1.TCPFlow
+	UdpFlow  *v1.UDPFlow
+	DnsFlow  *v1.DNSFlow
+	// -- end of xxx_hidden_Flow
+	HttpFlowExtra *HTTPFlowExtra
+}
+
+func (b0 Flow_builder) Build() *Flow {
+	m0 := &Flow{}
+	b, x := &b0, m0
+	_, _ = b, x
+	if b.HttpFlow != nil {
+		x.xxx_hidden_Flow = &flow_HttpFlow{b.HttpFlow}
+	}
+	if b.TcpFlow != nil {
+		x.xxx_hidden_Flow = &flow_TcpFlow{b.TcpFlow}
+	}
+	if b.UdpFlow != nil {
+		x.xxx_hidden_Flow = &flow_UdpFlow{b.UdpFlow}
+	}
+	if b.DnsFlow != nil {
+		x.xxx_hidden_Flow = &flow_DnsFlow{b.DnsFlow}
+	}
+	x.xxx_hidden_HttpFlowExtra = b.HttpFlowExtra
+	return m0
+}
+
+type case_Flow_Flow protoreflect.FieldNumber
+
+func (x case_Flow_Flow) String() string {
+	md := file_mitmflow_v1_mitmflow_proto_msgTypes[2].Descriptor()
+	if x == 0 {
+		return "not set"
+	}
+	return protoimpl.X.MessageFieldStringOf(md, protoreflect.FieldNumber(x))
+}
+
+type isFlow_Flow interface {
+	isFlow_Flow()
+}
+
+type flow_HttpFlow struct {
+	HttpFlow *v1.HTTPFlow `protobuf:"bytes,1,opt,name=http_flow,json=httpFlow,oneof"`
+}
+
+type flow_TcpFlow struct {
+	TcpFlow *v1.TCPFlow `protobuf:"bytes,2,opt,name=tcp_flow,json=tcpFlow,oneof"`
+}
+
+type flow_UdpFlow struct {
+	UdpFlow *v1.UDPFlow `protobuf:"bytes,3,opt,name=udp_flow,json=udpFlow,oneof"`
+}
+
+type flow_DnsFlow struct {
+	DnsFlow *v1.DNSFlow `protobuf:"bytes,4,opt,name=dns_flow,json=dnsFlow,oneof"`
+}
+
+func (*flow_HttpFlow) isFlow_Flow() {}
+
+func (*flow_TcpFlow) isFlow_Flow() {}
+
+func (*flow_UdpFlow) isFlow_Flow() {}
+
+func (*flow_DnsFlow) isFlow_Flow() {}
+
+type HTTPFlowExtra struct {
+	state               protoimpl.MessageState `protogen:"opaque.v1"`
+	xxx_hidden_Request  *MessageDetails        `protobuf:"bytes,1,opt,name=request"`
+	xxx_hidden_Response *MessageDetails        `protobuf:"bytes,2,opt,name=response"`
+	unknownFields       protoimpl.UnknownFields
+	sizeCache           protoimpl.SizeCache
+}
+
+func (x *HTTPFlowExtra) Reset() {
+	*x = HTTPFlowExtra{}
+	mi := &file_mitmflow_v1_mitmflow_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *HTTPFlowExtra) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*HTTPFlowExtra) ProtoMessage() {}
+
+func (x *HTTPFlowExtra) ProtoReflect() protoreflect.Message {
+	mi := &file_mitmflow_v1_mitmflow_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+func (x *HTTPFlowExtra) GetRequest() *MessageDetails {
+	if x != nil {
+		return x.xxx_hidden_Request
+	}
+	return nil
+}
+
+func (x *HTTPFlowExtra) GetResponse() *MessageDetails {
+	if x != nil {
+		return x.xxx_hidden_Response
+	}
+	return nil
+}
+
+func (x *HTTPFlowExtra) SetRequest(v *MessageDetails) {
+	x.xxx_hidden_Request = v
+}
+
+func (x *HTTPFlowExtra) SetResponse(v *MessageDetails) {
+	x.xxx_hidden_Response = v
+}
+
+func (x *HTTPFlowExtra) HasRequest() bool {
+	if x == nil {
+		return false
+	}
+	return x.xxx_hidden_Request != nil
+}
+
+func (x *HTTPFlowExtra) HasResponse() bool {
+	if x == nil {
+		return false
+	}
+	return x.xxx_hidden_Response != nil
+}
+
+func (x *HTTPFlowExtra) ClearRequest() {
+	x.xxx_hidden_Request = nil
+}
+
+func (x *HTTPFlowExtra) ClearResponse() {
+	x.xxx_hidden_Response = nil
+}
+
+type HTTPFlowExtra_builder struct {
+	_ [0]func() // Prevents comparability and use of unkeyed literals for the builder.
+
+	Request  *MessageDetails
+	Response *MessageDetails
+}
+
+func (b0 HTTPFlowExtra_builder) Build() *HTTPFlowExtra {
+	m0 := &HTTPFlowExtra{}
+	b, x := &b0, m0
+	_, _ = b, x
+	x.xxx_hidden_Request = b.Request
+	x.xxx_hidden_Response = b.Response
 	return m0
 }
 
@@ -145,7 +521,7 @@ type MessageDetails struct {
 
 func (x *MessageDetails) Reset() {
 	*x = MessageDetails{}
-	mi := &file_mitmflow_v1_mitmflow_proto_msgTypes[2]
+	mi := &file_mitmflow_v1_mitmflow_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -157,7 +533,7 @@ func (x *MessageDetails) String() string {
 func (*MessageDetails) ProtoMessage() {}
 
 func (x *MessageDetails) ProtoReflect() protoreflect.Message {
-	mi := &file_mitmflow_v1_mitmflow_proto_msgTypes[2]
+	mi := &file_mitmflow_v1_mitmflow_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -225,76 +601,59 @@ func (b0 MessageDetails_builder) Build() *MessageDetails {
 	return m0
 }
 
-var file_mitmflow_v1_mitmflow_proto_extTypes = []protoimpl.ExtensionInfo{
-	{
-		ExtendedType:  (*v1.Request)(nil),
-		ExtensionType: (*MessageDetails)(nil),
-		Field:         2666,
-		Name:          "mitmflow.v1.request_details",
-		Tag:           "bytes,2666,opt,name=request_details",
-		Filename:      "mitmflow/v1/mitmflow.proto",
-	},
-	{
-		ExtendedType:  (*v1.Response)(nil),
-		ExtensionType: (*MessageDetails)(nil),
-		Field:         2666,
-		Name:          "mitmflow.v1.response_details",
-		Tag:           "bytes,2666,opt,name=response_details",
-		Filename:      "mitmflow/v1/mitmflow.proto",
-	},
-}
-
-// Extension fields to v1.Request.
-var (
-	// optional mitmflow.v1.MessageDetails request_details = 2666;
-	E_RequestDetails = &file_mitmflow_v1_mitmflow_proto_extTypes[0]
-)
-
-// Extension fields to v1.Response.
-var (
-	// optional mitmflow.v1.MessageDetails response_details = 2666;
-	E_ResponseDetails = &file_mitmflow_v1_mitmflow_proto_extTypes[1]
-)
-
 var File_mitmflow_v1_mitmflow_proto protoreflect.FileDescriptor
 
 const file_mitmflow_v1_mitmflow_proto_rawDesc = "" +
 	"\n" +
-	"\x1amitmflow/v1/mitmflow.proto\x12\vmitmflow.v1\x1a!google/protobuf/go_features.proto\x1a\x1emitmproxygrpc/v1/service.proto\"\x14\n" +
-	"\x12StreamFlowsRequest\"=\n" +
-	"\x13StreamFlowsResponse\x12&\n" +
-	"\x04flow\x18\x01 \x01(\v2\x12.mitmproxy.v1.FlowR\x04flow\"m\n" +
+	"\x1amitmflow/v1/mitmflow.proto\x12\vmitmflow.v1\x1a\x1emitmproxygrpc/v1/service.proto\"\x14\n" +
+	"\x12StreamFlowsRequest\"<\n" +
+	"\x13StreamFlowsResponse\x12%\n" +
+	"\x04flow\x18\x01 \x01(\v2\x11.mitmflow.v1.FlowR\x04flow\"\xa5\x02\n" +
+	"\x04Flow\x125\n" +
+	"\thttp_flow\x18\x01 \x01(\v2\x16.mitmproxy.v1.HTTPFlowH\x00R\bhttpFlow\x122\n" +
+	"\btcp_flow\x18\x02 \x01(\v2\x15.mitmproxy.v1.TCPFlowH\x00R\atcpFlow\x122\n" +
+	"\budp_flow\x18\x03 \x01(\v2\x15.mitmproxy.v1.UDPFlowH\x00R\audpFlow\x122\n" +
+	"\bdns_flow\x18\x04 \x01(\v2\x15.mitmproxy.v1.DNSFlowH\x00R\adnsFlow\x12B\n" +
+	"\x0fhttp_flow_extra\x18\x05 \x01(\v2\x1a.mitmflow.v1.HTTPFlowExtraR\rhttpFlowExtraB\x06\n" +
+	"\x04flow\"\x7f\n" +
+	"\rHTTPFlowExtra\x125\n" +
+	"\arequest\x18\x01 \x01(\v2\x1b.mitmflow.v1.MessageDetailsR\arequest\x127\n" +
+	"\bresponse\x18\x02 \x01(\v2\x1b.mitmflow.v1.MessageDetailsR\bresponse\"m\n" +
 	"\x0eMessageDetails\x12%\n" +
 	"\x0etextual_frames\x18\x01 \x03(\tR\rtextualFrames\x124\n" +
 	"\x16effective_content_type\x18\x02 \x01(\tR\x14effectiveContentType2_\n" +
 	"\aService\x12T\n" +
-	"\vStreamFlows\x12\x1f.mitmflow.v1.StreamFlowsRequest\x1a .mitmflow.v1.StreamFlowsResponse\"\x000\x01:\\\n" +
-	"\x0frequest_details\x12\x15.mitmproxy.v1.Request\x18\xea\x14 \x01(\v2\x1b.mitmflow.v1.MessageDetailsR\x0erequestDetails:_\n" +
-	"\x10response_details\x12\x16.mitmproxy.v1.Response\x18\xea\x14 \x01(\v2\x1b.mitmflow.v1.MessageDetailsR\x0fresponseDetailsB\xb0\x01\n" +
-	"\x0fcom.mitmflow.v1B\rMitmflowProtoP\x01Z<github.com/sudorandom/mitmflow/gen/go/mitmflow/v1;mitmflowv1\xa2\x02\x03MXX\xaa\x02\vMitmflow.V1\xca\x02\vMitmflow\\V1\xe2\x02\x17Mitmflow\\V1\\GPBMetadata\xea\x02\fMitmflow::V1\x92\x03\x02\b\x01b\beditionsp\xe8\a"
+	"\vStreamFlows\x12\x1f.mitmflow.v1.StreamFlowsRequest\x1a .mitmflow.v1.StreamFlowsResponse\"\x000\x01B\xab\x01\n" +
+	"\x0fcom.mitmflow.v1B\rMitmflowProtoP\x01Z<github.com/sudorandom/mitmflow/gen/go/mitmflow/v1;mitmflowv1\xa2\x02\x03MXX\xaa\x02\vMitmflow.V1\xca\x02\vMitmflow\\V1\xe2\x02\x17Mitmflow\\V1\\GPBMetadata\xea\x02\fMitmflow::V1b\beditionsp\xe8\a"
 
-var file_mitmflow_v1_mitmflow_proto_msgTypes = make([]protoimpl.MessageInfo, 3)
+var file_mitmflow_v1_mitmflow_proto_msgTypes = make([]protoimpl.MessageInfo, 5)
 var file_mitmflow_v1_mitmflow_proto_goTypes = []any{
 	(*StreamFlowsRequest)(nil),  // 0: mitmflow.v1.StreamFlowsRequest
 	(*StreamFlowsResponse)(nil), // 1: mitmflow.v1.StreamFlowsResponse
-	(*MessageDetails)(nil),      // 2: mitmflow.v1.MessageDetails
-	(*v1.Flow)(nil),             // 3: mitmproxy.v1.Flow
-	(*v1.Request)(nil),          // 4: mitmproxy.v1.Request
-	(*v1.Response)(nil),         // 5: mitmproxy.v1.Response
+	(*Flow)(nil),                // 2: mitmflow.v1.Flow
+	(*HTTPFlowExtra)(nil),       // 3: mitmflow.v1.HTTPFlowExtra
+	(*MessageDetails)(nil),      // 4: mitmflow.v1.MessageDetails
+	(*v1.HTTPFlow)(nil),         // 5: mitmproxy.v1.HTTPFlow
+	(*v1.TCPFlow)(nil),          // 6: mitmproxy.v1.TCPFlow
+	(*v1.UDPFlow)(nil),          // 7: mitmproxy.v1.UDPFlow
+	(*v1.DNSFlow)(nil),          // 8: mitmproxy.v1.DNSFlow
 }
 var file_mitmflow_v1_mitmflow_proto_depIdxs = []int32{
-	3, // 0: mitmflow.v1.StreamFlowsResponse.flow:type_name -> mitmproxy.v1.Flow
-	4, // 1: mitmflow.v1.request_details:extendee -> mitmproxy.v1.Request
-	5, // 2: mitmflow.v1.response_details:extendee -> mitmproxy.v1.Response
-	2, // 3: mitmflow.v1.request_details:type_name -> mitmflow.v1.MessageDetails
-	2, // 4: mitmflow.v1.response_details:type_name -> mitmflow.v1.MessageDetails
-	0, // 5: mitmflow.v1.Service.StreamFlows:input_type -> mitmflow.v1.StreamFlowsRequest
-	1, // 6: mitmflow.v1.Service.StreamFlows:output_type -> mitmflow.v1.StreamFlowsResponse
-	6, // [6:7] is the sub-list for method output_type
-	5, // [5:6] is the sub-list for method input_type
-	3, // [3:5] is the sub-list for extension type_name
-	1, // [1:3] is the sub-list for extension extendee
-	0, // [0:1] is the sub-list for field type_name
+	2, // 0: mitmflow.v1.StreamFlowsResponse.flow:type_name -> mitmflow.v1.Flow
+	5, // 1: mitmflow.v1.Flow.http_flow:type_name -> mitmproxy.v1.HTTPFlow
+	6, // 2: mitmflow.v1.Flow.tcp_flow:type_name -> mitmproxy.v1.TCPFlow
+	7, // 3: mitmflow.v1.Flow.udp_flow:type_name -> mitmproxy.v1.UDPFlow
+	8, // 4: mitmflow.v1.Flow.dns_flow:type_name -> mitmproxy.v1.DNSFlow
+	3, // 5: mitmflow.v1.Flow.http_flow_extra:type_name -> mitmflow.v1.HTTPFlowExtra
+	4, // 6: mitmflow.v1.HTTPFlowExtra.request:type_name -> mitmflow.v1.MessageDetails
+	4, // 7: mitmflow.v1.HTTPFlowExtra.response:type_name -> mitmflow.v1.MessageDetails
+	0, // 8: mitmflow.v1.Service.StreamFlows:input_type -> mitmflow.v1.StreamFlowsRequest
+	1, // 9: mitmflow.v1.Service.StreamFlows:output_type -> mitmflow.v1.StreamFlowsResponse
+	9, // [9:10] is the sub-list for method output_type
+	8, // [8:9] is the sub-list for method input_type
+	8, // [8:8] is the sub-list for extension type_name
+	8, // [8:8] is the sub-list for extension extendee
+	0, // [0:8] is the sub-list for field type_name
 }
 
 func init() { file_mitmflow_v1_mitmflow_proto_init() }
@@ -302,20 +661,25 @@ func file_mitmflow_v1_mitmflow_proto_init() {
 	if File_mitmflow_v1_mitmflow_proto != nil {
 		return
 	}
+	file_mitmflow_v1_mitmflow_proto_msgTypes[2].OneofWrappers = []any{
+		(*flow_HttpFlow)(nil),
+		(*flow_TcpFlow)(nil),
+		(*flow_UdpFlow)(nil),
+		(*flow_DnsFlow)(nil),
+	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_mitmflow_v1_mitmflow_proto_rawDesc), len(file_mitmflow_v1_mitmflow_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   3,
-			NumExtensions: 2,
+			NumMessages:   5,
+			NumExtensions: 0,
 			NumServices:   1,
 		},
 		GoTypes:           file_mitmflow_v1_mitmflow_proto_goTypes,
 		DependencyIndexes: file_mitmflow_v1_mitmflow_proto_depIdxs,
 		MessageInfos:      file_mitmflow_v1_mitmflow_proto_msgTypes,
-		ExtensionInfos:    file_mitmflow_v1_mitmflow_proto_extTypes,
 	}.Build()
 	File_mitmflow_v1_mitmflow_proto = out.File
 	file_mitmflow_v1_mitmflow_proto_goTypes = nil

@@ -10,8 +10,7 @@ import {
     MessageCircle,
     Server,
 } from "lucide-react";
-import { Flow } from "../gen/mitmproxygrpc/v1/service_pb";
-import { getRequestDetails, getResponseDetails } from '../utils';
+import { Flow } from "../gen/mitmflow/v1/mitmflow_pb";
 
 export default function FlowIcon({ flow }: { flow: Flow }) {
     if (!flow.flow?.case) {
@@ -19,8 +18,8 @@ export default function FlowIcon({ flow }: { flow: Flow }) {
     }
     if (flow.flow.case === "httpFlow") {
         const contentType =
-            getResponseDetails(flow.flow.value.response)?.effectiveContentType ||
-            getRequestDetails(flow.flow.value.request)?.effectiveContentType;
+            flow.httpFlowExtra?.response?.effectiveContentType ||
+            flow.httpFlowExtra?.request?.effectiveContentType;
 
         const iconMap: [string, JSX.Element][] = [
             ["json", <FileJson className="w-5 h-5" />],
