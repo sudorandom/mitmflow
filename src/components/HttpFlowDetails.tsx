@@ -70,7 +70,7 @@ export const RequestResponseView: React.FC<RequestResponseViewProps> = ({ fullCo
                     </pre>
                 </>
             )}
-            {details?.textualFrames && details.textualFrames.length > 0 && ['protobuf', 'grpc', 'grpc-web', 'dns'].includes(effectiveFormat) ? (
+            {details?.textualFrames && details.textualFrames.length > 0 && ['protobuf', 'grpc', 'grpc-web', 'dns', 'text'].includes(effectiveFormat) ? (
                 // Render protoscope frames if they exist
                 <div>
                     {details.textualFrames.map((frame, index) => (
@@ -79,7 +79,7 @@ export const RequestResponseView: React.FC<RequestResponseViewProps> = ({ fullCo
                                 <h4 className="text-sm font-semibold mb-1">Frame {index + 1}</h4>
                             )}
                             <SyntaxHighlighter
-                                language={effectiveFormat === 'dns' ? 'json' : 'protobuf'}
+                                language={effectiveFormat === 'dns' ? 'json' : (effectiveFormat === 'text' ? 'text' : 'protobuf')}
                                 style={atomOneDark}
                                 customStyle={{
                                     backgroundColor: '#27272a',

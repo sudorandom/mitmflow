@@ -7,20 +7,52 @@ interface HexViewerProps {
 
 const HexViewer: React.FC<HexViewerProps> = ({ data, bytesPerRow = 16 }) => {
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
+  const [page, setPage] = useState(0);
+  const rowsPerPage = 32; // You can adjust this for more/less rows per page
 
-  const rows = useMemo(() => {
+  const totalRows = useMemo(() => Math.ceil(data.length / bytesPerRow), [data.length, bytesPerRow]);
+  const totalPages = useMemo(() => Math.max(1, Math.ceil(totalRows / rowsPerPage)), [totalRows, rowsPerPage]);
+
+  const pagedRows = useMemo(() => {
     const newRows = [];
-    for (let i = 0; i < data.length; i += bytesPerRow) {
+    const startRow = page * rowsPerPage;
+    const endRow = Math.min(totalRows, startRow + rowsPerPage);
+    for (let row = startRow; row < endRow; row++) {
+      const offset = row * bytesPerRow;
       newRows.push({
-        offset: i,
-        chunk: data.slice(i, i + bytesPerRow),
+        offset,
+        chunk: data.slice(offset, offset + bytesPerRow),
       });
     }
     return newRows;
-  }, [data, bytesPerRow]);
+  }, [data, bytesPerRow, page, rowsPerPage, totalRows]);
+
+  const handlePrev = () => setPage((p) => Math.max(0, p - 1));
+  const handleNext = () => setPage((p) => Math.min(totalPages - 1, p + 1));
 
   return (
     <div className="font-mono text-xs bg-zinc-800 p-4 rounded w-full overflow-x-auto">
+      <div className="flex flex-col items-center mb-2">
+        <div className="flex gap-4 items-center">
+          <button
+            className="px-2 py-1 rounded bg-zinc-700 text-gray-200 disabled:opacity-50"
+            onClick={handlePrev}
+            disabled={page === 0}
+          >
+            Prev
+          </button>
+          <span className="text-gray-400">
+            Page {page + 1} of {totalPages}
+          </span>
+          <button
+            className="px-2 py-1 rounded bg-zinc-700 text-gray-200 disabled:opacity-50"
+            onClick={handleNext}
+            disabled={page === totalPages - 1}
+          >
+            Next
+          </button>
+        </div>
+      </div>
       <div className="grid grid-cols-[auto_max-content_auto] gap-x-4">
         {/* Header */}
         <div className="text-gray-500 text-right pr-2">Offset</div>
@@ -28,7 +60,7 @@ const HexViewer: React.FC<HexViewerProps> = ({ data, bytesPerRow = 16 }) => {
         <div className="text-gray-500 pl-2">ASCII</div>
 
         {/* Rows */}
-        {rows.map(({ offset, chunk }) => (
+        {pagedRows.map(({ offset, chunk }) => (
           <React.Fragment key={offset}>
             {/* Offset */}
             <div className="text-right pr-2 text-gray-500">
