@@ -114,7 +114,7 @@ export const DetailsPanel = forwardRef<HTMLDivElement, DetailsPanelProps>(({
         className="absolute top-0 left-0 right-0 h-2 -mt-1 cursor-ns-resize z-50"
         onMouseDown={handleMouseDown}
       />
-      <div className="flex items-center p-2.5 px-4 bg-zinc-800 border-b border-zinc-700 flex-shrink-0 gap-3">
+      <div className="flex items-center p-2.5 px-4 bg-zinc-900 flex-shrink-0 gap-3">
         <FlowIcon flow={flow} />
         <StatusPill
           status={(() => {
