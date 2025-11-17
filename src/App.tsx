@@ -22,37 +22,93 @@ const getHarContent = (content: Uint8Array | undefined, contentType: string | un
   const contentAsString = new TextDecoder().decode(content);
 
   // Check for common text-based content types
-  if (contentType.includes('json') || contentType .includes('xml') || contentType  .includes('text')) {
-    return { text: contentAsString, contentType : contentType };
+  if (contentType.includes('json') || contentType.includes('xml') || contentType.includes('text')) {
+    return { size: content.length, text: contentAsString, mimeType : contentType };
   } else {
     // For other types (binary, image, etc.), base64 encode
-    return { text: btoa(String.fromCharCode(...content)), mimeType: contentType, encoding: 'base64' };
+    return { size: content.length, text: btoa(String.fromCharCode(...content)), mimeType: contentType, encoding: 'base64' };
   }
 };
 
 // New function to generate HAR blob
 const generateHarBlob = (flowsToExport: Flow[]): Blob => {
+  // Find earliest timestamp across flows (prefer request.start, else flow.start)
+  const earliestMs = flowsToExport.reduce((min, flow) => {
+    if (!flow.flow || !flow.flow.case) return min;
+    if (flow.flow.case === 'httpFlow') {
+      const httpFlow = flow.flow.value;
+      const reqStart = getTimestamp(httpFlow.request?.timestampStart);
+      const flowStart = getTimestamp(httpFlow.timestampStart);
+      const candidate = reqStart > 0 ? reqStart : flowStart;
+      if (candidate > 0 && (min === 0 || candidate < min)) return candidate;
+    }
+    return min;
+  }, 0);
+
+  const pageId = 'page_0';
+  const pages = earliestMs > 0 ? [{
+    id: pageId,
+    startedDateTime: new Date(earliestMs).toISOString(),
+    title: 'mitmflow capture',
+    pageTimings: {}
+  }] : [];
+
   const har = {
     log: {
       version: "1.2",
       creator: { name: "mitm-flows", version: "1.0" },
-      pages: [],
+      pages,
       entries: flowsToExport.flatMap(flow => {
         if (flow?.flow?.case === 'httpFlow') {
           const httpFlow = flow.flow.value;
+          // Convert query string to array of {name, value}
+          let queryString: { name: string; value: string }[] = [];
+          if (httpFlow.request?.url) {
+            try {
+              const urlObj = new URL(httpFlow.request.url);
+              queryString = Array.from(urlObj.searchParams.entries()).map(([name, value]) => ({ name, value }));
+            } catch (e) {
+              // fallback: empty array
+            }
+          }
+
+          // HAR timings: derive from request/response timestamps if available
+          const reqStartMs = getTimestamp(httpFlow.request?.timestampStart);
+          const reqEndMs = getTimestamp(httpFlow.request?.timestampEnd);
+          const resStartMs = getTimestamp(httpFlow.response?.timestampStart);
+          const resEndMs = getTimestamp(httpFlow.response?.timestampEnd);
+
+          const send = reqStartMs > 0 && reqEndMs > 0 && reqEndMs >= reqStartMs ? reqEndMs - reqStartMs : -1;
+          const wait = reqEndMs > 0 && resStartMs > 0 && resStartMs >= reqEndMs ? resStartMs - reqEndMs : -1;
+          const receive = resStartMs > 0 && resEndMs > 0 && resEndMs >= resStartMs ? resEndMs - resStartMs : -1;
+          const timings = { send, wait, receive };
+          const timeParts = [send, wait, receive].filter(v => v !== -1);
+          const time = timeParts.length > 0 ? timeParts.reduce((a, b) => a + b, 0) : -1;
+
+          // Only include postData for methods that can have a body
+          let postData: any = undefined;
+          const method = httpFlow.request?.method || '';
+          if (["POST", "PUT", "PATCH", "DELETE"].includes(method.toUpperCase()) && httpFlow.request?.content && httpFlow.request.content.length > 0) {
+            postData = getHarContent(httpFlow.request?.content, flow.httpFlowExtra?.request?.effectiveContentType);
+          }
+
           return [{
-            startedDateTime: new Date(getTimestamp(httpFlow.timestampStart)).toISOString(),
-            time: httpFlow.durationMs,
-            timings: {},
+            pageref: pages.length ? pageId : undefined,
+            connection: httpFlow.server?.addressPort ? String(httpFlow.server.addressPort) : '',
+            startedDateTime: new Date(reqStartMs > 0 ? reqStartMs : getTimestamp(httpFlow.timestampStart)).toISOString(),
+            time: typeof time === 'number' && !isNaN(time) ? time : -1,
+            timings,
             cache: {},
             request: {
-              method: httpFlow.request?.method || '',
+              method,
               url: httpFlow.request?.prettyUrl || httpFlow.request?.url || '',
               httpVersion: httpFlow.request?.httpVersion || 'HTTP/1.1',
               headers: httpFlow.request?.headers ? Object.entries(httpFlow.request.headers).map(([name, value]) => ({ name, value })) : [],
-              queryString: httpFlow.request?.url ? new URL(httpFlow.request.url).searchParams : new URLSearchParams(),
+              queryString,
               cookies: [],
-              postData: getHarContent(httpFlow.request?.content, flow.httpFlowExtra?.request?.effectiveContentType)
+              ...(postData ? { postData } : {}),
+              headersSize: -1,
+              bodySize: httpFlow.request?.content ? httpFlow.request.content.length : 0,
             },
             response: {
               status: httpFlow.response?.statusCode || 0,
@@ -60,7 +116,9 @@ const generateHarBlob = (flowsToExport: Flow[]): Blob => {
               httpVersion: httpFlow.response?.httpVersion || 'HTTP/1.1',
               headers: httpFlow.response?.headers ? Object.entries(httpFlow.response.headers).map(([name, value]) => ({ name, value })) : [],
               cookies: [],
-              content: getHarContent(httpFlow.response?.content, flow.httpFlowExtra?.response?.effectiveContentType)
+              content: getHarContent(httpFlow.response?.content, flow.httpFlowExtra?.response?.effectiveContentType),
+              headersSize: -1,
+              bodySize: httpFlow.response?.content ? httpFlow.response.content.length : 0,
             },
             serverIPAddress: httpFlow.server?.addressHost || '',
           }];

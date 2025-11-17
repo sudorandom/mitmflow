@@ -5,6 +5,8 @@ import 'ag-grid-community/styles/ag-grid.css';
 import 'ag-grid-community/styles/ag-theme-alpine.css';
 import { Flow } from '../gen/mitmflow/v1/mitmflow_pb';
 import { getFlowId, getFlowTimestampStart, getTimestamp } from '../utils';
+
+import './FlowTable.css';
 import { DurationCellRenderer, InTransferCellRenderer, OutTransferCellRenderer, RequestCellRenderer, StatusCellRenderer, TimestampCellRenderer } from './cellRenderers';
 
 interface FlowTableProps {
@@ -81,6 +83,7 @@ const FlowTable = forwardRef<AgGridReact, FlowTableProps>(
                 headerName: "In",
                 width: 100,
                 cellRenderer: InTransferCellRenderer,
+                cellClass: 'nowrap-cell',
                 valueGetter: (params: ValueGetterParams<Flow>) => {
                     const flow = params.data;
                     if (!flow) return null;
@@ -95,6 +98,7 @@ const FlowTable = forwardRef<AgGridReact, FlowTableProps>(
                 headerName: "Out",
                 width: 100,
                 cellRenderer: OutTransferCellRenderer,
+                cellClass: 'nowrap-cell',
                 valueGetter: (params: ValueGetterParams<Flow>) => {
                     const flow = params.data;
                     if (!flow) return null;
@@ -109,6 +113,7 @@ const FlowTable = forwardRef<AgGridReact, FlowTableProps>(
                 headerName: "Duration",
                 width: 150,
                 cellRenderer: DurationCellRenderer,
+                cellClass: 'nowrap-cell',
                 valueGetter: (params: ValueGetterParams<Flow>) => {
                     const flow = params.data;
                     if (!flow) return null;
