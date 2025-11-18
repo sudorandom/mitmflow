@@ -67,7 +67,7 @@ const generateHarBlob = (flowsToExport: Flow[]): Blob => {
             try {
               const urlObj = new URL(httpFlow.request.url);
               queryString = Array.from(urlObj.searchParams.entries()).map(([name, value]) => ({ name, value }));
-            } catch (e) {
+            } catch {
               // fallback: empty array
             }
           }
@@ -86,7 +86,7 @@ const generateHarBlob = (flowsToExport: Flow[]): Blob => {
           const time = timeParts.length > 0 ? timeParts.reduce((a, b) => a + b, 0) : -1;
 
           // Only include postData for methods that can have a body
-          let postData: any = undefined;
+          let postData: ReturnType<typeof getHarContent> | undefined = undefined;
           const method = httpFlow.request?.method || '';
           if (["POST", "PUT", "PATCH", "DELETE"].includes(method.toUpperCase()) && httpFlow.request?.content && httpFlow.request.content.length > 0) {
             postData = getHarContent(httpFlow.request?.content, flow.httpFlowExtra?.request?.effectiveContentType);
@@ -167,12 +167,28 @@ const App: React.FC = () => {
   const [requestFormats, setRequestFormats] = useState<Map<string, ContentFormat>>(new Map());
   const [responseFormats, setResponseFormats] = useState<Map<string, ContentFormat>>(new Map());
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
+  const safeGet = (key: string): string | null => {
+    try {
+      if (typeof window !== 'undefined' && 'localStorage' in window && typeof window.localStorage.getItem === 'function') {
+        return window.localStorage.getItem(key);
+      }
+    } catch { /* ignore */ }
+    return null;
+  };
+  const safeSet = (key: string, value: string) => {
+    try {
+      if (typeof window !== 'undefined' && 'localStorage' in window && typeof window.localStorage.setItem === 'function') {
+        window.localStorage.setItem(key, value);
+      }
+    } catch { /* ignore */ }
+  };
+
   const [maxFlows, setMaxFlows] = useState(() => {
-    const savedMaxFlows = localStorage.getItem('maxFlows');
+    const savedMaxFlows = safeGet('maxFlows');
     return savedMaxFlows ? Number(savedMaxFlows) : 500;
   });
   const [maxBodySize, setMaxBodySize] = useState(() => {
-    const savedMaxBodySize = localStorage.getItem('maxBodySize');
+    const savedMaxBodySize = safeGet('maxBodySize');
     return savedMaxBodySize ? Number(savedMaxBodySize) : 1024; // 1MB default
   });
   const contentRef = useRef<HTMLDivElement>(null);
@@ -346,11 +362,11 @@ const App: React.FC = () => {
   }, [detailsPanelHeight]);
 
   useEffect(() => {
-    localStorage.setItem('maxFlows', String(maxFlows));
+    safeSet('maxFlows', String(maxFlows));
   }, [maxFlows]);
 
   useEffect(() => {
-    localStorage.setItem('maxBodySize', String(maxBodySize));
+    safeSet('maxBodySize', String(maxBodySize));
   }, [maxBodySize]);
 
   const activeFilterCount =

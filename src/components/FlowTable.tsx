@@ -1,4 +1,4 @@
-import React, { forwardRef } from 'react';
+import React, { forwardRef, useMemo, useState, useEffect, useRef } from 'react';
 import { AgGridReact } from 'ag-grid-react';
 import { ColDef, ValueGetterParams } from 'ag-grid-community';
 import 'ag-grid-community/styles/ag-grid.css';
@@ -19,6 +19,12 @@ interface FlowTableProps {
 
 const FlowTable = forwardRef<AgGridReact, FlowTableProps>(
     function FlowTable({ flows, focusedFlowId, selectedFlowIds, onRowSelected, onToggleRowSelection }, ref) {
+        // Sort config: track column index (in columnDefs) and direction
+        const [sortConfig, setSortConfig] = useState<{ colIndex: number | null; direction: 'asc' | 'desc' }>({ colIndex: 1, direction: 'desc' }); // default sort by Timestamp desc
+
+        // Selection header checkbox ref to set indeterminate state
+        const selectAllRef = useRef<HTMLInputElement | null>(null);
+
         const columnDefs: ColDef<Flow>[] = [
             { headerName: "", width: 50, headerCheckboxSelection: true, checkboxSelection: true },
             {
@@ -126,6 +132,80 @@ const FlowTable = forwardRef<AgGridReact, FlowTableProps>(
             },
         ];
 
+        // Compute sorted flows based on current sort configuration
+        const sortedFlows = useMemo(() => {
+            if (!sortConfig.colIndex && sortConfig.colIndex !== 0) return flows;
+            const col = columnDefs[sortConfig.colIndex];
+            const directionFactor = sortConfig.direction === 'asc' ? 1 : -1;
+            const data = [...flows];
+            data.sort((a, b) => {
+                if (col.comparator) {
+                    // Use valueGetter to supply values to comparator when defined, else pass raw flows.
+                    const valueGetter = col.valueGetter as ((p: ValueGetterParams<Flow>) => unknown) | undefined;
+                    const va = valueGetter ? valueGetter({ data: a } as ValueGetterParams<Flow>) : a;
+                    const vb = valueGetter ? valueGetter({ data: b } as ValueGetterParams<Flow>) : b;
+                    const customComparator = col.comparator as (valueA: unknown, valueB: unknown, nodeA?: unknown, nodeB?: unknown, isInverted?: boolean) => number;
+                    return directionFactor * customComparator(va, vb);
+                }
+                if (typeof col.valueGetter === 'function') {
+                    const va = col.valueGetter({ data: a } as ValueGetterParams<Flow>);
+                    const vb = col.valueGetter({ data: b } as ValueGetterParams<Flow>);
+                    if (va == null && vb == null) return 0;
+                    if (va == null) return -1 * directionFactor;
+                    if (vb == null) return 1 * directionFactor;
+                    if (typeof va === 'number' && typeof vb === 'number') {
+                        return directionFactor * (va - vb);
+                    }
+                    return directionFactor * String(va).localeCompare(String(vb));
+                }
+                return 0;
+            });
+            return data;
+        }, [flows, sortConfig]);
+
+        // Determine selection states for visible (sorted) flows
+        const allVisibleSelected = sortedFlows.length > 0 && sortedFlows.every(f => {
+            const id = getFlowId(f);
+            return id ? selectedFlowIds.has(id) : false;
+        });
+        const someVisibleSelected = sortedFlows.some(f => {
+            const id = getFlowId(f);
+            return id ? selectedFlowIds.has(id) : false;
+        });
+
+        // Set indeterminate state
+        useEffect(() => {
+            if (selectAllRef.current) {
+                selectAllRef.current.indeterminate = someVisibleSelected && !allVisibleSelected;
+            }
+        }, [someVisibleSelected, allVisibleSelected]);
+
+        const handleHeaderSortClick = (index: number) => {
+            if (index === 0) return; // selection column not sortable
+            setSortConfig(prev => {
+                if (prev.colIndex === index) {
+                    return { colIndex: index, direction: prev.direction === 'asc' ? 'desc' : 'asc' };
+                }
+                return { colIndex: index, direction: 'asc' };
+            });
+        };
+
+        const handleSelectAllVisible = () => {
+            if (allVisibleSelected) {
+                // Deselect all visible
+                sortedFlows.forEach(flow => {
+                    const id = getFlowId(flow);
+                    if (id && selectedFlowIds.has(id)) onToggleRowSelection(id);
+                });
+            } else {
+                // Select all visible
+                sortedFlows.forEach(flow => {
+                    const id = getFlowId(flow);
+                    if (id && !selectedFlowIds.has(id)) onToggleRowSelection(id);
+                });
+            }
+        };
+
         const handleTableKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
             if ((e.target as HTMLElement).id === 'filter-input') return;
 
@@ -135,7 +215,7 @@ const FlowTable = forwardRef<AgGridReact, FlowTableProps>(
 
             if (isSelectAllKey) {
                 e.preventDefault();
-                onToggleRowSelection('ALL');
+                handleSelectAllVisible();
                 return;
             }
 
@@ -150,22 +230,22 @@ const FlowTable = forwardRef<AgGridReact, FlowTableProps>(
             }
             e.preventDefault();
 
-            if (!flows.length) return;
+            if (!sortedFlows.length) return;
 
             let currentIndex = -1;
             if (focusedFlowId) {
-                currentIndex = flows.findIndex(f => getFlowId(f) === focusedFlowId);
+                currentIndex = sortedFlows.findIndex(f => getFlowId(f) === focusedFlowId);
             }
             let nextIndex = -1;
 
             if (e.key === 'ArrowDown') {
-                nextIndex = Math.min(currentIndex + 1, flows.length - 1);
+                nextIndex = Math.min(currentIndex + 1, sortedFlows.length - 1);
                 if (currentIndex === -1) nextIndex = 0;
             } else if (e.key === 'ArrowUp') {
                 nextIndex = Math.max(currentIndex - 1, 0);
                 if (currentIndex === -1) nextIndex = 0;
             } else if (e.key === 'PageDown') {
-                nextIndex = Math.min(currentIndex + 10, flows.length - 1);
+                nextIndex = Math.min(currentIndex + 10, sortedFlows.length - 1);
                 if (currentIndex === -1) nextIndex = 0;
             } else if (e.key === 'PageUp') {
                 nextIndex = Math.max(currentIndex - 10, 0);
@@ -173,7 +253,7 @@ const FlowTable = forwardRef<AgGridReact, FlowTableProps>(
             }
 
             if (nextIndex !== currentIndex && nextIndex > -1) {
-                const nextFlow = flows[nextIndex];
+                const nextFlow = sortedFlows[nextIndex];
                 if (nextFlow) {
                     onRowSelected(nextFlow, { event: e });
                     const nextFlowId = getFlowId(nextFlow);
@@ -194,13 +274,43 @@ const FlowTable = forwardRef<AgGridReact, FlowTableProps>(
                 <table className="w-full text-sm flex-shrink-0">
                     <thead>
                         <tr>
-                            {columnDefs.map((col, i) => (
-                                <th key={i} className={col.headerClass as string || ''} style={{ width: col.width, textAlign: 'left' }}>{col.headerName}</th>
-                            ))}
+                            {columnDefs.map((col, i) => {
+                                if (i === 0) {
+                                    return (
+                                        <th key={i} style={{ width: col.width }} className="text-center">
+                                            <input
+                                                ref={selectAllRef}
+                                                type="checkbox"
+                                                checked={allVisibleSelected}
+                                                onChange={handleSelectAllVisible}
+                                                aria-label="Select/Deselect all visible flows"
+                                            />
+                                        </th>
+                                    );
+                                }
+                                const isSorted = sortConfig.colIndex === i;
+                                const direction = isSorted ? sortConfig.direction : undefined;
+                                return (
+                                    <th
+                                        key={i}
+                                        className={`${col.headerClass || ''} cursor-pointer select-none`}
+                                        style={{ width: col.width, textAlign: 'left' }}
+                                        onClick={() => handleHeaderSortClick(i)}
+                                        aria-sort={isSorted ? (direction === 'asc' ? 'ascending' : 'descending') : 'none'}
+                                    >
+                                        <span className="inline-flex items-center gap-1">
+                                            {col.headerName}
+                                            {isSorted && (
+                                                <span aria-hidden="true">{direction === 'asc' ? '▲' : '▼'}</span>
+                                            )}
+                                        </span>
+                                    </th>
+                                );
+                            })}
                         </tr>
                     </thead>
                     <tbody>
-                        {flows.map((flow, idx) => {
+                        {sortedFlows.map((flow, idx) => {
                             const flowId = getFlowId(flow);
                             const isFocused = flowId && focusedFlowId === flowId;
                             const isSelected = flowId && selectedFlowIds.has(flowId);
