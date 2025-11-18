@@ -22,11 +22,6 @@ stubs:
               "Server": fake_product_name(),
             },
             "content": b'',
-            "content_protoscope_frames": [
-              '1: {\n  1: {"type.googleapis.com/proto3.TestMessage"}\n  2: {`1005420e65787065637465645f76616c756500000000`}\n}',
-              '1: {\n  1: {"type.googleapis.com/proto3.TestMessage"}\n  2: {`1005420e65787065637465645f76616c756500000000`}\n}',
-              '1: {\n  1: {"type.googleapis.com/proto3.TestMessage"}\n  2: {`1005420e65787065637465645f76616c756500000000`}\n}',
-            ],
             "http_version": "HTTP/2",
           },
           "timestamp_start": fake_date(),
@@ -45,6 +40,15 @@ stubs:
             "sockname_port": fake_int8(),
             "id": fake_uuid()
           }
+        },
+        "http_flow_extra": {
+          "response": {
+            "textual_frames": [
+              '1: {\n  1: {"type.googleapis.com/proto3.TestMessage"}\n  2: {`1005420e65787065637465645f76616c756500000000`}\n}',
+              '1: {\n  1: {"type.googleapis.com/proto3.TestMessage"}\n  2: {`1005420e65787065637465645f76616c756500000000`}\n}',
+              '1: {\n  1: {"type.googleapis.com/proto3.TestMessage"}\n  2: {`1005420e65787065637465645f76616c756500000000`}\n}',
+            ],
+          },
         },
       },
     }

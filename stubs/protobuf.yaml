@@ -22,9 +22,6 @@ stubs:
               "Server": fake_product_name(),
             },
             "content": b'0a400a26747970652e676f6f676c65617069732e636f6d2f70726f746f332e546573744d65737361676512161005420e65787065637465645f76616c756500000000',
-            "content_protoscope_frames": [
-              '1: {\n  1: {"type.googleapis.com/proto3.TestMessage"}\n  2: {`1005420e65787065637465645f76616c756500000000`}\n}',
-            ],
             "http_version": "HTTP/3",
           },
           "timestamp_start": fake_date(),
@@ -43,6 +40,13 @@ stubs:
             "sockname_port": fake_int8(),
             "id": fake_uuid()
           }
+        },
+        "http_flow_extra": {
+          "response": {
+            "textual_frames": [
+              '1: {\n  1: {"type.googleapis.com/proto3.TestMessage"}\n  2: {`1005420e65787065637465645f76616c756500000000`}\n}',
+            ],
+          },
         },
       },
     }
