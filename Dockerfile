@@ -7,8 +7,9 @@ WORKDIR /app
 # Install ca-certificates for HTTPS
 RUN apk --no-cache add ca-certificates
 
-# Copy pre-built binary from GoReleaser
-COPY mitmflow /app/mitmflow
+# Copy pre-built binary from GoReleaser context (includes platform-specific binaries)
+ARG TARGETPLATFORM
+COPY $TARGETPLATFORM/mitmflow /app/mitmflow
 
 # Expose the default port
 EXPOSE 50051
