@@ -1,0 +1,25 @@
+# Dockerignore for mitmflow
+node_modules/
+dist/
+*.log
+.git/
+.github/
+.vscode/
+*.test
+*.out
+coverage/
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
+.env
+.env.local
+.idea/
+*.iml
+tmp/
+temp/
+stubs/
+proto/
+gen/
+fauxrpc-image.binpb

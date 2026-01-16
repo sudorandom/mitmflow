@@ -1,5 +1,5 @@
 import React from 'react';
-import { Cert } from "../gen/mitmflow/v1/mitmflow_pb";
+import { Cert } from "../gen/mitmproxygrpc/v1/service_pb";
 import { getTimestamp, formatDateTime } from '../utils';
 
 interface CertificateDetailsProps {

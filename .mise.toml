@@ -1,8 +1,0 @@
-[tools]
-go = "1.25.0"
-just = "1.42.4"
-node = "20"
-pnpm = "10.15"
-python = "3.14"
-uv = "0.9.7"
-"github:sudorandom/fauxrpc" = "latest"

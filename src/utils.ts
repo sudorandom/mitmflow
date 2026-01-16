@@ -1,4 +1,5 @@
 import { Flow } from "./gen/mitmflow/v1/mitmflow_pb";
+import { Timestamp } from "@bufbuild/protobuf/wkt";
 
 
 export type ContentFormat = 'auto' | 'text' | 'json' | 'protobuf' | 'grpc' | 'grpc-web' | 'xml' | 'binary' | 'image' | 'dns' | 'javascript' | 'html';
