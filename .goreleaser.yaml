@@ -54,3 +54,51 @@ changelog:
       - '^test:'
       - '^chore:'
       - '^ci:'
+
+dockers:
+  - image_templates:
+      - "ghcr.io/sudorandom/mitmflow:{{ .Version }}-amd64"
+      - "ghcr.io/sudorandom/mitmflow:latest-amd64"
+    use: buildx
+    dockerfile: Dockerfile
+    build_flag_templates:
+      - "--platform=linux/amd64"
+      - "--label=org.opencontainers.image.title={{ .ProjectName }}"
+      - "--label=org.opencontainers.image.description=A modern web UI for mitmproxy"
+      - "--label=org.opencontainers.image.url=https://github.com/sudorandom/mitmflow"
+      - "--label=org.opencontainers.image.source=https://github.com/sudorandom/mitmflow"
+      - "--label=org.opencontainers.image.version={{ .Version }}"
+      - "--label=org.opencontainers.image.created={{ .Date }}"
+      - "--label=org.opencontainers.image.revision={{ .FullCommit }}"
+      - "--label=org.opencontainers.image.licenses=MIT"
+    goos: linux
+    goarch: amd64
+
+  - image_templates:
+      - "ghcr.io/sudorandom/mitmflow:{{ .Version }}-arm64"
+      - "ghcr.io/sudorandom/mitmflow:latest-arm64"
+    use: buildx
+    dockerfile: Dockerfile
+    build_flag_templates:
+      - "--platform=linux/arm64"
+      - "--label=org.opencontainers.image.title={{ .ProjectName }}"
+      - "--label=org.opencontainers.image.description=A modern web UI for mitmproxy"
+      - "--label=org.opencontainers.image.url=https://github.com/sudorandom/mitmflow"
+      - "--label=org.opencontainers.image.source=https://github.com/sudorandom/mitmflow"
+      - "--label=org.opencontainers.image.version={{ .Version }}"
+      - "--label=org.opencontainers.image.created={{ .Date }}"
+      - "--label=org.opencontainers.image.revision={{ .FullCommit }}"
+      - "--label=org.opencontainers.image.licenses=MIT"
+    goos: linux
+    goarch: arm64
+
+docker_manifests:
+  - name_template: "ghcr.io/sudorandom/mitmflow:{{ .Version }}"
+    image_templates:
+      - "ghcr.io/sudorandom/mitmflow:{{ .Version }}-amd64"
+      - "ghcr.io/sudorandom/mitmflow:{{ .Version }}-arm64"
+  
+  - name_template: "ghcr.io/sudorandom/mitmflow:latest"
+    image_templates:
+      - "ghcr.io/sudorandom/mitmflow:latest-amd64"
+      - "ghcr.io/sudorandom/mitmflow:latest-arm64"
