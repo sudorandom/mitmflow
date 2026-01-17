@@ -86,21 +86,6 @@ const FlowTable = forwardRef<AgGridReact, FlowTableProps>(
                 sortable: true,
             },
             {
-                headerName: "In",
-                width: 100,
-                cellRenderer: InTransferCellRenderer,
-                cellClass: 'nowrap-cell',
-                valueGetter: (params: ValueGetterParams<Flow>) => {
-                    const flow = params.data;
-                    if (!flow) return null;
-                    if (flow.flow?.case === 'httpFlow') {
-                        return flow.flow.value.response?.content?.length;
-                    }
-                    return null;
-                },
-                sortable: true,
-            },
-            {
                 headerName: "Out",
                 width: 100,
                 cellRenderer: OutTransferCellRenderer,
@@ -110,6 +95,21 @@ const FlowTable = forwardRef<AgGridReact, FlowTableProps>(
                     if (!flow) return null;
                     if (flow.flow?.case === 'httpFlow') {
                         return flow.flow.value.request?.content?.length;
+                    }
+                    return null;
+                },
+                sortable: true,
+            },
+            {
+                headerName: "In",
+                width: 100,
+                cellRenderer: InTransferCellRenderer,
+                cellClass: 'nowrap-cell',
+                valueGetter: (params: ValueGetterParams<Flow>) => {
+                    const flow = params.data;
+                    if (!flow) return null;
+                    if (flow.flow?.case === 'httpFlow') {
+                        return flow.flow.value.response?.content?.length;
                     }
                     return null;
                 },
