@@ -26,7 +26,12 @@ const getHarContent = (content: Uint8Array | undefined, contentType: string | un
     return { size: content.length, text: contentAsString, mimeType : contentType };
   } else {
     // For other types (binary, image, etc.), base64 encode
-    return { size: content.length, text: btoa(String.fromCharCode(...content)), mimeType: contentType, encoding: 'base64' };
+    // Avoid spread operator to prevent stack overflow on large content
+    let binary = '';
+    for (let i = 0; i < content.length; i++) {
+      binary += String.fromCharCode(content[i]);
+    }
+    return { size: content.length, text: btoa(binary), mimeType: contentType, encoding: 'base64' };
   }
 };
 
