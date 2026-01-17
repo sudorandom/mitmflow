@@ -16,7 +16,7 @@ import useFilterStore from './store';
 
 const getHarContent = (content: Uint8Array | undefined, contentType: string | undefined) => {
   if (!content || content.length === 0) {
-    return { text: '', mimeType: contentType || 'application/octet-stream' };
+    return { size: 0, text: '', mimeType: contentType || 'application/octet-stream' };
   }
   contentType = contentType || 'application/octet-stream';
   const contentAsString = new TextDecoder().decode(content);
@@ -83,12 +83,11 @@ const generateHarBlob = (flowsToExport: Flow[]): Blob => {
           const resStartMs = getTimestamp(httpFlow.response?.timestampStart);
           const resEndMs = getTimestamp(httpFlow.response?.timestampEnd);
 
-          const send = reqStartMs > 0 && reqEndMs > 0 && reqEndMs >= reqStartMs ? reqEndMs - reqStartMs : -1;
-          const wait = reqEndMs > 0 && resStartMs > 0 && resStartMs >= reqEndMs ? resStartMs - reqEndMs : -1;
-          const receive = resStartMs > 0 && resEndMs > 0 && resEndMs >= resStartMs ? resEndMs - resStartMs : -1;
+          const send = reqStartMs > 0 && reqEndMs > 0 && reqEndMs >= reqStartMs ? reqEndMs - reqStartMs : 0;
+          const wait = reqEndMs > 0 && resStartMs > 0 && resStartMs >= reqEndMs ? resStartMs - reqEndMs : 0;
+          const receive = resStartMs > 0 && resEndMs > 0 && resEndMs >= resStartMs ? resEndMs - resStartMs : 0;
           const timings = { send, wait, receive };
-          const timeParts = [send, wait, receive].filter(v => v !== -1);
-          const time = timeParts.length > 0 ? timeParts.reduce((a, b) => a + b, 0) : -1;
+          const time = send + wait + receive;
 
           // Only include postData for methods that can have a body
           let postData: ReturnType<typeof getHarContent> | undefined = undefined;
@@ -97,11 +96,14 @@ const generateHarBlob = (flowsToExport: Flow[]): Blob => {
             postData = getHarContent(httpFlow.request?.content, flow.httpFlowExtra?.request?.effectiveContentType);
           }
 
+          const startTime = reqStartMs > 0 ? reqStartMs : getTimestamp(httpFlow.timestampStart);
+          const startedDateTime = startTime > 0 ? new Date(startTime).toISOString() : new Date().toISOString();
+
           return [{
             pageref: pages.length ? pageId : undefined,
             connection: httpFlow.server?.addressPort ? String(httpFlow.server.addressPort) : '',
-            startedDateTime: new Date(reqStartMs > 0 ? reqStartMs : getTimestamp(httpFlow.timestampStart)).toISOString(),
-            time: typeof time === 'number' && !isNaN(time) ? time : -1,
+            startedDateTime,
+            time,
             timings,
             cache: {},
             request: {
