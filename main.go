@@ -269,7 +269,7 @@ func main() {
 	}
 	staticHandler := http.FileServer(http.FS(fsys))
 
-	// Handle the root path separately to inject the server address
+	// Serve index.html for root and HTML requests
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/" || r.URL.Path == "/index.html" {
 			// Read the index.html file from the embedded filesystem
@@ -279,8 +279,8 @@ func main() {
 				return
 			}
 
-			// Inject the server address into the HTML
-			// Use empty string for relative URL since frontend and backend are served from same origin
+			// Inject configuration into the HTML
+			// Use empty string for relative URL since frontend uses relative paths
 			config := `<script>window.MITMFLOW_GRPC_ADDR = "";</script>`
 			modifiedHTML := strings.Replace(
 				string(indexHTML),
