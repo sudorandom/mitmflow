@@ -143,7 +143,8 @@ declare global {
 type ConnectionStatus = 'connecting' | 'live' | 'paused' | 'failed';
 
 const App: React.FC = () => {
-  const client = useMemo(() => createClient(Service, createConnectTransport({ baseUrl: window.MITMFLOW_GRPC_ADDR || "http://localhost:50051" })), []);
+  // Use relative URL - in dev mode Vite proxies to backend, in production both are served from same origin
+  const client = useMemo(() => createClient(Service, createConnectTransport({ baseUrl: window.MITMFLOW_GRPC_ADDR || "" })), []);
   // --- State ---
   const [flows, setFlows] = useState<Flow[]>([]);
   const [isFlowsTruncated, setIsFlowsTruncated] = useState(false);

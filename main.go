@@ -280,7 +280,8 @@ func main() {
 			}
 
 			// Inject the server address into the HTML
-			config := fmt.Sprintf(`<script>window.MITMFLOW_GRPC_ADDR = "http://%s";</script>`, *addr)
+			// Use empty string for relative URL since frontend and backend are served from same origin
+			config := `<script>window.MITMFLOW_GRPC_ADDR = "";</script>`
 			modifiedHTML := strings.Replace(
 				string(indexHTML),
 				"<!-- MITMFLOW_CONFIG -->",
