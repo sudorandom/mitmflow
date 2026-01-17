@@ -280,8 +280,8 @@ func main() {
 			}
 
 			// Inject configuration into the HTML
-			// Use empty string for relative URL since frontend uses relative paths
-			config := `<script>window.MITMFLOW_GRPC_ADDR = "";</script>`
+			// Use "." for relative URL so requests go relative to current page path
+			config := `<script>window.MITMFLOW_GRPC_ADDR = ".";</script>`
 			modifiedHTML := strings.Replace(
 				string(indexHTML),
 				"<!-- MITMFLOW_CONFIG -->",
