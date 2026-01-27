@@ -28,6 +28,14 @@ gen-images:
     magick stubs/data/test.svg -resize 20x20 stubs/data/test.webp
     cat stubs/data/test.webp | base64 -o stubs/data/test.webp.b64
 
-fauxrpc:
-    cd proto && buf build -o ../fauxrpc-image.binpb
-    go run github.com/sudorandom/fauxrpc/cmd/fauxrpc@v0.16.3 run --schema=fauxrpc-image.binpb --addr=127.0.0.1:50051 --stubs=stubs
+schema-image:
+    cd proto && buf build -o ../schema.binpb
+
+fauxrpc: schema-image
+    fauxrpc run \
+        --schema=schema.binpb \
+        --addr=127.0.0.1:50051 \
+        --stubs=stubs
+
+fauxrpc-client: schema-image
+    ./send_test_flows.sh 0.1

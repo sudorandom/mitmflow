@@ -34,11 +34,17 @@ const (
 const (
 	// ServiceStreamFlowsProcedure is the fully-qualified name of the Service's StreamFlows RPC.
 	ServiceStreamFlowsProcedure = "/mitmflow.v1.Service/StreamFlows"
+	// ServiceUpdateFlowProcedure is the fully-qualified name of the Service's UpdateFlow RPC.
+	ServiceUpdateFlowProcedure = "/mitmflow.v1.Service/UpdateFlow"
+	// ServiceDeleteFlowsProcedure is the fully-qualified name of the Service's DeleteFlows RPC.
+	ServiceDeleteFlowsProcedure = "/mitmflow.v1.Service/DeleteFlows"
 )
 
 // ServiceClient is a client for the mitmflow.v1.Service service.
 type ServiceClient interface {
 	StreamFlows(context.Context, *connect.Request[StreamFlowsRequest]) (*connect.ServerStreamForClient[StreamFlowsResponse], error)
+	UpdateFlow(context.Context, *connect.Request[UpdateFlowRequest]) (*connect.Response[UpdateFlowResponse], error)
+	DeleteFlows(context.Context, *connect.Request[DeleteFlowsRequest]) (*connect.Response[DeleteFlowsResponse], error)
 }
 
 // NewServiceClient constructs a client for the mitmflow.v1.Service service. By default, it uses the
@@ -58,12 +64,26 @@ func NewServiceClient(httpClient connect.HTTPClient, baseURL string, opts ...con
 			connect.WithSchema(serviceMethods.ByName("StreamFlows")),
 			connect.WithClientOptions(opts...),
 		),
+		updateFlow: connect.NewClient[UpdateFlowRequest, UpdateFlowResponse](
+			httpClient,
+			baseURL+ServiceUpdateFlowProcedure,
+			connect.WithSchema(serviceMethods.ByName("UpdateFlow")),
+			connect.WithClientOptions(opts...),
+		),
+		deleteFlows: connect.NewClient[DeleteFlowsRequest, DeleteFlowsResponse](
+			httpClient,
+			baseURL+ServiceDeleteFlowsProcedure,
+			connect.WithSchema(serviceMethods.ByName("DeleteFlows")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
 // serviceClient implements ServiceClient.
 type serviceClient struct {
 	streamFlows *connect.Client[StreamFlowsRequest, StreamFlowsResponse]
+	updateFlow  *connect.Client[UpdateFlowRequest, UpdateFlowResponse]
+	deleteFlows *connect.Client[DeleteFlowsRequest, DeleteFlowsResponse]
 }
 
 // StreamFlows calls mitmflow.v1.Service.StreamFlows.
@@ -71,9 +91,21 @@ func (c *serviceClient) StreamFlows(ctx context.Context, req *connect.Request[St
 	return c.streamFlows.CallServerStream(ctx, req)
 }
 
+// UpdateFlow calls mitmflow.v1.Service.UpdateFlow.
+func (c *serviceClient) UpdateFlow(ctx context.Context, req *connect.Request[UpdateFlowRequest]) (*connect.Response[UpdateFlowResponse], error) {
+	return c.updateFlow.CallUnary(ctx, req)
+}
+
+// DeleteFlows calls mitmflow.v1.Service.DeleteFlows.
+func (c *serviceClient) DeleteFlows(ctx context.Context, req *connect.Request[DeleteFlowsRequest]) (*connect.Response[DeleteFlowsResponse], error) {
+	return c.deleteFlows.CallUnary(ctx, req)
+}
+
 // ServiceHandler is an implementation of the mitmflow.v1.Service service.
 type ServiceHandler interface {
 	StreamFlows(context.Context, *connect.Request[StreamFlowsRequest], *connect.ServerStream[StreamFlowsResponse]) error
+	UpdateFlow(context.Context, *connect.Request[UpdateFlowRequest]) (*connect.Response[UpdateFlowResponse], error)
+	DeleteFlows(context.Context, *connect.Request[DeleteFlowsRequest]) (*connect.Response[DeleteFlowsResponse], error)
 }
 
 // NewServiceHandler builds an HTTP handler from the service implementation. It returns the path on
@@ -89,10 +121,26 @@ func NewServiceHandler(svc ServiceHandler, opts ...connect.HandlerOption) (strin
 		connect.WithSchema(serviceMethods.ByName("StreamFlows")),
 		connect.WithHandlerOptions(opts...),
 	)
+	serviceUpdateFlowHandler := connect.NewUnaryHandler(
+		ServiceUpdateFlowProcedure,
+		svc.UpdateFlow,
+		connect.WithSchema(serviceMethods.ByName("UpdateFlow")),
+		connect.WithHandlerOptions(opts...),
+	)
+	serviceDeleteFlowsHandler := connect.NewUnaryHandler(
+		ServiceDeleteFlowsProcedure,
+		svc.DeleteFlows,
+		connect.WithSchema(serviceMethods.ByName("DeleteFlows")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/mitmflow.v1.Service/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case ServiceStreamFlowsProcedure:
 			serviceStreamFlowsHandler.ServeHTTP(w, r)
+		case ServiceUpdateFlowProcedure:
+			serviceUpdateFlowHandler.ServeHTTP(w, r)
+		case ServiceDeleteFlowsProcedure:
+			serviceDeleteFlowsHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -104,4 +152,12 @@ type UnimplementedServiceHandler struct{}
 
 func (UnimplementedServiceHandler) StreamFlows(context.Context, *connect.Request[StreamFlowsRequest], *connect.ServerStream[StreamFlowsResponse]) error {
 	return connect.NewError(connect.CodeUnimplemented, errors.New("mitmflow.v1.Service.StreamFlows is not implemented"))
+}
+
+func (UnimplementedServiceHandler) UpdateFlow(context.Context, *connect.Request[UpdateFlowRequest]) (*connect.Response[UpdateFlowResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("mitmflow.v1.Service.UpdateFlow is not implemented"))
+}
+
+func (UnimplementedServiceHandler) DeleteFlows(context.Context, *connect.Request[DeleteFlowsRequest]) (*connect.Response[DeleteFlowsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("mitmflow.v1.Service.DeleteFlows is not implemented"))
 }

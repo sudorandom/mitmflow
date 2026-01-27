@@ -30,17 +30,22 @@ import (
 var dist embed.FS
 
 var (
-	addr = flag.String("addr", "127.0.0.1:50051", "Address to listen on")
+	addr     = flag.String("addr", "127.0.0.1:50051", "Address to listen on")
+	dataDir  = flag.String("data-dir", "mitmflow_data", "Directory to store flow data")
+	maxFlows = flag.Int("max-flows", 500, "Maximum number of unpinned flows to keep")
 )
 
 type MITMFlowServer struct {
 	subscribers map[string]chan *mitmflowv1.Flow
 	mu          sync.RWMutex
+	storage     *FlowStorage
 }
 
-func NewMITMFlowServer() *MITMFlowServer {
-	return &MITMFlowServer{subscribers: make(map[string]chan *mitmflowv1.Flow)}
-
+func NewMITMFlowServer(storage *FlowStorage) *MITMFlowServer {
+	return &MITMFlowServer{
+		subscribers: make(map[string]chan *mitmflowv1.Flow),
+		storage:     storage,
+	}
 }
 
 func (s *MITMFlowServer) ExportFlow(
@@ -67,6 +72,9 @@ func (s *MITMFlowServer) ExportFlow(
 			continue
 		}
 		s.preprocessFlow(flow)
+		if err := s.storage.SaveFlow(flow); err != nil {
+			log.Printf("failed to save flow: %v", err)
+		}
 		s.mu.RLock()
 		for _, ch := range s.subscribers {
 			select {
@@ -109,6 +117,12 @@ func (s *MITMFlowServer) StreamFlows(
 		close(ch)
 	}()
 
+	for _, flow := range s.storage.GetFlows() {
+		if err := stream.Send(mitmflowv1.StreamFlowsResponse_builder{Flow: flow}.Build()); err != nil {
+			return err
+		}
+	}
+
 	for {
 		select {
 		case <-ctx.Done():
@@ -119,6 +133,50 @@ func (s *MITMFlowServer) StreamFlows(
 			}
 		}
 	}
+}
+
+func (s *MITMFlowServer) UpdateFlow(
+	ctx context.Context,
+	req *connect.Request[mitmflowv1.UpdateFlowRequest],
+) (*connect.Response[mitmflowv1.UpdateFlowResponse], error) {
+	log.Printf("UpdateFlow: ID=%s Pinned=%v", req.Msg.GetFlowId(), req.Msg.GetPinned())
+	flow, err := s.storage.UpdateFlow(req.Msg.GetFlowId(), req.Msg.GetPinned())
+	if err != nil {
+		log.Printf("UpdateFlow error: %v", err)
+		return nil, connect.NewError(connect.CodeNotFound, err)
+	}
+
+	s.mu.RLock()
+	for _, ch := range s.subscribers {
+		select {
+		case ch <- flow:
+		default:
+		}
+	}
+	s.mu.RUnlock()
+
+	return connect.NewResponse(mitmflowv1.UpdateFlowResponse_builder{Flow: flow}.Build()), nil
+}
+
+func (s *MITMFlowServer) DeleteFlows(
+	ctx context.Context,
+	req *connect.Request[mitmflowv1.DeleteFlowsRequest],
+) (*connect.Response[mitmflowv1.DeleteFlowsResponse], error) {
+	var count int64
+	var err error
+
+	if req.Msg.GetAll() {
+		count, err = s.storage.DeleteAllFlows()
+	} else {
+		count, err = s.storage.DeleteFlows(req.Msg.GetFlowIds())
+	}
+
+	if err != nil {
+		log.Printf("DeleteFlows error: %v", err)
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+
+	return connect.NewResponse(mitmflowv1.DeleteFlowsResponse_builder{Count: proto.Int64(count)}.Build()), nil
 }
 
 func (s *MITMFlowServer) preprocessFlow(flow *mitmflowv1.Flow) {
@@ -256,8 +314,14 @@ func (s *MITMFlowServer) preprocessResponse(resp *mitmproxygrpcv1.Response, deta
 
 func main() {
 	flag.Parse()
+
+	storage, err := NewFlowStorage(*dataDir, *maxFlows)
+	if err != nil {
+		log.Fatalf("failed to initialize storage: %v", err)
+	}
+
 	mux := http.NewServeMux()
-	server := NewMITMFlowServer()
+	server := NewMITMFlowServer(storage)
 	mux.Handle(mitmflowv1.NewServiceHandler(server))
 	mux.Handle(mitmproxygrpcv1.NewServiceHandler(server))
 

@@ -9,7 +9,7 @@ import { file_mitmproxygrpc_v1_service } from "../../mitmproxygrpc/v1/service_pb
  * Describes the file mitmflow/v1/mitmflow.proto.
  */
 export const file_mitmflow_v1_mitmflow = /*@__PURE__*/
-  fileDesc("ChptaXRtZmxvdy92MS9taXRtZmxvdy5wcm90bxILbWl0bWZsb3cudjEiFAoSU3RyZWFtRmxvd3NSZXF1ZXN0IjYKE1N0cmVhbUZsb3dzUmVzcG9uc2USHwoEZmxvdxgBIAEoCzIRLm1pdG1mbG93LnYxLkZsb3ci8QEKBEZsb3cSKwoJaHR0cF9mbG93GAEgASgLMhYubWl0bXByb3h5LnYxLkhUVFBGbG93SAASKQoIdGNwX2Zsb3cYAiABKAsyFS5taXRtcHJveHkudjEuVENQRmxvd0gAEikKCHVkcF9mbG93GAMgASgLMhUubWl0bXByb3h5LnYxLlVEUEZsb3dIABIpCghkbnNfZmxvdxgEIAEoCzIVLm1pdG1wcm94eS52MS5ETlNGbG93SAASMwoPaHR0cF9mbG93X2V4dHJhGAUgASgLMhoubWl0bWZsb3cudjEuSFRUUEZsb3dFeHRyYUIGCgRmbG93ImwKDUhUVFBGbG93RXh0cmESLAoHcmVxdWVzdBgBIAEoCzIbLm1pdG1mbG93LnYxLk1lc3NhZ2VEZXRhaWxzEi0KCHJlc3BvbnNlGAIgASgLMhsubWl0bWZsb3cudjEuTWVzc2FnZURldGFpbHMiSAoOTWVzc2FnZURldGFpbHMSFgoOdGV4dHVhbF9mcmFtZXMYASADKAkSHgoWZWZmZWN0aXZlX2NvbnRlbnRfdHlwZRgCIAEoCTJfCgdTZXJ2aWNlElQKC1N0cmVhbUZsb3dzEh8ubWl0bWZsb3cudjEuU3RyZWFtRmxvd3NSZXF1ZXN0GiAubWl0bWZsb3cudjEuU3RyZWFtRmxvd3NSZXNwb25zZSIAMAFiCGVkaXRpb25zcOgH", [file_mitmproxygrpc_v1_service]);
+  fileDesc("ChptaXRtZmxvdy92MS9taXRtZmxvdy5wcm90bxILbWl0bWZsb3cudjEiFAoSU3RyZWFtRmxvd3NSZXF1ZXN0IjYKE1N0cmVhbUZsb3dzUmVzcG9uc2USHwoEZmxvdxgBIAEoCzIRLm1pdG1mbG93LnYxLkZsb3ciNAoRVXBkYXRlRmxvd1JlcXVlc3QSDwoHZmxvd19pZBgBIAEoCRIOCgZwaW5uZWQYAiABKAgiNQoSVXBkYXRlRmxvd1Jlc3BvbnNlEh8KBGZsb3cYASABKAsyES5taXRtZmxvdy52MS5GbG93IjMKEkRlbGV0ZUZsb3dzUmVxdWVzdBIQCghmbG93X2lkcxgBIAMoCRILCgNhbGwYAiABKAgiJAoTRGVsZXRlRmxvd3NSZXNwb25zZRINCgVjb3VudBgBIAEoAyKBAgoERmxvdxIrCglodHRwX2Zsb3cYASABKAsyFi5taXRtcHJveHkudjEuSFRUUEZsb3dIABIpCgh0Y3BfZmxvdxgCIAEoCzIVLm1pdG1wcm94eS52MS5UQ1BGbG93SAASKQoIdWRwX2Zsb3cYAyABKAsyFS5taXRtcHJveHkudjEuVURQRmxvd0gAEikKCGRuc19mbG93GAQgASgLMhUubWl0bXByb3h5LnYxLkROU0Zsb3dIABIzCg9odHRwX2Zsb3dfZXh0cmEYBSABKAsyGi5taXRtZmxvdy52MS5IVFRQRmxvd0V4dHJhEg4KBnBpbm5lZBgGIAEoCEIGCgRmbG93ImwKDUhUVFBGbG93RXh0cmESLAoHcmVxdWVzdBgBIAEoCzIbLm1pdG1mbG93LnYxLk1lc3NhZ2VEZXRhaWxzEi0KCHJlc3BvbnNlGAIgASgLMhsubWl0bWZsb3cudjEuTWVzc2FnZURldGFpbHMiSAoOTWVzc2FnZURldGFpbHMSFgoOdGV4dHVhbF9mcmFtZXMYASADKAkSHgoWZWZmZWN0aXZlX2NvbnRlbnRfdHlwZRgCIAEoCTKEAgoHU2VydmljZRJUCgtTdHJlYW1GbG93cxIfLm1pdG1mbG93LnYxLlN0cmVhbUZsb3dzUmVxdWVzdBogLm1pdG1mbG93LnYxLlN0cmVhbUZsb3dzUmVzcG9uc2UiADABEk8KClVwZGF0ZUZsb3cSHi5taXRtZmxvdy52MS5VcGRhdGVGbG93UmVxdWVzdBofLm1pdG1mbG93LnYxLlVwZGF0ZUZsb3dSZXNwb25zZSIAElIKC0RlbGV0ZUZsb3dzEh8ubWl0bWZsb3cudjEuRGVsZXRlRmxvd3NSZXF1ZXN0GiAubWl0bWZsb3cudjEuRGVsZXRlRmxvd3NSZXNwb25zZSIAYghlZGl0aW9uc3DoBw", [file_mitmproxygrpc_v1_service]);
 
 /**
  * Describes the message mitmflow.v1.StreamFlowsRequest.
@@ -26,25 +26,53 @@ export const StreamFlowsResponseSchema = /*@__PURE__*/
   messageDesc(file_mitmflow_v1_mitmflow, 1);
 
 /**
+ * Describes the message mitmflow.v1.UpdateFlowRequest.
+ * Use `create(UpdateFlowRequestSchema)` to create a new message.
+ */
+export const UpdateFlowRequestSchema = /*@__PURE__*/
+  messageDesc(file_mitmflow_v1_mitmflow, 2);
+
+/**
+ * Describes the message mitmflow.v1.UpdateFlowResponse.
+ * Use `create(UpdateFlowResponseSchema)` to create a new message.
+ */
+export const UpdateFlowResponseSchema = /*@__PURE__*/
+  messageDesc(file_mitmflow_v1_mitmflow, 3);
+
+/**
+ * Describes the message mitmflow.v1.DeleteFlowsRequest.
+ * Use `create(DeleteFlowsRequestSchema)` to create a new message.
+ */
+export const DeleteFlowsRequestSchema = /*@__PURE__*/
+  messageDesc(file_mitmflow_v1_mitmflow, 4);
+
+/**
+ * Describes the message mitmflow.v1.DeleteFlowsResponse.
+ * Use `create(DeleteFlowsResponseSchema)` to create a new message.
+ */
+export const DeleteFlowsResponseSchema = /*@__PURE__*/
+  messageDesc(file_mitmflow_v1_mitmflow, 5);
+
+/**
  * Describes the message mitmflow.v1.Flow.
  * Use `create(FlowSchema)` to create a new message.
  */
 export const FlowSchema = /*@__PURE__*/
-  messageDesc(file_mitmflow_v1_mitmflow, 2);
+  messageDesc(file_mitmflow_v1_mitmflow, 6);
 
 /**
  * Describes the message mitmflow.v1.HTTPFlowExtra.
  * Use `create(HTTPFlowExtraSchema)` to create a new message.
  */
 export const HTTPFlowExtraSchema = /*@__PURE__*/
-  messageDesc(file_mitmflow_v1_mitmflow, 3);
+  messageDesc(file_mitmflow_v1_mitmflow, 7);
 
 /**
  * Describes the message mitmflow.v1.MessageDetails.
  * Use `create(MessageDetailsSchema)` to create a new message.
  */
 export const MessageDetailsSchema = /*@__PURE__*/
-  messageDesc(file_mitmflow_v1_mitmflow, 4);
+  messageDesc(file_mitmflow_v1_mitmflow, 8);
 
 /**
  * @generated from service mitmflow.v1.Service

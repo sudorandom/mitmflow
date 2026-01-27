@@ -18,7 +18,7 @@ func TestParseGrpcWebFrames(t *testing.T) {
 		{
 			name:  "empty response",
 			input: "AAAAAAA=",
-			want:  nil,
+			want:  []string{""},
 		},
 		{
 			name:  "response with data and trailer",
@@ -35,7 +35,7 @@ func TestParseGrpcWebFrames(t *testing.T) {
 			if err != nil {
 				t.Fatalf("failed to decode base64 string: %v", err)
 			}
-			got, err := parseGrpcWebFrames(data)
+			got, err := parseGrpcWebFrames(data, nil, nil)
 			if tt.wantErr {
 				require.Error(t, err)
 				return

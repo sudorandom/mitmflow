@@ -74,6 +74,7 @@ func parseGrpcFrames(content []byte, trailers map[string]string) ([]string, erro
 	return frames, nil
 }
 
+// parseGrpcWebFrames parses gRPC-Web frames from the content, utilizing headers and trailers for status details.
 func parseGrpcWebFrames(content []byte, headers map[string]string, trailers map[string]string) ([]string, error) {
 	if len(content) < 5 {
 		return []string{""}, nil
