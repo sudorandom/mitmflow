@@ -1,15 +1,16 @@
 ---
 stubs:
 - id: json
-  target: mitmflow.v1.Service/StreamFlows
+  target: mitmproxy.v1.ExportFlowRequest
   cel_content: |
     {
+      "event_type": "EVENT_TYPE_REQUEST",
       "flow": {
         "http_flow": {
           "id": fake_uuid(),
           "request": {
             "method": fake_http_method(),
-            "url": fake_url()+'.js',
+            "url": fake_url()+'.json',
             "headers": {
               "User-Agent": fake_user_agent(),
             },
@@ -18,10 +19,10 @@ stubs:
           "response": {
             "status_code": fake_http_status_code(),
             "headers": {
-              "Content-Type": "application/javascript",
+              "Content-Type": "application/json",
               "Server": fake_product_name(),
             },
-            "content": base64.encode(b'console.log("Hello, world!");'),
+            "content": base64.encode(b'{"name": "John", "age": 30, "car": null}'),
             "http_version": "HTTP/3",
           },
           "timestamp_start": fake_date(),

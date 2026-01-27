@@ -14,7 +14,7 @@ generate_data() {
         fauxrpc generate \
             --schema=schema.binpb \
             --target=mitmproxy.v1.ExportFlowRequest \
-            --stubs=stubs 2>/dev/null
+            --stubs=stubs/input 2>/dev/null
         sleep "$SLEEP_DURATION"
     done
 }

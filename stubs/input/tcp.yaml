@@ -1,0 +1,57 @@
+---
+stubs:
+- id: tcp
+  target: mitmproxy.v1.ExportFlowRequest
+  cel_content: |
+    {
+      "event_type": "EVENT_TYPE_REQUEST",
+      "flow": {
+        "tcp_flow": {
+          "id": fake_uuid(),
+          "messages": [
+            {
+              "content": base64.encode(b'Hello, server!'),
+              "from_client": true,
+              "timestamp": fake_date()
+            },
+            {
+              "content": base64.encode(b'Hello, client!'),
+              "from_client": false,
+              "timestamp": fake_date()
+            }
+          ],
+          "timestamp_start": fake_date(),
+          "duration_ms": fake_float32(),
+          "client": {
+            "peername_host": fake_i_pv4_address(),
+            "peername_port": fake_int8(),
+          },
+          "server": {
+            "address_host": fake_i_pv4_address(),
+            "address_port": fake_int8(),
+          }
+        }
+      }
+    }
+- id: tcp-error
+  target: mitmproxy.v1.ExportFlowRequest
+  cel_content: |
+    {
+      "event_type": "EVENT_TYPE_REQUEST",
+      "flow": {
+        "tcp_flow": {
+          "id": fake_uuid(),
+          "error": "TCP connection failed",
+          "timestamp_start": fake_date(),
+          "duration_ms": fake_float32(),
+          "client": {
+            "peername_host": fake_i_pv4_address(),
+            "peername_port": fake_int8(),
+          },
+          "server": {
+            "address_host": fake_i_pv4_address(),
+            "address_port": fake_int8(),
+          }
+        }
+      }
+    }

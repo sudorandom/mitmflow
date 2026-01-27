@@ -1,0 +1,45 @@
+---
+stubs:
+- id: javascript
+  target: mitmflow.v1.Service/StreamFlows
+  cel_content: |
+    {
+      "flow": {
+        "http_flow": {
+          "id": fake_uuid(),
+          "request": {
+            "method": fake_http_method(),
+            "url": fake_url()+'.js',
+            "headers": {
+              "User-Agent": fake_user_agent(),
+            },
+            "http_version": "HTTP/3",
+          },
+          "response": {
+            "status_code": fake_http_status_code(),
+            "headers": {
+              "Content-Type": "application/javascript",
+              "Server": fake_product_name(),
+            },
+            "content": base64.encode(b'console.log("Hello, world!");'),
+            "http_version": "HTTP/3",
+          },
+          "timestamp_start": fake_date(),
+          "duration_ms": fake_float32(),
+          "client": {
+            "peername_host": fake_i_pv4_address(),
+            "peername_port": fake_int8(),
+            "sockname_host": fake_i_pv4_address(),
+            "sockname_port": fake_int8(),
+            "id": fake_uuid()
+          },
+          "server": {
+            "peername_host": fake_i_pv4_address(),
+            "peername_port": fake_int8(),
+            "sockname_host": fake_i_pv4_address(),
+            "sockname_port": fake_int8(),
+            "id": fake_uuid()
+          }
+        },
+      },
+    }
