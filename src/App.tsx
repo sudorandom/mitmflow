@@ -15,6 +15,7 @@ import SettingsModal from './components/SettingsModal';
 import useFilterStore from './store';
 import useSettingsStore from './settingsStore';
 import FlowTable from './components/FlowTable';
+import { isFlowMatch, FilterConfig } from './filterUtils';
 
 const getHarContent = (content: Uint8Array | undefined, contentType: string | undefined) => {
   if (!content || content.length === 0) {
@@ -153,7 +154,7 @@ const App: React.FC = () => {
   // Use relative URL - in dev mode Vite proxies to backend, in production both are served from same origin
   const client = useMemo(() => createClient(Service, createConnectTransport({ baseUrl: window.MITMFLOW_GRPC_ADDR || "." })), []);
   // --- State ---
-  const [flows, setFlows] = useState<Flow[]>([]);
+  const [flowState, setFlowState] = useState<{ all: Flow[]; filtered: Flow[] }>({ all: [], filtered: [] });
   const [isFlowsTruncated, setIsFlowsTruncated] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
   const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>('connecting');
@@ -164,6 +165,20 @@ const App: React.FC = () => {
     http,
     clearFilters
   } = useFilterStore();
+
+  const filterRef = useRef<FilterConfig>({ text: filterText, flowTypes, http });
+
+  useEffect(() => {
+    filterRef.current = { text: filterText, flowTypes, http };
+  }, [filterText, flowTypes, http]);
+
+  // Re-filter when filter settings change
+  useEffect(() => {
+    setFlowState(prev => ({
+        all: prev.all,
+        filtered: prev.all.filter(f => isFlowMatch(f, filterRef.current))
+    }));
+  }, [filterText, flowTypes, http]);
   const [isFilterModalOpen, setIsFilterModalOpen] = useState(false);
   const [selectedFlow, setSelectedFlow] = useState<Flow | null>(null);
   const [isPanelMinimized, setIsPanelMinimized] = useState(false);
@@ -295,44 +310,83 @@ const App: React.FC = () => {
           if (!response.flow || !response.flow.flow) {
             continue;
           }
-          setFlows(prevFlows => {
-            if (!response.flow) {
-              return prevFlows;
-            }
-            const incomingFlow = response.flow;
-
-            if (incomingFlow.flow.case === 'httpFlow') {
-              const httpFlow = incomingFlow.flow.value;
-              const maxBodySizeBytes = maxBodySize * 1024;
-              if (httpFlow.request && httpFlow.request.content.length > maxBodySizeBytes) {
-                httpFlow.request.content = httpFlow.request.content.slice(0, maxBodySizeBytes);
-                httpFlow.request.contentTruncated = true;
+            setFlowState(prevState => {
+              if (!response.flow) {
+                return prevState;
               }
-              if (httpFlow.response && httpFlow.response.content.length > maxBodySizeBytes) {
-                httpFlow.response.content = httpFlow.response.content.slice(0, maxBodySizeBytes);
-                httpFlow.response.contentTruncated = true;
-              }
-            }
+              const incomingFlow = response.flow;
 
-            const existingIndex = prevFlows.findIndex(r => {
-              const rFlowId = getFlowId(r);
+              if (incomingFlow.flow.case === 'httpFlow') {
+                const httpFlow = incomingFlow.flow.value;
+                const maxBodySizeBytes = maxBodySize * 1024;
+                if (httpFlow.request && httpFlow.request.content.length > maxBodySizeBytes) {
+                  httpFlow.request.content = httpFlow.request.content.slice(0, maxBodySizeBytes);
+                  httpFlow.request.contentTruncated = true;
+                }
+                if (httpFlow.response && httpFlow.response.content.length > maxBodySizeBytes) {
+                  httpFlow.response.content = httpFlow.response.content.slice(0, maxBodySizeBytes);
+                  httpFlow.response.contentTruncated = true;
+                }
+              }
+
               const incomingFlowId = getFlowId(incomingFlow);
-              return rFlowId && incomingFlowId && rFlowId === incomingFlowId;
+              const existingIndex = prevState.all.findIndex(r => {
+                const rFlowId = getFlowId(r);
+                return rFlowId && incomingFlowId && rFlowId === incomingFlowId;
+              });
+
+              let newAll = [...prevState.all];
+              let newFiltered = [...prevState.filtered];
+
+              if (existingIndex !== -1) {
+                // Update existing flow
+                newAll[existingIndex] = incomingFlow;
+
+                // Update in filtered list if present
+                const filteredIndex = newFiltered.findIndex(r => getFlowId(r) === incomingFlowId);
+                const matches = isFlowMatch(incomingFlow, filterRef.current);
+
+                if (filteredIndex !== -1) {
+                   if (matches) {
+                       newFiltered[filteredIndex] = incomingFlow;
+                   } else {
+                       // No longer matches, remove
+                       newFiltered.splice(filteredIndex, 1);
+                   }
+                } else if (matches) {
+                    // Didn't exist in filtered (maybe wasn't matching before), but now matches.
+                    // Prepend to filtered list to show it.
+                    newFiltered = [incomingFlow, ...newFiltered];
+                }
+              } else {
+                // New flow
+                newAll = [incomingFlow, ...newAll];
+
+                // Handle truncation on All
+                let droppedFlowId: string | undefined;
+                if (newAll.length > maxFlows) {
+                    const dropped = newAll.pop();
+                    droppedFlowId = getFlowId(dropped);
+                    setIsFlowsTruncated(true);
+                }
+
+                // Update Filtered
+                if (isFlowMatch(incomingFlow, filterRef.current)) {
+                    newFiltered = [incomingFlow, ...newFiltered];
+                }
+
+                // Handle truncation on Filtered
+                // If the dropped flow from ALL was in FILTERED, remove it.
+                if (droppedFlowId) {
+                    const droppedIndex = newFiltered.findIndex(f => getFlowId(f) === droppedFlowId);
+                    if (droppedIndex !== -1) {
+                        newFiltered.splice(droppedIndex, 1);
+                    }
+                }
+              }
+
+              return { all: newAll, filtered: newFiltered };
             });
-            if (existingIndex !== -1) {
-              // Check if flow was removed (e.g. deletion from backend)
-              // Currently streamFlows primarily sends updates, not deletions.
-              // If the flow is being updated, handle it.
-              const newFlows = [...prevFlows];
-              newFlows[existingIndex] = incomingFlow;
-              return newFlows;
-            }
-            const newFlows = [incomingFlow, ...prevFlows.slice(0, maxFlows - 1)];
-            if (newFlows.length >= maxFlows) {
-              setIsFlowsTruncated(true);
-            }
-            return newFlows;
-          });
         }
         // Stream completed without error, re-attempt after a delay
         if (!isPaused) {
@@ -392,127 +446,11 @@ const App: React.FC = () => {
   type FlowType = 'http' | 'dns' | 'tcp' | 'udp';
 
   // --- Derived State (Filtering) ---
-  const filteredFlows = useMemo(() => {
-    const filter = filterText.toLowerCase();
-
-    return flows.filter(flow => {
-      if (!flow.flow) return false;
-
-      // --- General Text Filter ---
-      if (filter) {
-        let isMatch = false;
-        const clientIp = flow.flow.value?.client?.peernameHost || '';
-        const serverIp = flow.flow.value?.server?.addressHost || '';
-        if (!flow.flow.case) {
-          return false;
-        }
-        switch (flow.flow.case) {
-          case 'httpFlow':
-            const httpFlow = flow.flow.value;
-            const url = httpFlow.request?.prettyUrl || httpFlow.request?.url || '';
-            const sni = httpFlow.client?.sni || '';
-            const filterTextHttp = `${url} ${httpFlow.request?.method} ${httpFlow.response?.statusCode} ${sni} ${clientIp} ${serverIp}`.toLowerCase();
-            isMatch = filterTextHttp.includes(filter);
-            break;
-          case 'dnsFlow':
-            const dnsFlow = flow.flow.value;
-            const domainName = dnsFlow.request?.questions[0]?.name || '';
-            isMatch = `${domainName} ${clientIp} ${serverIp}`.toLowerCase().includes(filter);
-            break;
-          case 'tcpFlow':
-            const tcpFlow = flow.flow.value;
-            const tcpServer = tcpFlow.server;
-            isMatch = `${tcpServer?.addressHost}:${tcpServer?.addressPort} ${clientIp} ${serverIp}`.toLowerCase().includes(filter);
-            break;
-          case 'udpFlow':
-            const udpFlow = flow.flow.value;
-            const udpServer = udpFlow.server;
-            isMatch = `${udpServer?.addressHost}:${udpServer?.addressPort} ${clientIp} ${serverIp}`.toLowerCase().includes(filter);
-            break;
-        }
-        if (!isMatch) return false;
-      }
-
-      // --- Advanced Filters ---
-      // Flow Type Filter (OR logic)
-      if (flowTypes.length > 0) {
-        if (!flow.flow?.case) {
-          return false;
-        }
-        let currentFlowTypes: FlowType[];
-
-        // Special handling for HTTP flows that are actually DNS-over-HTTP
-        if (flow.flow.case === 'httpFlow') {
-          const reqContentType = flow.httpFlowExtra?.request?.effectiveContentType;
-          const resContentType = flow.httpFlowExtra?.response?.effectiveContentType;
-
-          if (reqContentType === 'application/dns-message' || resContentType === 'application/dns-message') {
-            currentFlowTypes = ['dns']; // Only consider it DNS, not HTTP
-          } else {
-            currentFlowTypes = ['http']; // Regular HTTP flow
-          }
-        } else {
-          currentFlowTypes = [flow.flow.case.replace('Flow', '').toLowerCase() as FlowType];
-        }
-
-        // Check if any of the currentFlowTypes are included in the selected flowTypes
-        if (!currentFlowTypes.some(type => flowTypes.includes(type))) {
-          return false;
-        }
-      }
-
-      // HTTP Specific Filters (AND logic)
-      if (flow.flow.case === 'httpFlow') {
-        const httpFlow = flow.flow.value;
-
-        // HTTP Method Filter
-        if (http.methods.length > 0 && !http.methods.includes(httpFlow.request?.method || '')) {
-          return false;
-        }
-
-        // HTTP Status Code Filter
-        if (http.statusCodes.length > 0) {
-            const flowStatusCode = httpFlow.response?.statusCode;
-            if (flowStatusCode === undefined || flowStatusCode === null) {
-                // If no status code, it cannot match any status code filter
-                return false;
-            }
-            const statusCodeStr = flowStatusCode.toString();
-            const matches = http.statusCodes.some(sc => {
-                if (sc.endsWith('xx')) {
-                    const prefix = sc.slice(0, 1);
-                    return statusCodeStr.startsWith(prefix);
-                }
-                if (sc.includes('-')) {
-                    const [start, end] = sc.split('-').map(Number);
-                    const code = Number(statusCodeStr);
-                    return code >= start && code <= end;
-                }
-                return statusCodeStr === sc;
-            });
-            if (!matches) {
-                return false;
-            }
-        }
-
-        // HTTP Content Type Filter
-        if (http.contentTypes.length > 0) {
-            const reqContentType = flow.httpFlowExtra?.request?.effectiveContentType || '';
-            const resContentType = flow.httpFlowExtra?.response?.effectiveContentType || '';
-            const matches = http.contentTypes.some(ct => reqContentType.includes(ct) || resContentType.includes(ct));
-            if (!matches) {
-                return false;
-            }
-        }
-      }
-
-      return true; // If all filters pass
-    });
-  }, [flows, filterText, flowTypes, http.methods, http.statusCodes, http.contentTypes]);
+  const filteredFlows = flowState.filtered;
 
   // --- Event Handlers ---
   const handleDownloadSelectedFlows = (format: 'har' | 'json') => {
-    const selectedFlows = flows.filter(flow => {
+    const selectedFlows = flowState.all.filter(flow => {
       const flowId = getFlowId(flow);
       return flowId && selectedFlowIds.has(flowId);
     });
@@ -542,7 +480,7 @@ const App: React.FC = () => {
   const togglePause = () => setIsPaused(prev => !prev);
   
   const handleClearFlows = () => {
-    setFlows([]); // Clear the main flows array
+    setFlowState({ all: [], filtered: [] }); // Clear the main flows array
     setIsFlowsTruncated(false);
     setSelectedFlow(null);
     setSelectedFlowId(null);
@@ -557,7 +495,10 @@ const App: React.FC = () => {
     if (ids.length === 0) return;
     try {
       await client.deleteFlows({ flowIds: ids });
-      setFlows(prev => prev.filter(f => !ids.includes(getFlowId(f) || '')));
+      setFlowState(prev => ({
+        all: prev.all.filter(f => !ids.includes(getFlowId(f) || '')),
+        filtered: prev.filtered.filter(f => !ids.includes(getFlowId(f) || ''))
+      }));
       setSelectedFlow(null);
       setSelectedFlowId(null);
       setSelectedFlowIds(new Set());
@@ -586,7 +527,10 @@ const App: React.FC = () => {
     if (!flowId) return;
     try {
       await client.deleteFlows({ flowIds: [flowId] });
-      setFlows(prev => prev.filter(f => getFlowId(f) !== flowId));
+      setFlowState(prev => ({
+        all: prev.all.filter(f => getFlowId(f) !== flowId),
+        filtered: prev.filtered.filter(f => getFlowId(f) !== flowId)
+      }));
       if (selectedFlowId === flowId) {
         setSelectedFlow(null);
         setSelectedFlowId(null);
@@ -911,7 +855,7 @@ const App: React.FC = () => {
 
       {isFlowsTruncated && (
         <footer className="p-2 text-center text-xs text-gray-500 dark:text-zinc-500 border-t border-gray-200 dark:border-zinc-700">
-          Showing the last {flows.length} flows. You can change this limit in the <button onClick={() => setIsSettingsModalOpen(true)} className="underline hover:text-orange-500">settings</button>.
+          Showing the last {flowState.all.length} flows. You can change this limit in the <button onClick={() => setIsSettingsModalOpen(true)} className="underline hover:text-orange-500">settings</button>.
         </footer>
       )}
 
