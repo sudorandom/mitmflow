@@ -11,10 +11,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Set up Go
-        uses: actions/setup-go@v5
-        with:
-          go-version: '>=1.23'
+      - uses: jdx/mise-action@v2
       - name: Create dummy dist directory
         run: mkdir -p dist && touch dist/index.html
       - name: Run Backend Tests
@@ -24,13 +21,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Set up Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-      - uses: pnpm/action-setup@v4
-        with:
-          version: 10
+      - uses: jdx/mise-action@v2
       - name: Install dependencies
         run: pnpm install
       - name: Run Frontend Tests
