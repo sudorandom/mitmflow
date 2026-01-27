@@ -569,7 +569,16 @@ const App: React.FC = () => {
     }
     try {
       await client.deleteFlows({ all: true });
-      handleClearFlows();
+      const pinnedFlows = flowState.all.filter(f => f.pinned);
+      if (pinnedFlows.length > 0) {
+        setFlowState({
+          all: pinnedFlows,
+          filtered: pinnedFlows.filter(f => isFlowMatch(f, filterRef.current))
+        });
+        showToast("Pinned flows were not deleted. Select and delete them explicitly to remove.");
+      } else {
+        handleClearFlows();
+      }
     } catch (err) {
       console.error("Failed to delete all flows", err);
     }
