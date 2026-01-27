@@ -13,7 +13,7 @@ export const UdpFlowDetails: React.FC<{ flow: Flow }> = ({ flow }) => {
 
     return (
         <>
-            <div className="flex-shrink-0 border-b border-gray-200 dark:border-zinc-700">
+            <div className="sticky top-0 bg-white dark:bg-zinc-900 z-10 flex-shrink-0 border-b border-gray-200 dark:border-zinc-700">
                 <div className="flex items-center px-4">
                     <button
                         className={`px-3 py-2 text-sm font-medium border-b-2 ${selectedTab === 'summary' ? 'border-orange-500 text-orange-500' : 'border-transparent text-gray-500 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-white'}`}

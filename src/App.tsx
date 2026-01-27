@@ -445,6 +445,10 @@ const App: React.FC = () => {
   // --- Derived State (Filtering) ---
   const filteredFlows = flowState.filtered;
 
+  const detailsFlow = useMemo(() =>
+    selectedFlowId ? flowState.all.find(f => getFlowId(f) === selectedFlowId) || null : null
+  , [flowState.all, selectedFlowId]);
+
   // --- Event Handlers ---
   const handleDownloadSelectedFlows = (format: 'har' | 'json') => {
     const selectedFlows = flowState.all.filter(flow => {
@@ -773,28 +777,29 @@ const App: React.FC = () => {
           </div>
         </div>
 
-        {activeFilterCount > 0 && (
-          <button
-            onClick={() => setIsFilterModalOpen(true)}
-            className="bg-gray-100 dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 text-gray-700 dark:text-zinc-200 px-3 py-1 rounded-full text-sm font-medium flex items-center gap-2 hover:bg-gray-200 dark:hover:bg-zinc-700"
-          >
-            {activeFilterCount} {activeFilterCount > 1 ? 'Filters' : 'Filter'}
-            <div
-              onClick={(e) => {
-                e.stopPropagation();
-                clearFilters();
-              }}
-              className="bg-gray-200 dark:bg-zinc-700 rounded-full p-0.5 hover:bg-gray-300 dark:hover:bg-zinc-600"
+        <div className="ml-auto flex items-center gap-2">
+          {activeFilterCount > 0 && (
+            <button
+              onClick={() => setIsFilterModalOpen(true)}
+              className="bg-gray-100 dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 text-gray-700 dark:text-zinc-200 px-3 py-1 rounded-full text-sm font-medium flex items-center gap-2 hover:bg-gray-200 dark:hover:bg-zinc-700"
             >
-              <X size={12} />
-            </div>
-          </button>
-        )}
+              {activeFilterCount} {activeFilterCount > 1 ? 'Filters' : 'Filter'}
+              <div
+                onClick={(e) => {
+                  e.stopPropagation();
+                  clearFilters();
+                }}
+                className="bg-gray-200 dark:bg-zinc-700 rounded-full p-0.5 hover:bg-gray-300 dark:hover:bg-zinc-600"
+              >
+                <X size={12} />
+              </div>
+            </button>
+          )}
 
-        {/* Filter Input */}
-        <div className="ml-auto relative flex items-center">
-          <div className="relative">
-            <input
+          {/* Filter Input */}
+          <div className="relative flex items-center">
+            <div className="relative">
+              <input
               id="filter-input" // Add id for focus check
               type="text"
               value={filterText}
@@ -811,6 +816,7 @@ const App: React.FC = () => {
           >
             <Filter size={20} />
           </button>
+        </div>
         </div>
       </header>
 
@@ -858,7 +864,7 @@ const App: React.FC = () => {
 
       {/* --- Details Panel --- */}
       <DetailsPanel
-        flow={selectedFlow}
+        flow={detailsFlow}
         isMinimized={isPanelMinimized}
         onClose={handleClosePanel}
         panelHeight={detailsPanelHeight}
@@ -867,9 +873,9 @@ const App: React.FC = () => {
         onTogglePin={handleTogglePin}
         onDeleteFlow={handleDeleteFlow}
       >
-        {selectedFlow?.flow?.case === 'httpFlow' && (
+        {detailsFlow?.flow?.case === 'httpFlow' && (
           <HttpFlowDetails
-            flow={selectedFlow}
+            flow={detailsFlow}
             requestFormat={requestFormats.get(selectedFlowId!) || 'auto'}
             setRequestFormat={(format) => handleSetRequestFormat(selectedFlowId!, format)}
             responseFormat={responseFormats.get(selectedFlowId!) || 'auto'}
@@ -877,14 +883,14 @@ const App: React.FC = () => {
             contentRef={contentRef}
           />
         )}
-        {selectedFlow?.flow?.case === 'dnsFlow' && (
-          <DnsFlowDetails flow={selectedFlow} />
+        {detailsFlow?.flow?.case === 'dnsFlow' && (
+          <DnsFlowDetails flow={detailsFlow} />
         )}
-        {selectedFlow?.flow?.case === 'tcpFlow' && (
-            <TcpFlowDetails flow={selectedFlow} />
+        {detailsFlow?.flow?.case === 'tcpFlow' && (
+            <TcpFlowDetails flow={detailsFlow} />
         )}
-        {selectedFlow?.flow?.case === 'udpFlow' && (
-            <UdpFlowDetails flow={selectedFlow} />
+        {detailsFlow?.flow?.case === 'udpFlow' && (
+            <UdpFlowDetails flow={detailsFlow} />
         )}
       </DetailsPanel>
     </div>
