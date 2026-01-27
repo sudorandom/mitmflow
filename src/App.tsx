@@ -13,6 +13,7 @@ import { DetailsPanel } from './components/DetailsPanel';
 import FilterModal from './components/FilterModal';
 import SettingsModal from './components/SettingsModal';
 import useFilterStore from './store';
+import useSettingsStore from './settingsStore';
 
 const getHarContent = (content: Uint8Array | undefined, contentType: string | undefined) => {
   if (!content || content.length === 0) {
@@ -175,30 +176,39 @@ const App: React.FC = () => {
   const [requestFormats, setRequestFormats] = useState<Map<string, ContentFormat>>(new Map());
   const [responseFormats, setResponseFormats] = useState<Map<string, ContentFormat>>(new Map());
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
-  const safeGet = (key: string): string | null => {
-    try {
-      if (typeof window !== 'undefined' && 'localStorage' in window && typeof window.localStorage.getItem === 'function') {
-        return window.localStorage.getItem(key);
-      }
-    } catch { /* ignore */ }
-    return null;
-  };
-  const safeSet = (key: string, value: string) => {
-    try {
-      if (typeof window !== 'undefined' && 'localStorage' in window && typeof window.localStorage.setItem === 'function') {
-        window.localStorage.setItem(key, value);
-      }
-    } catch { /* ignore */ }
-  };
 
-  const [maxFlows, setMaxFlows] = useState(() => {
-    const savedMaxFlows = safeGet('maxFlows');
-    return savedMaxFlows ? Number(savedMaxFlows) : 500;
-  });
-  const [maxBodySize, setMaxBodySize] = useState(() => {
-    const savedMaxBodySize = safeGet('maxBodySize');
-    return savedMaxBodySize ? Number(savedMaxBodySize) : 1024; // 1MB default
-  });
+  // Settings from store
+  const { theme, maxFlows, maxBodySize } = useSettingsStore();
+
+  // Theme application
+  useEffect(() => {
+    const root = window.document.documentElement;
+    root.classList.remove('light', 'dark');
+
+    if (theme === 'system') {
+        const systemTheme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+        root.classList.add(systemTheme);
+    } else {
+        root.classList.add(theme);
+    }
+  }, [theme]);
+
+  // Watch for system preference changes if theme is 'system'
+  useEffect(() => {
+    if (theme !== 'system') return;
+
+    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+    const handleChange = (e: MediaQueryListEvent) => {
+        const root = window.document.documentElement;
+        root.classList.remove('light', 'dark');
+        root.classList.add(e.matches ? 'dark' : 'light');
+    };
+
+    mediaQuery.addEventListener('change', handleChange);
+    return () => mediaQuery.removeEventListener('change', handleChange);
+  }, [theme]);
+
+
   const contentRef = useRef<HTMLDivElement>(null);
   const mainTableRef = useRef<HTMLDivElement>(null); // Ref for the main table scrolling area
   const lastSelectedFlowId = useRef<string | null>(null);
@@ -260,8 +270,6 @@ const App: React.FC = () => {
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
   }, []);
-
-
 
   // --- Data Fetching ---
   useEffect(() => {
@@ -369,13 +377,6 @@ const App: React.FC = () => {
     }
   }, [detailsPanelHeight]);
 
-  useEffect(() => {
-    safeSet('maxFlows', String(maxFlows));
-  }, [maxFlows]);
-
-  useEffect(() => {
-    safeSet('maxBodySize', String(maxBodySize));
-  }, [maxBodySize]);
 
   const activeFilterCount =
     (flowTypes.length > 0 ? 1 : 0) +
@@ -588,45 +589,45 @@ const App: React.FC = () => {
 
 
   return (
-    <div className="bg-zinc-900 text-zinc-300 font-sans h-screen flex flex-col">
+    <div className="bg-white dark:bg-zinc-900 text-gray-900 dark:text-zinc-300 font-sans h-screen flex flex-col">
       {/* --- Header --- */}
-      <header className="p-4 border-b border-zinc-700 flex items-center gap-4 flex-shrink-0">
-        <h1 className="text-2xl font-semibold text-white">Flows</h1>
+      <header className="p-4 border-b border-gray-200 dark:border-zinc-700 flex items-center gap-4 flex-shrink-0 bg-white dark:bg-zinc-900">
+        <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">Flows</h1>
         <div className="flex items-center gap-2 ml-2">
           {/* Connection Status Indicator */}
           <div className={`flex items-center justify-center w-28 gap-2 px-3 py-1 rounded-full text-sm font-medium
-            ${connectionStatus === 'live' ? 'text-green-400 bg-green-900/50' : ''}
-            ${connectionStatus === 'paused' ? 'text-yellow-400 bg-yellow-900/50' : ''}
-            ${connectionStatus === 'connecting' ? 'text-blue-400 bg-blue-900/50' : ''}
-            ${connectionStatus === 'failed' ? 'text-red-400 bg-red-900/50' : ''}
+            ${connectionStatus === 'live' ? 'text-green-600 dark:text-green-400 bg-green-100 dark:bg-green-900/50' : ''}
+            ${connectionStatus === 'paused' ? 'text-yellow-600 dark:text-yellow-400 bg-yellow-100 dark:bg-yellow-900/50' : ''}
+            ${connectionStatus === 'connecting' ? 'text-blue-600 dark:text-blue-400 bg-blue-100 dark:bg-blue-900/50' : ''}
+            ${connectionStatus === 'failed' ? 'text-red-600 dark:text-red-400 bg-red-100 dark:bg-red-900/50' : ''}
           `}>
             <span className={`w-2 h-2 rounded-full
-              ${connectionStatus === 'live' ? 'bg-green-400 animate-pulse' : ''}
-              ${connectionStatus === 'paused' ? 'bg-yellow-400' : ''}
-              ${connectionStatus === 'connecting' ? 'bg-blue-400 animate-pulse' : ''}
-              ${connectionStatus === 'failed' ? 'bg-red-400' : ''}
+              ${connectionStatus === 'live' ? 'bg-green-500 dark:bg-green-400 animate-pulse' : ''}
+              ${connectionStatus === 'paused' ? 'bg-yellow-500 dark:bg-yellow-400' : ''}
+              ${connectionStatus === 'connecting' ? 'bg-blue-500 dark:bg-blue-400 animate-pulse' : ''}
+              ${connectionStatus === 'failed' ? 'bg-red-500 dark:bg-red-400' : ''}
             `} />
             {connectionStatus.charAt(0).toUpperCase() + connectionStatus.slice(1)}
           </div>
           <div className="md:hidden relative" ref={menuRef}>
             <button
               onClick={() => setIsMenuOpen(!isMenuOpen)}
-              className="bg-zinc-800 border border-zinc-700 text-zinc-200 px-3 py-1 rounded-full text-sm font-medium flex items-center gap-1.5 hover:bg-zinc-700"
+              className="bg-gray-100 dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 text-gray-700 dark:text-zinc-200 px-3 py-1 rounded-full text-sm font-medium flex items-center gap-1.5 hover:bg-gray-200 dark:hover:bg-zinc-700"
             >
               <Menu size={20} />
             </button>
             {isMenuOpen && (
-              <div className="absolute right-0 mt-2 w-48 bg-zinc-800 border border-zinc-700 rounded-md shadow-lg z-20">
+              <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 rounded-md shadow-lg z-20">
                 <button
                   onClick={() => { togglePause(); setIsMenuOpen(false); }}
-                  className="block w-full text-left px-4 py-2 text-sm text-zinc-200 hover:bg-zinc-700 flex items-center gap-1.5"
+                  className="block w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-zinc-200 hover:bg-gray-100 dark:hover:bg-zinc-700 flex items-center gap-1.5"
                 >
                   {isPaused ? <Play size={20} /> : <Pause size={20} />}
                   {isPaused ? 'Resume' : 'Pause'}
                 </button>
                 <button
                   onClick={() => { handleClearFlows(); setIsMenuOpen(false); }}
-                  className="block w-full text-left px-4 py-2 text-sm text-zinc-200 hover:bg-zinc-700 flex items-center gap-1.5"
+                  className="block w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-zinc-200 hover:bg-gray-100 dark:hover:bg-zinc-700 flex items-center gap-1.5"
                 >
                   <Trash size={20} /> Clear Flows
                 </button>
@@ -634,23 +635,23 @@ const App: React.FC = () => {
                   <button
                     onClick={(e) => { e.stopPropagation(); setIsBulkDownloadOpen(o => !o); }}
                     disabled={selectedFlowIds.size === 0}
-                    className="block w-full text-left px-4 py-2 text-sm text-zinc-200 hover:bg-zinc-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5"
+                    className="block w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-zinc-200 hover:bg-gray-100 dark:hover:bg-zinc-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5"
                   >
                     <Download size={20} /> Download ({selectedFlowIds.size})
                   </button>
                   {isBulkDownloadOpen && (
-                    <div className="absolute left-0 bg-zinc-800 border border-zinc-700 rounded shadow-lg z-10 min-w-[180px] top-full mt-2">
+                    <div className="absolute left-0 bg-white dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 rounded shadow-lg z-10 min-w-[180px] top-full mt-2">
                       <a
                         href="#"
                         onClick={(e) => { e.preventDefault(); handleDownloadSelectedFlows('har'); setIsBulkDownloadOpen(false); setIsMenuOpen(false); }}
-                        className="flex items-center gap-3 px-4 py-2.5 text-sm text-zinc-200 hover:bg-zinc-700 hover:text-zinc-200"
+                        className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 dark:text-zinc-200 hover:bg-gray-100 dark:hover:bg-zinc-700"
                       >
                         <HardDriveDownload size={16} /> Download HAR
                       </a>
                       <a
                         href="#"
                         onClick={(e) => { e.preventDefault(); handleDownloadSelectedFlows('json'); setIsBulkDownloadOpen(false); setIsMenuOpen(false); }}
-                        className="flex items-center gap-3 px-4 py-2.5 text-sm text-zinc-200 hover:bg-zinc-700 hover:text-zinc-200"
+                        className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 dark:text-zinc-200 hover:bg-gray-100 dark:hover:bg-zinc-700"
                       >
                         <Braces size={16} /> Download Flows (JSON)
                       </a>
@@ -659,13 +660,13 @@ const App: React.FC = () => {
                 </div>
                 <button
                     onClick={() => setIsSettingsModalOpen(true)}
-                    className="block w-full text-left px-4 py-2 text-sm text-zinc-200 hover:bg-zinc-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5"
+                    className="block w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-zinc-200 hover:bg-gray-100 dark:hover:bg-zinc-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5"
                   >
                     <Settings size={20} /> Settings
                   </button>
                 <button
                   
-                  className="bg-zinc-800 border border-zinc-700 text-zinc-200 px-3 py-1 rounded-full text-sm font-medium flex items-center gap-1.5 hover:bg-zinc-700"
+                  className="bg-gray-100 dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 text-gray-700 dark:text-zinc-200 px-3 py-1 rounded-full text-sm font-medium flex items-center gap-1.5 hover:bg-gray-200 dark:hover:bg-zinc-700"
                 >
                   
                 </button>
@@ -675,20 +676,20 @@ const App: React.FC = () => {
           <div className="hidden md:flex items-center gap-2">
             <button
               onClick={togglePause}
-              className="bg-zinc-800 border border-zinc-700 text-zinc-200 px-3 py-1 rounded-full text-sm font-medium flex items-center gap-1.5 hover:bg-zinc-700"
+              className="bg-gray-100 dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 text-gray-700 dark:text-zinc-200 px-3 py-1 rounded-full text-sm font-medium flex items-center gap-1.5 hover:bg-gray-200 dark:hover:bg-zinc-700"
             >
               {isPaused ? <Play size={20} /> : <Pause size={20} />}
             </button>
             
             <button
               onClick={handleClearFlows}
-              className="bg-zinc-800 border border-zinc-700 text-zinc-200 px-3 py-1 rounded-full text-sm font-medium flex items-center gap-1.5 hover:bg-zinc-700"
+              className="bg-gray-100 dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 text-gray-700 dark:text-zinc-200 px-3 py-1 rounded-full text-sm font-medium flex items-center gap-1.5 hover:bg-gray-200 dark:hover:bg-zinc-700"
             >
               <Trash size={20} />
             </button>
             <button
                 onClick={() => setIsSettingsModalOpen(true)}
-                className="bg-zinc-800 border border-zinc-700 text-zinc-200 px-3 py-1 rounded-full text-sm font-medium flex items-center gap-1.5 hover:bg-zinc-700"
+                className="bg-gray-100 dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 text-gray-700 dark:text-zinc-200 px-3 py-1 rounded-full text-sm font-medium flex items-center gap-1.5 hover:bg-gray-200 dark:hover:bg-zinc-700"
               >
                 <Settings size={20} />
               </button>
@@ -698,23 +699,23 @@ const App: React.FC = () => {
               <button
                 onClick={(e) => { e.stopPropagation(); setIsBulkDownloadOpen(o => !o); }}
                 disabled={selectedFlowIds.size === 0}
-                className="bg-zinc-800 border border-zinc-700 text-zinc-200 px-3 py-1 rounded-full text-sm font-medium flex items-center gap-1.5 hover:bg-zinc-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="bg-gray-100 dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 text-gray-700 dark:text-zinc-200 px-3 py-1 rounded-full text-sm font-medium flex items-center gap-1.5 hover:bg-gray-200 dark:hover:bg-zinc-700 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <Download size={20} /> {selectedFlowIds.size}
               </button>
               {isBulkDownloadOpen && (
-                <div className="absolute right-0 bg-zinc-800 border border-zinc-700 rounded shadow-lg z-50 min-w-[180px] top-full mt-2">
+                <div className="absolute right-0 bg-white dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 rounded shadow-lg z-50 min-w-[180px] top-full mt-2">
                   <a
                     href="#"
                     onClick={(e) => { e.preventDefault(); handleDownloadSelectedFlows('har'); setIsBulkDownloadOpen(false); }}
-                    className="flex items-center gap-3 px-4 py-2.5 text-sm text-zinc-400 hover:bg-zinc-700 hover:text-zinc-200"
+                    className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 dark:text-zinc-400 hover:bg-gray-100 dark:hover:bg-zinc-700 hover:text-gray-900 dark:hover:text-zinc-200"
                   >
                     <HardDriveDownload size={20} /> Download HAR
                   </a>
                   <a
                     href="#"
                     onClick={(e) => { e.preventDefault(); handleDownloadSelectedFlows('json'); setIsBulkDownloadOpen(false); }}
-                    className="flex items-center gap-3 px-4 py-2.5 text-sm text-zinc-400 hover:bg-zinc-700 hover:text-zinc-200"
+                    className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 dark:text-zinc-400 hover:bg-gray-100 dark:hover:bg-zinc-700 hover:text-gray-900 dark:hover:text-zinc-200"
                   >
                     <Braces size={20} /> Download Flows (JSON)
                   </a>
@@ -727,7 +728,7 @@ const App: React.FC = () => {
         {activeFilterCount > 0 && (
           <button
             onClick={() => setIsFilterModalOpen(true)}
-            className="bg-zinc-800 border border-zinc-700 text-zinc-200 px-3 py-1 rounded-full text-sm font-medium flex items-center gap-2 hover:bg-zinc-700"
+            className="bg-gray-100 dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 text-gray-700 dark:text-zinc-200 px-3 py-1 rounded-full text-sm font-medium flex items-center gap-2 hover:bg-gray-200 dark:hover:bg-zinc-700"
           >
             {activeFilterCount} {activeFilterCount > 1 ? 'Filters' : 'Filter'}
             <div
@@ -735,7 +736,7 @@ const App: React.FC = () => {
                 e.stopPropagation();
                 clearFilters();
               }}
-              className="bg-zinc-700 rounded-full p-0.5 hover:bg-zinc-600"
+              className="bg-gray-200 dark:bg-zinc-700 rounded-full p-0.5 hover:bg-gray-300 dark:hover:bg-zinc-600"
             >
               <X size={12} />
             </div>
@@ -751,13 +752,13 @@ const App: React.FC = () => {
               value={filterText}
               onChange={(e) => setFilterText(e.target.value)}
               placeholder="Filter flows..."
-              className="bg-zinc-800 border border-zinc-700 rounded-l-full text-zinc-200 px-4 py-1.5 pl-10 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500 w-72"
+              className="bg-gray-100 dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 rounded-l-full text-gray-700 dark:text-zinc-200 px-4 py-1.5 pl-10 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500 w-72"
             />
-            <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-zinc-500" />
+            <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-500 dark:text-zinc-500" />
           </div>
           <button
             onClick={() => setIsFilterModalOpen(true)}
-            className="bg-zinc-800 border border-zinc-700 border-l-0 rounded-r-full text-zinc-400 px-3 py-1.5 hover:bg-zinc-700 hover:text-white focus:outline-none focus:ring-2 focus:ring-orange-500"
+            className="bg-gray-100 dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 border-l-0 rounded-r-full text-gray-400 dark:text-zinc-400 px-3 py-1.5 hover:bg-gray-200 dark:hover:bg-zinc-700 hover:text-gray-700 dark:hover:text-white focus:outline-none focus:ring-2 focus:ring-orange-500"
             data-testid="filter-button"
           >
             <Filter size={20} />
@@ -773,10 +774,6 @@ const App: React.FC = () => {
       <SettingsModal
         isOpen={isSettingsModalOpen}
         onClose={() => setIsSettingsModalOpen(false)}
-        maxFlows={maxFlows}
-        setMaxFlows={setMaxFlows}
-        maxBodySize={maxBodySize}
-        setMaxBodySize={setMaxBodySize}
       />
 
 
@@ -805,7 +802,7 @@ const App: React.FC = () => {
       </div>
 
       {isFlowsTruncated && (
-        <footer className="p-2 text-center text-xs text-zinc-500 border-t border-zinc-700">
+        <footer className="p-2 text-center text-xs text-gray-500 dark:text-zinc-500 border-t border-gray-200 dark:border-zinc-700">
           Showing the last {flows.length} flows. You can change this limit in the <button onClick={() => setIsSettingsModalOpen(true)} className="underline hover:text-orange-500">settings</button>.
         </footer>
       )}
