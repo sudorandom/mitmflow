@@ -44,7 +44,7 @@ const CONTENT_TYPE_OPTIONS = [
 ];
 
 const FilterRow = ({ label, children, isEven }: { label: string, children: React.ReactNode, isEven: boolean }) => (
-  <div className={`flex items-center justify-between p-3 px-4 gap-4 ${isEven ? 'bg-gray-50 dark:bg-zinc-800/50' : 'bg-white dark:bg-zinc-800'}`}>
+  <div className={`flex items-center justify-between p-3 px-4 gap-4 ${isEven ? 'bg-gray-100 dark:bg-zinc-900' : 'bg-white dark:bg-zinc-800'}`}>
     <div className="font-medium text-sm text-gray-700 dark:text-zinc-300 w-1/3 flex-shrink-0">{label}</div>
     <div className="flex-grow w-2/3 min-w-0">{children}</div>
   </div>
@@ -89,11 +89,13 @@ const FilterModal: React.FC<FilterModalProps> = ({ isOpen, onClose }) => {
   }
 
   // Filter out HTTP-specific options if HTTP is not selected (if flowTypes.length > 0)
-  // Actually the original logic was:
-  // (flowTypes.length === 0 || flowTypes.includes('http')) && ...
   const showHttpFilters = flowTypes.length === 0 || flowTypes.includes('http');
 
   let rowIndex = 0;
+
+  const selectStyles = {
+    menuPortal: (base: any) => ({ ...base, zIndex: 9999 })
+  };
 
   return (
     <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center backdrop-blur-sm">
@@ -131,6 +133,8 @@ const FilterModal: React.FC<FilterModalProps> = ({ isOpen, onClose }) => {
                     onChange={(selected) => setFlowTypes(selected.map(s => s.value))}
                     className="text-black text-sm"
                     placeholder="Select types..."
+                    menuPortalTarget={document.body}
+                    styles={selectStyles}
                 />
             </FilterRow>
 
@@ -145,6 +149,8 @@ const FilterModal: React.FC<FilterModalProps> = ({ isOpen, onClose }) => {
                             onChange={(selected) => setHttpMethods(selected.map(s => s.value))}
                             className="text-black text-sm"
                             placeholder="Select methods..."
+                            menuPortalTarget={document.body}
+                            styles={selectStyles}
                         />
                     </FilterRow>
 
@@ -157,6 +163,8 @@ const FilterModal: React.FC<FilterModalProps> = ({ isOpen, onClose }) => {
                             onChange={(selected) => setHttpStatusCodes(selected.map(s => s.value))}
                             className="text-black text-sm"
                             placeholder="e.g., 200, 4xx, 500-599"
+                            menuPortalTarget={document.body}
+                            styles={selectStyles}
                         />
                     </FilterRow>
 
@@ -169,6 +177,8 @@ const FilterModal: React.FC<FilterModalProps> = ({ isOpen, onClose }) => {
                             onChange={(selected) => setHttpContentTypes(selected.map(s => s.value))}
                             className="text-black text-sm"
                             placeholder="e.g., application/json, text/html"
+                            menuPortalTarget={document.body}
+                            styles={selectStyles}
                         />
                     </FilterRow>
                 </>
