@@ -96,4 +96,42 @@ describe('isFlowMatch', () => {
         expect(isFlowMatch(flow, { ...emptyFilter, http: { ...emptyFilter.http, methods: ['GET'] } })).toBe(false);
         expect(isFlowMatch(flow, { ...emptyFilter, http: { ...emptyFilter.http, methods: ['POST'] } })).toBe(true);
     });
+
+    it('matches HTTP flow by textual frames', () => {
+        const flow = {
+            flow: {
+                case: 'httpFlow',
+                value: {
+                    id: '1',
+                    request: {},
+                    response: {}
+                }
+            },
+            httpFlowExtra: {
+                request: {
+                    textualFrames: ['found in frame']
+                }
+            }
+        } as unknown as Flow;
+
+        expect(isFlowMatch(flow, { ...emptyFilter, text: 'frame' })).toBe(true);
+    });
+
+    it('matches HTTP flow by websocket messages', () => {
+        const flow = {
+            flow: {
+                case: 'httpFlow',
+                value: {
+                    id: '1',
+                    request: {},
+                    response: {},
+                    websocketMessages: [
+                        { content: new TextEncoder().encode('websocket data') }
+                    ]
+                }
+            }
+        } as unknown as Flow;
+
+        expect(isFlowMatch(flow, { ...emptyFilter, text: 'websocket' })).toBe(true);
+    });
 });

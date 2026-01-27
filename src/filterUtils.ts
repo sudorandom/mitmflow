@@ -40,15 +40,35 @@ export const isFlowMatch = (flow: Flow, filter: FilterConfig): boolean => {
                     isMatch = true;
                 } else {
                     // Body check
-                    // We catch errors just in case TextDecoder fails, though it shouldn't for Uint8Array
                     try {
-                        if (httpFlow.request?.content && httpFlow.request.content.length > 0) {
+                        // Check textual frames first as they are already decoded and formatted (e.g. gRPC)
+                        if (flow.httpFlowExtra?.request?.textualFrames?.some(f => f.toLowerCase().includes(filterText))) {
+                            isMatch = true;
+                        } else if (flow.httpFlowExtra?.response?.textualFrames?.some(f => f.toLowerCase().includes(filterText))) {
+                            isMatch = true;
+                        }
+
+                        // Regular body check
+                        if (!isMatch && httpFlow.request?.content && httpFlow.request.content.length > 0) {
                             const reqBody = new TextDecoder().decode(httpFlow.request.content).toLowerCase();
                             if (reqBody.includes(filterText)) isMatch = true;
                         }
                         if (!isMatch && httpFlow.response?.content && httpFlow.response.content.length > 0) {
                             const resBody = new TextDecoder().decode(httpFlow.response.content).toLowerCase();
                             if (resBody.includes(filterText)) isMatch = true;
+                        }
+
+                        // WebSocket messages
+                        if (!isMatch && httpFlow.websocketMessages && httpFlow.websocketMessages.length > 0) {
+                            for (const msg of httpFlow.websocketMessages) {
+                                if (msg.content && msg.content.length > 0) {
+                                    const msgText = new TextDecoder().decode(msg.content).toLowerCase();
+                                    if (msgText.includes(filterText)) {
+                                        isMatch = true;
+                                        break;
+                                    }
+                                }
+                            }
                         }
                     } catch (e) {
                         // ignore decoding errors
