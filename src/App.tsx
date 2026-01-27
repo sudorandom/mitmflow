@@ -552,8 +552,8 @@ const App: React.FC = () => {
     setIsDeleteMenuOpen(false);
   };
 
-  const handleDeleteFlowsInView = async () => {
-    const ids = filteredFlows.map(getFlowId).filter((id): id is string => !!id);
+  const handleDeleteSelectedFlows = async () => {
+    const ids = Array.from(selectedFlowIds);
     if (ids.length === 0) return;
     try {
       await client.deleteFlows({ flowIds: ids });
@@ -562,7 +562,7 @@ const App: React.FC = () => {
       setSelectedFlowId(null);
       setSelectedFlowIds(new Set());
     } catch (err) {
-      console.error("Failed to delete flows in view", err);
+      console.error("Failed to delete selected flows", err);
     }
     setIsDeleteMenuOpen(false);
   };
@@ -696,10 +696,11 @@ const App: React.FC = () => {
                     Clear View
                   </button>
                    <button
-                    onClick={() => { handleDeleteFlowsInView(); setIsMenuOpen(false); }}
-                    className="block w-full text-left px-4 py-2 text-sm text-zinc-200 hover:bg-zinc-700 flex items-center gap-1.5"
+                    onClick={() => { handleDeleteSelectedFlows(); setIsMenuOpen(false); }}
+                    disabled={selectedFlowIds.size === 0}
+                    className="block w-full text-left px-4 py-2 text-sm text-zinc-200 hover:bg-zinc-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5"
                   >
-                    Delete in View
+                    Delete Selected ({selectedFlowIds.size})
                   </button>
                    <button
                     onClick={() => { handleDeleteAllFlows(); setIsMenuOpen(false); }}
@@ -777,10 +778,11 @@ const App: React.FC = () => {
                     Clear View
                   </button>
                    <button
-                    onClick={handleDeleteFlowsInView}
-                    className="block w-full text-left px-4 py-2 text-sm text-zinc-200 hover:bg-zinc-700"
+                    onClick={handleDeleteSelectedFlows}
+                    disabled={selectedFlowIds.size === 0}
+                    className="block w-full text-left px-4 py-2 text-sm text-zinc-200 hover:bg-zinc-700 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    Delete in View
+                    Delete Selected ({selectedFlowIds.size})
                   </button>
                    <button
                     onClick={handleDeleteAllFlows}

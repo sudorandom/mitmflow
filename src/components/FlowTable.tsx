@@ -35,7 +35,7 @@ const FlowTable = forwardRef<AgGridReact, FlowTableProps>(
                 cellRenderer: (params: { data: Flow }) => (
                     <button
                         onClick={(e) => { e.stopPropagation(); onTogglePin(params.data); }}
-                        className={`p-1 rounded hover:bg-zinc-700 ${params.data.pinned ? 'text-orange-500' : 'text-zinc-500'}`}
+                        className={`p-1 rounded hover:bg-gray-200 dark:hover:bg-zinc-700 ${params.data.pinned ? 'text-orange-500' : 'text-gray-500 dark:text-zinc-500'}`}
                         title={params.data.pinned ? "Unpin flow" : "Pin flow"}
                     >
                         <Pin size={14} className={params.data.pinned ? "fill-current" : ""} />

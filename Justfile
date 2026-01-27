@@ -35,7 +35,7 @@ fauxrpc: schema-image
     fauxrpc run \
         --schema=schema.binpb \
         --addr=127.0.0.1:50051 \
-        --stubs=stubs
+        --stubs=stubs/output
 
 fauxrpc-client: schema-image
     ./send_test_flows.sh 0.1

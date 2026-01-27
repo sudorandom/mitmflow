@@ -1,0 +1,70 @@
+---
+stubs:
+- id: dns
+  target: mitmproxy.v1.ExportFlowRequest
+  cel_content: |
+    {
+      "event_type": "EVENT_TYPE_REQUEST",
+      "flow": {
+        "dns_flow": {
+          "id": fake_uuid(),
+          "request": {
+            "questions": [
+              {
+                "name": "example.com",
+                "type": "A",
+                "class": "IN"
+              }
+            ]
+          },
+          "response": {
+            "answers": [
+              {
+                "name": "example.com",
+                "type": "A",
+                "class": "IN",
+                "ttl": 3600,
+                "data": base64.encode(b'\x01\x02\x03\x04')
+              }
+            ]
+          },
+          "timestamp_start": fake_date(),
+          "duration_ms": fake_float32(),
+          "client": {
+            "peername_host": fake_i_pv4_address()
+          },
+          "server": {
+            "address_host": fake_i_pv4_address()
+          }
+        }
+      }
+    }
+- id: dns-error
+  target: mitmproxy.v1.ExportFlowRequest
+  cel_content: |
+    {
+      "event_type": "EVENT_TYPE_REQUEST",
+      "flow": {
+        "dns_flow": {
+          "id": fake_uuid(),
+          "request": {
+            "questions": [
+              {
+                "name": "example.com",
+                "type": "A",
+                "class": "IN"
+              }
+            ]
+          },
+          "error": "DNS resolution failed",
+          "timestamp_start": fake_date(),
+          "duration_ms": fake_float32(),
+          "client": {
+            "peername_host": fake_i_pv4_address()
+          },
+          "server": {
+            "address_host": fake_i_pv4_address()
+          }
+        }
+      }
+    }

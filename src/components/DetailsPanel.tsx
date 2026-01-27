@@ -121,7 +121,7 @@ export const DetailsPanel = forwardRef<HTMLDivElement, DetailsPanelProps>(({
         <FlowIcon flow={flow} />
         <button
           onClick={() => flow && onTogglePin(flow)}
-          className={`p-1 hover:bg-zinc-700 rounded ${flow.pinned ? 'text-orange-500' : 'text-zinc-500 hover:text-zinc-200'}`}
+          className={`p-1 rounded hover:bg-gray-200 dark:hover:bg-zinc-700 ${flow.pinned ? 'text-orange-500' : 'text-gray-500 dark:text-zinc-500 hover:text-gray-900 dark:hover:text-zinc-200'}`}
           title={flow.pinned ? "Unpin flow" : "Pin flow"}
         >
           <Pin size={20} className={flow.pinned ? "fill-current" : ""} />
