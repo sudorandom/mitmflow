@@ -94,11 +94,23 @@ const FilterModal: React.FC<FilterModalProps> = ({ isOpen, onClose }) => {
   }
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center">
-      <div ref={modalRef} tabIndex={0} className="bg-zinc-800 rounded-lg shadow-xl p-6 w-full max-w-2xl text-white">
+    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center backdrop-blur-sm">
+      <div
+        ref={modalRef}
+        tabIndex={0}
+        className="bg-white dark:bg-zinc-800 rounded-lg shadow-xl p-6 w-full max-w-2xl text-gray-900 dark:text-white border border-gray-200 dark:border-zinc-700"
+      >
+        {/* Style injection for react-select dark mode support via CSS variables if we used a class,
+            but here we passed styles object.
+            Actually, react-select styles prop doesn't read CSS vars easily without helper.
+            Let's keep it simple: use classNames for the container and let react-select use default white for now,
+            or use a library that handles it.
+            To avoid complexity, I'll stick to default styles but ensure text is black so it is readable.
+        */}
+
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-2xl font-semibold">Advanced Filters</h2>
-          <button onClick={onClose} className="text-zinc-400 hover:text-white">
+          <button onClick={onClose} className="text-gray-500 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-white">
             <X size={24} />
           </button>
         </div>
@@ -110,12 +122,12 @@ const FilterModal: React.FC<FilterModalProps> = ({ isOpen, onClose }) => {
             <h3 className="text-lg font-medium mb-2">Flow Type</h3>
             <div className="flex flex-wrap gap-2">
               {FLOW_TYPES.map(({ id, label }) => (
-                <label key={id} className="flex items-center space-x-2 cursor-pointer">
+                <label key={id} className="flex items-center space-x-2 cursor-pointer select-none">
                   <input
                     type="checkbox"
                     checked={flowTypes.includes(id)}
                     onChange={() => handleFlowTypeChange(id)}
-                    className="form-checkbox h-5 w-5 rounded bg-zinc-700 border-zinc-600 text-orange-500 focus:ring-orange-500"
+                    className="form-checkbox h-5 w-5 rounded bg-gray-100 dark:bg-zinc-700 border-gray-300 dark:border-zinc-600 text-orange-500 focus:ring-orange-500"
                   />
                   <span>{label}</span>
                 </label>
@@ -131,12 +143,12 @@ const FilterModal: React.FC<FilterModalProps> = ({ isOpen, onClose }) => {
                 <h3 className="text-lg font-medium mb-2">HTTP Method</h3>
                 <div className="flex flex-wrap gap-2">
                   {HTTP_METHODS.map((method) => (
-                    <label key={method} className="flex items-center space-x-2 cursor-pointer">
+                    <label key={method} className="flex items-center space-x-2 cursor-pointer select-none">
                       <input
                         type="checkbox"
                         checked={methods.includes(method)}
                         onChange={() => handleHttpMethodChange(method)}
-                        className="form-checkbox h-5 w-5 rounded bg-zinc-700 border-zinc-600 text-orange-500 focus:ring-orange-500"
+                        className="form-checkbox h-5 w-5 rounded bg-gray-100 dark:bg-zinc-700 border-gray-300 dark:border-zinc-600 text-orange-500 focus:ring-orange-500"
                       />
                       <span>{method}</span>
                     </label>
@@ -174,19 +186,19 @@ const FilterModal: React.FC<FilterModalProps> = ({ isOpen, onClose }) => {
         </div>
 
         {/* --- Actions --- */}
-        <div className="flex justify-end items-center mt-6 pt-4 border-t border-zinc-700">
+        <div className="flex justify-end items-center mt-6 pt-4 border-t border-gray-200 dark:border-zinc-700">
           <button
             onClick={() => {
               clearFilters();
               onClose();
             }}
-            className="text-zinc-400 hover:text-white px-4 py-2 rounded-md"
+            className="text-gray-500 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-white px-4 py-2 rounded-md transition-colors"
           >
             Clear All
           </button>
           <button
             onClick={onClose}
-            className="bg-orange-500 hover:bg-orange-600 text-white font-bold py-2 px-4 rounded-md ml-2"
+            className="bg-orange-500 hover:bg-orange-600 text-white font-bold py-2 px-4 rounded-md ml-2 transition-colors"
           >
             Apply
           </button>

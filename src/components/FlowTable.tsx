@@ -280,20 +280,21 @@ const FlowTable = forwardRef<AgGridReact, FlowTableProps>(
         };
         return (
             <div
-                className="ag-theme-alpine-dark flex flex-col min-h-0 w-full overflow-auto"
+                className="flex flex-col min-h-0 w-full overflow-auto bg-white dark:bg-zinc-900"
                 tabIndex={0}
                 role="grid"
                 aria-activedescendant={focusedFlowId ? `flow-row-${focusedFlowId}` : undefined}
                 onKeyDown={handleTableKeyDown}
                 ref={ref as React.RefObject<HTMLDivElement>}
             >
-                <table className="w-full text-sm flex-shrink-0">
+                <table className="w-full text-sm flex-shrink-0 text-gray-900 dark:text-zinc-300">
                     <thead>
                         <tr>
                             {columnDefs.map((col, i) => {
+                                const headerBaseClass = "px-2 py-1 bg-gray-100 dark:bg-zinc-900 text-gray-700 dark:text-zinc-400 font-semibold border-b border-gray-200 dark:border-zinc-700 sticky top-0 z-10";
                                 if (i === 0) {
                                     return (
-                                        <th key={i} style={{ width: col.width }} className="text-center">
+                                        <th key={i} style={{ width: col.width }} className={`${headerBaseClass} text-center`}>
                                             <input
                                                 ref={selectAllRef}
                                                 type="checkbox"
@@ -309,7 +310,7 @@ const FlowTable = forwardRef<AgGridReact, FlowTableProps>(
                                 return (
                                     <th
                                         key={i}
-                                        className={`${col.headerClass || ''} cursor-pointer select-none`}
+                                        className={`${col.headerClass || ''} ${headerBaseClass} cursor-pointer select-none`}
                                         style={{ width: col.width, textAlign: 'left' }}
                                         onClick={() => handleHeaderSortClick(i)}
                                         aria-sort={isSorted ? (direction === 'asc' ? 'ascending' : 'descending') : 'none'}
@@ -331,11 +332,37 @@ const FlowTable = forwardRef<AgGridReact, FlowTableProps>(
                             const isFocused = flowId && focusedFlowId === flowId;
                             const isSelected = flowId && selectedFlowIds.has(flowId);
                             // Alternating row color: even rows darker
-                            const baseRow = idx % 2 === 0 ? 'bg-zinc-900' : 'bg-zinc-800';
-                            // Focused row: orange border (all sides), remove default border-b
-                            const rowClass = isFocused
-                                ? `cursor-pointer border-2 border-orange-500 ${baseRow} bg-orange-950 ${isSelected ? 'bg-zinc-700' : ''}`
-                                : `cursor-pointer border-b border-zinc-700 ${baseRow} ${isSelected ? 'bg-zinc-700' : ''}`;
+                            const baseRow = idx % 2 === 0 ? 'bg-white dark:bg-zinc-900' : 'bg-gray-50 dark:bg-zinc-800';
+
+                            // Selection and Focus styles
+                            // Focused: Orange border + subtle orange tint
+                            // Selected: distinct background
+                            // Combined: Both
+
+                            let rowClass = `cursor-pointer border-b border-gray-200 dark:border-zinc-700 ${baseRow}`;
+
+                            if (isFocused) {
+                                // Add border and override background with tint
+                                // Using a strong class to override alternating colors if needed, but specificity handles it if placed last
+                                rowClass = `cursor-pointer border-2 border-orange-500 ${baseRow} bg-orange-50 dark:bg-orange-950/30`;
+                            }
+
+                            if (isSelected) {
+                                // Selected has higher precedence for background than alternating, but focus might tint it further or coexist
+                                // Let's match the original logic: if focused, it has specific bg, if selected it has specific bg
+                                // Original: isFocused ? ... bg-orange-950 : ...
+                                // And ${isSelected ? 'bg-zinc-700' : ''} was appended.
+
+                                const selectedBg = 'bg-orange-100 dark:bg-zinc-700';
+                                if (isFocused) {
+                                     // Focused AND Selected
+                                     rowClass = `cursor-pointer border-2 border-orange-500 bg-orange-100 dark:bg-zinc-700`;
+                                } else {
+                                     // Just Selected
+                                     rowClass = `cursor-pointer border-b border-gray-200 dark:border-zinc-700 ${selectedBg}`;
+                                }
+                            }
+
                             return (
                                 <tr
                                     key={flowId}
