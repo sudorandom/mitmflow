@@ -39,10 +39,10 @@ export const RequestResponseView: React.FC<RequestResponseViewProps> = ({ fullCo
     const effectiveFormat = bodyContent?.effectiveFormat || format;
 
     return (
-        <div>
+        <div className="text-gray-900 dark:text-zinc-300">
             <div className="flex items-center justify-end mb-2">
                 <select
-                    className="bg-zinc-800 border border-zinc-700 rounded px-2 py-1 text-xs"
+                    className="bg-white dark:bg-zinc-800 border border-gray-300 dark:border-zinc-700 rounded px-2 py-1 text-xs text-gray-900 dark:text-white"
                     value={format}
                     onChange={(e) => setFormat(e.target.value as ContentFormat)}
                 >
@@ -59,13 +59,13 @@ export const RequestResponseView: React.FC<RequestResponseViewProps> = ({ fullCo
                     <option value="javascript">JavaScript</option>
                 </select>
             </div>
-            <pre className="bg-zinc-800 p-3 rounded text-xs font-mono whitespace-pre-wrap break-all">
+            <pre className="bg-gray-100 dark:bg-zinc-800 p-3 rounded text-xs font-mono whitespace-pre-wrap break-all text-gray-800 dark:text-zinc-300">
                 {headerText}
             </pre>
             {flowPart?.trailers && Object.keys(flowPart.trailers).length > 0 && (
                 <>
-                    <h4 className="text-md font-semibold mt-4 mb-2 pb-2 border-b border-zinc-700">Trailers</h4>
-                    <pre className="bg-zinc-800 p-3 rounded text-xs font-mono whitespace-pre-wrap break-all">
+                    <h4 className="text-md font-semibold mt-4 mb-2 pb-2 border-b border-gray-200 dark:border-zinc-700">Trailers</h4>
+                    <pre className="bg-gray-100 dark:bg-zinc-800 p-3 rounded text-xs font-mono whitespace-pre-wrap break-all text-gray-800 dark:text-zinc-300">
                         {Object.entries(flowPart.trailers).map(([k, v]) => `${k}: ${v}`).join('\n')}
                     </pre>
                 </>
@@ -74,7 +74,7 @@ export const RequestResponseView: React.FC<RequestResponseViewProps> = ({ fullCo
                 // Render protoscope frames if they exist
                 <div>
                     {details.textualFrames.map((frame, index) => (
-                        <div key={index} className="border-b border-zinc-700 py-2">
+                        <div key={index} className="border-b border-gray-200 dark:border-zinc-700 py-2">
                             {details.textualFrames.length > 1 && (
                                 <h4 className="text-sm font-semibold mb-1">Frame {index + 1}</h4>
                             )}
@@ -103,7 +103,7 @@ export const RequestResponseView: React.FC<RequestResponseViewProps> = ({ fullCo
                 <>
                     {bodySize > 0 && !showBodyByDefault && (
                         <div className="mt-2 text-sm">
-                            <a href="#" onClick={(e) => { e.preventDefault(); setIsBodyExpanded(!isBodyExpanded); }} className="text-orange-400 hover:underline">
+                            <a href="#" onClick={(e) => { e.preventDefault(); setIsBodyExpanded(!isBodyExpanded); }} className="text-orange-500 hover:underline">
                                 {isBodyExpanded ? 'Collapse' : 'Expand'} body ({formatSize(bodySize)})
                             </a>
                         </div>
@@ -206,94 +206,94 @@ export const HttpFlowDetails: React.FC<{
     const [selectedTab, setSelectedTab] = useState<'summary' | 'request' | 'response' | 'websocket' | 'connection'>('summary');
 
     const statusClass = useMemo(() => {
-        if (!httpFlow?.response) return 'text-zinc-500';
+        if (!httpFlow?.response) return 'text-gray-500 dark:text-zinc-500';
         if (httpFlow.response.statusCode >= 500) return 'text-red-500 font-bold';
-        if (httpFlow.response.statusCode >= 400) return 'text-red-400';
-        if (httpFlow.response.statusCode >= 300) return 'text-yellow-400';
-        return 'text-green-400';
+        if (httpFlow.response.statusCode >= 400) return 'text-red-500 dark:text-red-400';
+        if (httpFlow.response.statusCode >= 300) return 'text-yellow-600 dark:text-yellow-400';
+        return 'text-green-600 dark:text-green-400';
     }, [httpFlow?.response]);
 
     const firstRequestByteTimestamp = getTimestamp(httpFlow.request?.timestampStart);
 
     return (
         <>
-            <div className="flex-shrink-0 border-b border-zinc-700">
+            <div className="flex-shrink-0 border-b border-gray-200 dark:border-zinc-700">
                 <div className="flex items-center px-4">
                     <button
-                        className={`px-3 py-2 text-sm font-medium border-b-2 ${selectedTab === 'summary' ? 'border-orange-500 text-orange-500' : 'border-transparent text-zinc-400 hover:text-white'}`}
+                        className={`px-3 py-2 text-sm font-medium border-b-2 ${selectedTab === 'summary' ? 'border-orange-500 text-orange-500' : 'border-transparent text-gray-500 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-white'}`}
                         onClick={() => setSelectedTab('summary')}
                     >
                         Summary
                     </button>
                     <button
-                        className={`px-3 py-2 text-sm font-medium border-b-2 ${selectedTab === 'request' ? 'border-orange-500 text-orange-500' : 'border-transparent text-zinc-400 hover:text-white'}`}
+                        className={`px-3 py-2 text-sm font-medium border-b-2 ${selectedTab === 'request' ? 'border-orange-500 text-orange-500' : 'border-transparent text-gray-500 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-white'}`}
                         onClick={() => setSelectedTab('request')}
                     >
                         Request
                     </button>
                     <button
-                        className={`px-3 py-2 text-sm font-medium border-b-2 ${selectedTab === 'response' ? 'border-orange-500 text-orange-500' : 'border-transparent text-zinc-400 hover:text-white'}`}
+                        className={`px-3 py-2 text-sm font-medium border-b-2 ${selectedTab === 'response' ? 'border-orange-500 text-orange-500' : 'border-transparent text-gray-500 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-white'}`}
                         onClick={() => setSelectedTab('response')}
                     >
                         Response
                     </button>
                     {httpFlow.isWebsocket && (
                         <button
-                            className={`px-3 py-2 text-sm font-medium border-b-2 ${selectedTab === 'websocket' ? 'border-orange-500 text-orange-500' : 'border-transparent text-zinc-400 hover:text-white'}`}
+                            className={`px-3 py-2 text-sm font-medium border-b-2 ${selectedTab === 'websocket' ? 'border-orange-500 text-orange-500' : 'border-transparent text-gray-500 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-white'}`}
                             onClick={() => setSelectedTab('websocket')}
                         >
                             WebSocket
                         </button>
                     )}
                     <button
-                        className={`px-3 py-2 text-sm font-medium border-b-2 ${selectedTab === 'connection' ? 'border-orange-500 text-orange-500' : 'border-transparent text-zinc-400 hover:text-white'}`}
+                        className={`px-3 py-2 text-sm font-medium border-b-2 ${selectedTab === 'connection' ? 'border-orange-500 text-orange-500' : 'border-transparent text-gray-500 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-white'}`}
                         onClick={() => setSelectedTab('connection')}
                     >
                         Connection
                     </button>
                 </div>
             </div>
-            <div className="p-5 overflow-y-auto flex-grow" ref={contentRef}>
+            <div className="p-5 overflow-y-auto flex-grow text-gray-900 dark:text-zinc-300" ref={contentRef}>
                 {selectedTab === 'summary' && (
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm font-mono">
-                        <div className="bg-zinc-800 p-4 rounded">
-                            <h5 className="font-semibold text-zinc-400 mb-3 border-b border-zinc-700 pb-2">Flow Details</h5>
+                        <div className="bg-gray-50 dark:bg-zinc-800 p-4 rounded border border-gray-200 dark:border-zinc-700">
+                            <h5 className="font-semibold text-gray-700 dark:text-zinc-400 mb-3 border-b border-gray-200 dark:border-zinc-700 pb-2">Flow Details</h5>
                             <div className="grid grid-cols-2 gap-x-4 gap-y-2">
-                                <div className="text-zinc-500">ID:</div> <div>{httpFlow.id}</div>
-                                <div className="text-zinc-500">Method:</div> <div>{httpFlow.request?.method}</div>
-                                <div className="text-zinc-500">Status:</div> <div className={statusClass}>{httpFlow.response?.statusCode}</div>
-                                {httpFlow.isWebsocket && <><div className="text-zinc-500">WebSocket:</div> <div>Yes</div></>}
-                                <div className="text-zinc-500">URL:</div> <div className="col-span-2 break-all">{httpFlow.request?.prettyUrl || httpFlow.request?.url}</div>
-                                <div className="text-zinc-500">Transfer:</div>
+                                <div className="text-gray-500 dark:text-zinc-500">ID:</div> <div>{httpFlow.id}</div>
+                                <div className="text-gray-500 dark:text-zinc-500">Method:</div> <div>{httpFlow.request?.method}</div>
+                                <div className="text-gray-500 dark:text-zinc-500">Status:</div> <div className={statusClass}>{httpFlow.response?.statusCode}</div>
+                                {httpFlow.isWebsocket && <><div className="text-gray-500 dark:text-zinc-500">WebSocket:</div> <div>Yes</div></>}
+                                <div className="text-gray-500 dark:text-zinc-500">URL:</div> <div className="col-span-2 break-all">{httpFlow.request?.prettyUrl || httpFlow.request?.url}</div>
+                                <div className="text-gray-500 dark:text-zinc-500">Transfer:</div>
                                 <div>
                                     <div>Out: {formatBytes(httpFlow.request?.content?.length)} {httpFlow.request?.contentTruncated && <span className="text-yellow-500">(truncated)</span>}</div>
                                     <div>In: {formatBytes(httpFlow.response?.content?.length)} {httpFlow.response?.contentTruncated && <span className="text-yellow-500">(truncated)</span>}</div>
                                 </div>
 
-                                <div className="text-zinc-500">Request Content-Type:</div> <div className="break-all">{getContentType(httpFlow.request?.headers) || 'N/A'}</div>
+                                <div className="text-gray-500 dark:text-zinc-500">Request Content-Type:</div> <div className="break-all">{getContentType(httpFlow.request?.headers) || 'N/A'}</div>
                                 {flow.httpFlowExtra?.request?.effectiveContentType && getContentType(httpFlow.request?.headers) !== flow.httpFlowExtra?.request?.effectiveContentType && (
                                     <>
-                                        <div className="text-zinc-500">Detected Request Content-Type:</div>
+                                        <div className="text-gray-500 dark:text-zinc-500">Detected Request Content-Type:</div>
                                         <div className="break-all">{flow.httpFlowExtra?.request?.effectiveContentType}</div>
                                     </>
                                 )}
-                                <div className="text-zinc-500">Response Content-Type:</div> <div className="break-all">{getContentType(httpFlow.response?.headers) || 'N/A'}</div>
+                                <div className="text-gray-500 dark:text-zinc-500">Response Content-Type:</div> <div className="break-all">{getContentType(httpFlow.response?.headers) || 'N/A'}</div>
                                 {flow.httpFlowExtra?.response?.effectiveContentType && getContentType(httpFlow.response?.headers) !== flow.httpFlowExtra?.response?.effectiveContentType && (
                                     <>
-                                        <div className="text-zinc-500">Detected Response Content-Type:</div>
+                                        <div className="text-gray-500 dark:text-zinc-500">Detected Response Content-Type:</div>
                                         <div className="break-all">{flow.httpFlowExtra?.response?.effectiveContentType}</div>
                                     </>
                                 )}
                             </div>
                         {httpFlow.error && (
-                            <div className="bg-zinc-800 p-4 rounded col-span-2">
-                                <h5 className="font-semibold text-red-400 mb-3 border-b border-zinc-700 pb-2">Error</h5>
-                                <div className="text-red-400">{httpFlow.error}</div>
+                            <div className="bg-red-50 dark:bg-zinc-800 p-4 rounded col-span-2 border border-red-200 dark:border-red-900 mt-4">
+                                <h5 className="font-semibold text-red-600 dark:text-red-400 mb-3 border-b border-red-200 dark:border-zinc-700 pb-2">Error</h5>
+                                <div className="text-red-600 dark:text-red-400">{httpFlow.error}</div>
                             </div>
                         )}
                         </div>
-                        <div className="bg-zinc-800 p-4 rounded">
-                            <h5 className="font-semibold text-zinc-400 mb-3 border-b border-zinc-700 pb-2">Timing</h5>
+                        <div className="bg-gray-50 dark:bg-zinc-800 p-4 rounded border border-gray-200 dark:border-zinc-700">
+                            <h5 className="font-semibold text-gray-700 dark:text-zinc-400 mb-3 border-b border-gray-200 dark:border-zinc-700 pb-2">Timing</h5>
                             <div className="grid grid-cols-[max-content,1fr] gap-x-4 gap-y-2">
                                 <TimingRow label="Client conn. established" timestamp={getTimestamp(httpFlow.client?.timestampStart)} relativeTo={firstRequestByteTimestamp} />
                                 <TimingRow label="Server conn. initiated" timestamp={getTimestamp(httpFlow.server?.timestampStart)} relativeTo={firstRequestByteTimestamp} />
@@ -334,10 +334,10 @@ export const HttpFlowDetails: React.FC<{
                 )}
                 {selectedTab === 'websocket' && (
                     <div>
-                        <h3 className="text-lg font-semibold mb-2">WebSocket Messages</h3>
+                        <h3 className="text-lg font-semibold mb-2 text-gray-900 dark:text-white">WebSocket Messages</h3>
                         {httpFlow.websocketMessages.map((msg, index) => (
                             <div key={index} className="mt-2">
-                                <p className="font-semibold">{msg.fromClient ? 'Client -> Server' : 'Server -> Client'}</p>
+                                <p className="font-semibold text-gray-800 dark:text-zinc-200">{msg.fromClient ? 'Client -> Server' : 'Server -> Client'}</p>
                                 <HexViewer data={msg.content} />
                             </div>
                         ))}

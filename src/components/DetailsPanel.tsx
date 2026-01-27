@@ -4,6 +4,7 @@ import { Flow } from '../gen/mitmflow/v1/mitmflow_pb';
 import { getFlowTitle } from '../utils';
 import FlowIcon from './FlowIcon';
 import { StatusPill } from './StatusPill';
+import { forwardRef } from 'react';
 
 interface DetailsPanelProps {
   flow: Flow | null;
@@ -14,8 +15,6 @@ interface DetailsPanelProps {
   children: React.ReactNode;
   downloadFlowContent: (flow: Flow, type: 'har' | 'flow-json' | 'request' | 'response') => void;
 }
-
-import { forwardRef } from 'react';
 
 export const DetailsPanel = forwardRef<HTMLDivElement, DetailsPanelProps>(({
   flow,
@@ -105,7 +104,7 @@ export const DetailsPanel = forwardRef<HTMLDivElement, DetailsPanelProps>(({
         // Ensure focus moves to panel when user clicks anywhere inside so key events apply to scrolling.
         (ref as React.RefObject<HTMLDivElement>)?.current?.focus();
       }}
-      className={`relative bg-zinc-900 border-t border-zinc-700 flex flex-col flex-shrink-0 transition-all duration-200 ease-out ${
+      className={`relative bg-white dark:bg-zinc-900 border-t border-gray-200 dark:border-zinc-700 flex flex-col flex-shrink-0 transition-all duration-200 ease-out text-gray-900 dark:text-zinc-300 ${
         isMinimized ? 'h-0' : ''
       }`}
       style={{ height: isMinimized ? '0px' : `${panelHeight}px` }}
@@ -114,7 +113,7 @@ export const DetailsPanel = forwardRef<HTMLDivElement, DetailsPanelProps>(({
         className="absolute top-0 left-0 right-0 h-2 -mt-1 cursor-ns-resize z-50"
         onMouseDown={handleMouseDown}
       />
-      <div className="flex items-center p-2.5 px-4 bg-zinc-900 flex-shrink-0 gap-3">
+      <div className="flex items-center p-2.5 px-4 bg-gray-50 dark:bg-zinc-900 border-b border-gray-200 dark:border-zinc-800 flex-shrink-0 gap-3">
         <FlowIcon flow={flow} />
         <StatusPill
           status={(() => {
@@ -154,19 +153,19 @@ export const DetailsPanel = forwardRef<HTMLDivElement, DetailsPanelProps>(({
             return 'gray';
           })()}
         />
-        <div className="font-mono text-sm truncate">{getFlowTitle(flow)}</div>
+        <div className="font-mono text-sm truncate text-gray-700 dark:text-zinc-300">{getFlowTitle(flow)}</div>
         <div className="ml-auto flex items-center gap-2">
           <div className="relative" ref={downloadRef}>
             <button
               onClick={() => setDownloadOpen(!isDownloadOpen)}
-              className="flex items-center gap-1 p-1 text-zinc-500 hover:text-zinc-200"
+              className="flex items-center gap-1 p-1 text-gray-500 dark:text-zinc-500 hover:text-gray-900 dark:hover:text-zinc-200"
               title="Download"
             >
               <Download size={20} />
               <ChevronDown size={16} />
             </button>
             {isDownloadOpen && (
-              <div className="absolute right-0 mt-2 w-48 bg-zinc-800 border border-zinc-700 rounded-md shadow-lg z-10">
+              <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 rounded-md shadow-lg z-10">
                 <a
                   href="#"
                   onClick={(e) => {
@@ -174,7 +173,7 @@ export const DetailsPanel = forwardRef<HTMLDivElement, DetailsPanelProps>(({
                     if (flow) downloadFlowContent(flow, 'request');
                     setDownloadOpen(false);
                   }}
-                  className={`block px-4 py-2 text-sm ${isHttp ? 'text-zinc-200 hover:bg-zinc-700' : 'text-zinc-500 cursor-not-allowed'}`}
+                  className={`block px-4 py-2 text-sm ${isHttp ? 'text-gray-700 dark:text-zinc-200 hover:bg-gray-100 dark:hover:bg-zinc-700' : 'text-gray-400 dark:text-zinc-500 cursor-not-allowed'}`}
                 >
                   Request Body
                 </a>
@@ -185,7 +184,7 @@ export const DetailsPanel = forwardRef<HTMLDivElement, DetailsPanelProps>(({
                     if (flow) downloadFlowContent(flow, 'response');
                     setDownloadOpen(false);
                   }}
-                  className={`block px-4 py-2 text-sm ${isHttp ? 'text-zinc-200 hover:bg-zinc-700' : 'text-zinc-500 cursor-not-allowed'}`}
+                  className={`block px-4 py-2 text-sm ${isHttp ? 'text-gray-700 dark:text-zinc-200 hover:bg-gray-100 dark:hover:bg-zinc-700' : 'text-gray-400 dark:text-zinc-500 cursor-not-allowed'}`}
                 >
                   Response Body
                 </a>
@@ -196,7 +195,7 @@ export const DetailsPanel = forwardRef<HTMLDivElement, DetailsPanelProps>(({
                     if (flow) downloadFlowContent(flow, 'har');
                     setDownloadOpen(false);
                   }}
-                  className={`block px-4 py-2 text-sm ${isHttp ? 'text-zinc-200 hover:bg-zinc-700' : 'text-zinc-500 cursor-not-allowed'}`}
+                  className={`block px-4 py-2 text-sm ${isHttp ? 'text-gray-700 dark:text-zinc-200 hover:bg-gray-100 dark:hover:bg-zinc-700' : 'text-gray-400 dark:text-zinc-500 cursor-not-allowed'}`}
                 >
                   HAR
                 </a>
@@ -207,7 +206,7 @@ export const DetailsPanel = forwardRef<HTMLDivElement, DetailsPanelProps>(({
                     if (flow) downloadFlowContent(flow, 'flow-json');
                     setDownloadOpen(false);
                   }}
-                  className="block px-4 py-2 text-sm text-zinc-200 hover:bg-zinc-700"
+                  className="block px-4 py-2 text-sm text-gray-700 dark:text-zinc-200 hover:bg-gray-100 dark:hover:bg-zinc-700"
                 >
                   JSON
                 </a>
@@ -219,7 +218,7 @@ export const DetailsPanel = forwardRef<HTMLDivElement, DetailsPanelProps>(({
               e.stopPropagation();
               onClose();
             }}
-            className="p-1 text-zinc-500 hover:text-zinc-200"
+            className="p-1 text-gray-500 dark:text-zinc-500 hover:text-gray-900 dark:hover:text-zinc-200"
             title="Close"
           >
             <X size={20} />
@@ -227,7 +226,7 @@ export const DetailsPanel = forwardRef<HTMLDivElement, DetailsPanelProps>(({
         </div>
       </div>
       {/* Scrollable content area: flex-1 ensures it grows and overflow-auto allows keyboard paging once focused */}
-      <div className="flex-1 min-h-0 overflow-auto">
+      <div className="flex-1 min-h-0 overflow-auto bg-white dark:bg-zinc-900">
         {children}
       </div>
     </div>
