@@ -118,6 +118,46 @@ func (s *FlowStorage) UpdateFlow(id string, pinned bool) (*mitmflowv1.Flow, erro
 	return flow, nil
 }
 
+func (s *FlowStorage) DeleteFlows(ids []string) (int64, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	var count int64
+	for _, id := range ids {
+		if _, ok := s.flows[id]; ok {
+			delete(s.flows, id)
+			if err := os.Remove(filepath.Join(s.dir, id+".bin")); err != nil && !os.IsNotExist(err) {
+				log.Printf("failed to remove flow file %s: %v", id, err)
+			}
+			count++
+		}
+	}
+	return count, nil
+}
+
+func (s *FlowStorage) DeleteAllFlows() (int64, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	count := int64(len(s.flows))
+	s.flows = make(map[string]*mitmflowv1.Flow)
+
+	// Remove all .bin files in directory
+	entries, err := os.ReadDir(s.dir)
+	if err != nil {
+		return 0, fmt.Errorf("failed to read data directory: %w", err)
+	}
+	for _, entry := range entries {
+		if !entry.IsDir() && filepath.Ext(entry.Name()) == ".bin" {
+			if err := os.Remove(filepath.Join(s.dir, entry.Name())); err != nil {
+				log.Printf("failed to remove file %s: %v", entry.Name(), err)
+			}
+		}
+	}
+
+	return count, nil
+}
+
 func (s *FlowStorage) GetFlows() []*mitmflowv1.Flow {
 	s.mu.RLock()
 	defer s.mu.RUnlock()

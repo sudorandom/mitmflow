@@ -3,5 +3,3 @@ go = "1.25.6"
 just = "1.42.4"
 node = "20"
 pnpm = "10.15"
-
-"go:github.com/sudorandom/fauxrpc/cmd/fauxrpc" = { version = "903d22e406a7866b52f932d0d9223fb4f1d6c6e9" }

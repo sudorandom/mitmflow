@@ -158,6 +158,27 @@ func (s *MITMFlowServer) UpdateFlow(
 	return connect.NewResponse(mitmflowv1.UpdateFlowResponse_builder{Flow: flow}.Build()), nil
 }
 
+func (s *MITMFlowServer) DeleteFlows(
+	ctx context.Context,
+	req *connect.Request[mitmflowv1.DeleteFlowsRequest],
+) (*connect.Response[mitmflowv1.DeleteFlowsResponse], error) {
+	var count int64
+	var err error
+
+	if req.Msg.GetAll() {
+		count, err = s.storage.DeleteAllFlows()
+	} else {
+		count, err = s.storage.DeleteFlows(req.Msg.GetFlowIds())
+	}
+
+	if err != nil {
+		log.Printf("DeleteFlows error: %v", err)
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+
+	return connect.NewResponse(mitmflowv1.DeleteFlowsResponse_builder{Count: proto.Int64(count)}.Build()), nil
+}
+
 func (s *MITMFlowServer) preprocessFlow(flow *mitmflowv1.Flow) {
 	httpFlow := flow.GetHttpFlow()
 	if httpFlow == nil {
