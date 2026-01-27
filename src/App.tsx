@@ -442,9 +442,6 @@ const App: React.FC = () => {
     (http.contentTypes.length > 0 ? 1 : 0) +
     (http.statusCodes.length > 0 ? 1 : 0);
 
-  // --- Types ---
-  type FlowType = 'http' | 'dns' | 'tcp' | 'udp';
-
   // --- Derived State (Filtering) ---
   const filteredFlows = flowState.filtered;
 
