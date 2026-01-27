@@ -6,11 +6,21 @@ import "mitmproxygrpc/v1/service.proto";
 
 service Service {
   rpc StreamFlows(StreamFlowsRequest) returns (stream StreamFlowsResponse) {}
+  rpc UpdateFlow(UpdateFlowRequest) returns (UpdateFlowResponse) {}
 }
 
 message StreamFlowsRequest {}
 
 message StreamFlowsResponse {
+  Flow flow = 1;
+}
+
+message UpdateFlowRequest {
+  string flow_id = 1;
+  bool pinned = 2;
+}
+
+message UpdateFlowResponse {
   Flow flow = 1;
 }
 
@@ -22,6 +32,7 @@ message Flow {
     mitmproxy.v1.DNSFlow dns_flow = 4;
   }
   HTTPFlowExtra http_flow_extra = 5;
+  bool pinned = 6;
 }
 
 message HTTPFlowExtra {

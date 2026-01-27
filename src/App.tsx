@@ -562,7 +562,16 @@ const App: React.FC = () => {
     });
   }, []);
 
-
+  const handleTogglePin = useCallback(async (flow: Flow) => {
+    const flowId = getFlowId(flow);
+    if (!flowId) return;
+    try {
+        await client.updateFlow({ flowId, pinned: !flow.pinned });
+        // Optimistic update? The stream should send the update back.
+    } catch (err) {
+        console.error("Failed to toggle pin", err);
+    }
+  }, [client]);
 
   const handleFlowSelection = useCallback((flow: Flow) => {
     const currentFlowId = getFlowId(flow);
@@ -788,6 +797,7 @@ const App: React.FC = () => {
             focusedFlowId={selectedFlowId}
             selectedFlowIds={selectedFlowIds}
             onRowSelected={handleFlowSelection}
+            onTogglePin={handleTogglePin}
             onToggleRowSelection={flowId => {
               setSelectedFlowIds(prev => {
                 const newSet = new Set(prev);
@@ -818,6 +828,7 @@ const App: React.FC = () => {
         panelHeight={detailsPanelHeight}
         setPanelHeight={setDetailsPanelHeight}
         downloadFlowContent={downloadFlowContent}
+        onTogglePin={handleTogglePin}
       >
         {selectedFlow?.flow?.case === 'httpFlow' && (
           <HttpFlowDetails

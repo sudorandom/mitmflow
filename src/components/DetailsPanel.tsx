@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { Download, X, ChevronDown } from 'lucide-react';
+import { Download, X, ChevronDown, Pin } from 'lucide-react';
 import { Flow } from '../gen/mitmflow/v1/mitmflow_pb';
 import { getFlowTitle } from '../utils';
 import FlowIcon from './FlowIcon';
@@ -13,6 +13,7 @@ interface DetailsPanelProps {
   setPanelHeight: (height: number) => void;
   children: React.ReactNode;
   downloadFlowContent: (flow: Flow, type: 'har' | 'flow-json' | 'request' | 'response') => void;
+  onTogglePin: (flow: Flow) => void;
 }
 
 import { forwardRef } from 'react';
@@ -25,6 +26,7 @@ export const DetailsPanel = forwardRef<HTMLDivElement, DetailsPanelProps>(({
   setPanelHeight,
   children,
   downloadFlowContent,
+  onTogglePin,
 }, ref) => {
   const [isResizing, setIsResizing] = useState(false);
   const [isDownloadOpen, setDownloadOpen] = useState(false);
@@ -116,6 +118,13 @@ export const DetailsPanel = forwardRef<HTMLDivElement, DetailsPanelProps>(({
       />
       <div className="flex items-center p-2.5 px-4 bg-zinc-900 flex-shrink-0 gap-3">
         <FlowIcon flow={flow} />
+        <button
+          onClick={() => flow && onTogglePin(flow)}
+          className={`p-1 hover:bg-zinc-700 rounded ${flow.pinned ? 'text-orange-500' : 'text-zinc-500 hover:text-zinc-200'}`}
+          title={flow.pinned ? "Unpin flow" : "Pin flow"}
+        >
+          <Pin size={20} className={flow.pinned ? "fill-current" : ""} />
+        </button>
         <StatusPill
           status={(() => {
             if (!flow.flow?.case) return '...';

@@ -1,7 +1,5 @@
 version: v2
 
-clean: true
-
 inputs:
  - directory: .
  - module: buf.build/sudo-random/mitmproxygrpc

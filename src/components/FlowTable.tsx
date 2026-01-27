@@ -1,6 +1,7 @@
 import React, { forwardRef, useMemo, useState, useEffect, useRef } from 'react';
 import { AgGridReact } from 'ag-grid-react';
 import { ColDef, ValueGetterParams } from 'ag-grid-community';
+import { Pin } from 'lucide-react';
 import 'ag-grid-community/styles/ag-grid.css';
 import 'ag-grid-community/styles/ag-theme-alpine.css';
 import { Flow } from '../gen/mitmflow/v1/mitmflow_pb';
@@ -15,18 +16,33 @@ interface FlowTableProps {
     selectedFlowIds: Set<string>;
     onRowSelected: (flow: Flow, options: { event?: React.MouseEvent | React.KeyboardEvent }) => void;
     onToggleRowSelection: (flowId: string) => void;
+    onTogglePin: (flow: Flow) => void;
 }
 
 const FlowTable = forwardRef<AgGridReact, FlowTableProps>(
-    function FlowTable({ flows, focusedFlowId, selectedFlowIds, onRowSelected, onToggleRowSelection }, ref) {
+    function FlowTable({ flows, focusedFlowId, selectedFlowIds, onRowSelected, onToggleRowSelection, onTogglePin }, ref) {
         // Sort config: track column index (in columnDefs) and direction
-        const [sortConfig, setSortConfig] = useState<{ colIndex: number | null; direction: 'asc' | 'desc' }>({ colIndex: 1, direction: 'desc' }); // default sort by Timestamp desc
+        const [sortConfig, setSortConfig] = useState<{ colIndex: number | null; direction: 'asc' | 'desc' }>({ colIndex: 2, direction: 'desc' }); // default sort by Timestamp desc
 
         // Selection header checkbox ref to set indeterminate state
         const selectAllRef = useRef<HTMLInputElement | null>(null);
 
         const columnDefs: ColDef<Flow>[] = [
-            { headerName: "", width: 50, headerCheckboxSelection: true, checkboxSelection: true },
+            { headerName: "", width: 40, headerCheckboxSelection: true, checkboxSelection: true },
+            {
+                headerName: "",
+                width: 40,
+                cellRenderer: (params: { data: Flow }) => (
+                    <button
+                        onClick={(e) => { e.stopPropagation(); onTogglePin(params.data); }}
+                        className={`p-1 rounded hover:bg-zinc-700 ${params.data.pinned ? 'text-orange-500' : 'text-zinc-500'}`}
+                        title={params.data.pinned ? "Unpin flow" : "Pin flow"}
+                    >
+                        <Pin size={14} className={params.data.pinned ? "fill-current" : ""} />
+                    </button>
+                ),
+                cellClass: 'text-center',
+            },
             {
                 headerName: "Timestamp",
                 width: 120,

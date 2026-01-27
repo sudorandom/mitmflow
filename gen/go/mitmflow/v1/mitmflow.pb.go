@@ -132,17 +132,196 @@ func (b0 StreamFlowsResponse_builder) Build() *StreamFlowsResponse {
 	return m0
 }
 
+type UpdateFlowRequest struct {
+	state                  protoimpl.MessageState `protogen:"opaque.v1"`
+	xxx_hidden_FlowId      *string                `protobuf:"bytes,1,opt,name=flow_id,json=flowId"`
+	xxx_hidden_Pinned      bool                   `protobuf:"varint,2,opt,name=pinned"`
+	XXX_raceDetectHookData protoimpl.RaceDetectHookData
+	XXX_presence           [1]uint32
+	unknownFields          protoimpl.UnknownFields
+	sizeCache              protoimpl.SizeCache
+}
+
+func (x *UpdateFlowRequest) Reset() {
+	*x = UpdateFlowRequest{}
+	mi := &file_mitmflow_v1_mitmflow_proto_msgTypes[2]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UpdateFlowRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UpdateFlowRequest) ProtoMessage() {}
+
+func (x *UpdateFlowRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_mitmflow_v1_mitmflow_proto_msgTypes[2]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+func (x *UpdateFlowRequest) GetFlowId() string {
+	if x != nil {
+		if x.xxx_hidden_FlowId != nil {
+			return *x.xxx_hidden_FlowId
+		}
+		return ""
+	}
+	return ""
+}
+
+func (x *UpdateFlowRequest) GetPinned() bool {
+	if x != nil {
+		return x.xxx_hidden_Pinned
+	}
+	return false
+}
+
+func (x *UpdateFlowRequest) SetFlowId(v string) {
+	x.xxx_hidden_FlowId = &v
+	protoimpl.X.SetPresent(&(x.XXX_presence[0]), 0, 2)
+}
+
+func (x *UpdateFlowRequest) SetPinned(v bool) {
+	x.xxx_hidden_Pinned = v
+	protoimpl.X.SetPresent(&(x.XXX_presence[0]), 1, 2)
+}
+
+func (x *UpdateFlowRequest) HasFlowId() bool {
+	if x == nil {
+		return false
+	}
+	return protoimpl.X.Present(&(x.XXX_presence[0]), 0)
+}
+
+func (x *UpdateFlowRequest) HasPinned() bool {
+	if x == nil {
+		return false
+	}
+	return protoimpl.X.Present(&(x.XXX_presence[0]), 1)
+}
+
+func (x *UpdateFlowRequest) ClearFlowId() {
+	protoimpl.X.ClearPresent(&(x.XXX_presence[0]), 0)
+	x.xxx_hidden_FlowId = nil
+}
+
+func (x *UpdateFlowRequest) ClearPinned() {
+	protoimpl.X.ClearPresent(&(x.XXX_presence[0]), 1)
+	x.xxx_hidden_Pinned = false
+}
+
+type UpdateFlowRequest_builder struct {
+	_ [0]func() // Prevents comparability and use of unkeyed literals for the builder.
+
+	FlowId *string
+	Pinned *bool
+}
+
+func (b0 UpdateFlowRequest_builder) Build() *UpdateFlowRequest {
+	m0 := &UpdateFlowRequest{}
+	b, x := &b0, m0
+	_, _ = b, x
+	if b.FlowId != nil {
+		protoimpl.X.SetPresentNonAtomic(&(x.XXX_presence[0]), 0, 2)
+		x.xxx_hidden_FlowId = b.FlowId
+	}
+	if b.Pinned != nil {
+		protoimpl.X.SetPresentNonAtomic(&(x.XXX_presence[0]), 1, 2)
+		x.xxx_hidden_Pinned = *b.Pinned
+	}
+	return m0
+}
+
+type UpdateFlowResponse struct {
+	state           protoimpl.MessageState `protogen:"opaque.v1"`
+	xxx_hidden_Flow *Flow                  `protobuf:"bytes,1,opt,name=flow"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
+}
+
+func (x *UpdateFlowResponse) Reset() {
+	*x = UpdateFlowResponse{}
+	mi := &file_mitmflow_v1_mitmflow_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UpdateFlowResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UpdateFlowResponse) ProtoMessage() {}
+
+func (x *UpdateFlowResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_mitmflow_v1_mitmflow_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+func (x *UpdateFlowResponse) GetFlow() *Flow {
+	if x != nil {
+		return x.xxx_hidden_Flow
+	}
+	return nil
+}
+
+func (x *UpdateFlowResponse) SetFlow(v *Flow) {
+	x.xxx_hidden_Flow = v
+}
+
+func (x *UpdateFlowResponse) HasFlow() bool {
+	if x == nil {
+		return false
+	}
+	return x.xxx_hidden_Flow != nil
+}
+
+func (x *UpdateFlowResponse) ClearFlow() {
+	x.xxx_hidden_Flow = nil
+}
+
+type UpdateFlowResponse_builder struct {
+	_ [0]func() // Prevents comparability and use of unkeyed literals for the builder.
+
+	Flow *Flow
+}
+
+func (b0 UpdateFlowResponse_builder) Build() *UpdateFlowResponse {
+	m0 := &UpdateFlowResponse{}
+	b, x := &b0, m0
+	_, _ = b, x
+	x.xxx_hidden_Flow = b.Flow
+	return m0
+}
+
 type Flow struct {
 	state                    protoimpl.MessageState `protogen:"opaque.v1"`
 	xxx_hidden_Flow          isFlow_Flow            `protobuf_oneof:"flow"`
 	xxx_hidden_HttpFlowExtra *HTTPFlowExtra         `protobuf:"bytes,5,opt,name=http_flow_extra,json=httpFlowExtra"`
+	xxx_hidden_Pinned        bool                   `protobuf:"varint,6,opt,name=pinned"`
+	XXX_raceDetectHookData   protoimpl.RaceDetectHookData
+	XXX_presence             [1]uint32
 	unknownFields            protoimpl.UnknownFields
 	sizeCache                protoimpl.SizeCache
 }
 
 func (x *Flow) Reset() {
 	*x = Flow{}
-	mi := &file_mitmflow_v1_mitmflow_proto_msgTypes[2]
+	mi := &file_mitmflow_v1_mitmflow_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -154,7 +333,7 @@ func (x *Flow) String() string {
 func (*Flow) ProtoMessage() {}
 
 func (x *Flow) ProtoReflect() protoreflect.Message {
-	mi := &file_mitmflow_v1_mitmflow_proto_msgTypes[2]
+	mi := &file_mitmflow_v1_mitmflow_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -208,6 +387,13 @@ func (x *Flow) GetHttpFlowExtra() *HTTPFlowExtra {
 	return nil
 }
 
+func (x *Flow) GetPinned() bool {
+	if x != nil {
+		return x.xxx_hidden_Pinned
+	}
+	return false
+}
+
 func (x *Flow) SetHttpFlow(v *v1.HTTPFlow) {
 	if v == nil {
 		x.xxx_hidden_Flow = nil
@@ -242,6 +428,11 @@ func (x *Flow) SetDnsFlow(v *v1.DNSFlow) {
 
 func (x *Flow) SetHttpFlowExtra(v *HTTPFlowExtra) {
 	x.xxx_hidden_HttpFlowExtra = v
+}
+
+func (x *Flow) SetPinned(v bool) {
+	x.xxx_hidden_Pinned = v
+	protoimpl.X.SetPresent(&(x.XXX_presence[0]), 2, 3)
 }
 
 func (x *Flow) HasFlow() bool {
@@ -290,6 +481,13 @@ func (x *Flow) HasHttpFlowExtra() bool {
 	return x.xxx_hidden_HttpFlowExtra != nil
 }
 
+func (x *Flow) HasPinned() bool {
+	if x == nil {
+		return false
+	}
+	return protoimpl.X.Present(&(x.XXX_presence[0]), 2)
+}
+
 func (x *Flow) ClearFlow() {
 	x.xxx_hidden_Flow = nil
 }
@@ -320,6 +518,11 @@ func (x *Flow) ClearDnsFlow() {
 
 func (x *Flow) ClearHttpFlowExtra() {
 	x.xxx_hidden_HttpFlowExtra = nil
+}
+
+func (x *Flow) ClearPinned() {
+	protoimpl.X.ClearPresent(&(x.XXX_presence[0]), 2)
+	x.xxx_hidden_Pinned = false
 }
 
 const Flow_Flow_not_set_case case_Flow_Flow = 0
@@ -356,6 +559,7 @@ type Flow_builder struct {
 	DnsFlow  *v1.DNSFlow
 	// -- end of xxx_hidden_Flow
 	HttpFlowExtra *HTTPFlowExtra
+	Pinned        *bool
 }
 
 func (b0 Flow_builder) Build() *Flow {
@@ -375,13 +579,17 @@ func (b0 Flow_builder) Build() *Flow {
 		x.xxx_hidden_Flow = &flow_DnsFlow{b.DnsFlow}
 	}
 	x.xxx_hidden_HttpFlowExtra = b.HttpFlowExtra
+	if b.Pinned != nil {
+		protoimpl.X.SetPresentNonAtomic(&(x.XXX_presence[0]), 2, 3)
+		x.xxx_hidden_Pinned = *b.Pinned
+	}
 	return m0
 }
 
 type case_Flow_Flow protoreflect.FieldNumber
 
 func (x case_Flow_Flow) String() string {
-	md := file_mitmflow_v1_mitmflow_proto_msgTypes[2].Descriptor()
+	md := file_mitmflow_v1_mitmflow_proto_msgTypes[4].Descriptor()
 	if x == 0 {
 		return "not set"
 	}
@@ -426,7 +634,7 @@ type HTTPFlowExtra struct {
 
 func (x *HTTPFlowExtra) Reset() {
 	*x = HTTPFlowExtra{}
-	mi := &file_mitmflow_v1_mitmflow_proto_msgTypes[3]
+	mi := &file_mitmflow_v1_mitmflow_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -438,7 +646,7 @@ func (x *HTTPFlowExtra) String() string {
 func (*HTTPFlowExtra) ProtoMessage() {}
 
 func (x *HTTPFlowExtra) ProtoReflect() protoreflect.Message {
-	mi := &file_mitmflow_v1_mitmflow_proto_msgTypes[3]
+	mi := &file_mitmflow_v1_mitmflow_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -521,7 +729,7 @@ type MessageDetails struct {
 
 func (x *MessageDetails) Reset() {
 	*x = MessageDetails{}
-	mi := &file_mitmflow_v1_mitmflow_proto_msgTypes[4]
+	mi := &file_mitmflow_v1_mitmflow_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -533,7 +741,7 @@ func (x *MessageDetails) String() string {
 func (*MessageDetails) ProtoMessage() {}
 
 func (x *MessageDetails) ProtoReflect() protoreflect.Message {
-	mi := &file_mitmflow_v1_mitmflow_proto_msgTypes[4]
+	mi := &file_mitmflow_v1_mitmflow_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -608,52 +816,65 @@ const file_mitmflow_v1_mitmflow_proto_rawDesc = "" +
 	"\x1amitmflow/v1/mitmflow.proto\x12\vmitmflow.v1\x1a\x1emitmproxygrpc/v1/service.proto\"\x14\n" +
 	"\x12StreamFlowsRequest\"<\n" +
 	"\x13StreamFlowsResponse\x12%\n" +
-	"\x04flow\x18\x01 \x01(\v2\x11.mitmflow.v1.FlowR\x04flow\"\xa5\x02\n" +
+	"\x04flow\x18\x01 \x01(\v2\x11.mitmflow.v1.FlowR\x04flow\"D\n" +
+	"\x11UpdateFlowRequest\x12\x17\n" +
+	"\aflow_id\x18\x01 \x01(\tR\x06flowId\x12\x16\n" +
+	"\x06pinned\x18\x02 \x01(\bR\x06pinned\";\n" +
+	"\x12UpdateFlowResponse\x12%\n" +
+	"\x04flow\x18\x01 \x01(\v2\x11.mitmflow.v1.FlowR\x04flow\"\xbd\x02\n" +
 	"\x04Flow\x125\n" +
 	"\thttp_flow\x18\x01 \x01(\v2\x16.mitmproxy.v1.HTTPFlowH\x00R\bhttpFlow\x122\n" +
 	"\btcp_flow\x18\x02 \x01(\v2\x15.mitmproxy.v1.TCPFlowH\x00R\atcpFlow\x122\n" +
 	"\budp_flow\x18\x03 \x01(\v2\x15.mitmproxy.v1.UDPFlowH\x00R\audpFlow\x122\n" +
 	"\bdns_flow\x18\x04 \x01(\v2\x15.mitmproxy.v1.DNSFlowH\x00R\adnsFlow\x12B\n" +
-	"\x0fhttp_flow_extra\x18\x05 \x01(\v2\x1a.mitmflow.v1.HTTPFlowExtraR\rhttpFlowExtraB\x06\n" +
+	"\x0fhttp_flow_extra\x18\x05 \x01(\v2\x1a.mitmflow.v1.HTTPFlowExtraR\rhttpFlowExtra\x12\x16\n" +
+	"\x06pinned\x18\x06 \x01(\bR\x06pinnedB\x06\n" +
 	"\x04flow\"\x7f\n" +
 	"\rHTTPFlowExtra\x125\n" +
 	"\arequest\x18\x01 \x01(\v2\x1b.mitmflow.v1.MessageDetailsR\arequest\x127\n" +
 	"\bresponse\x18\x02 \x01(\v2\x1b.mitmflow.v1.MessageDetailsR\bresponse\"m\n" +
 	"\x0eMessageDetails\x12%\n" +
 	"\x0etextual_frames\x18\x01 \x03(\tR\rtextualFrames\x124\n" +
-	"\x16effective_content_type\x18\x02 \x01(\tR\x14effectiveContentType2_\n" +
+	"\x16effective_content_type\x18\x02 \x01(\tR\x14effectiveContentType2\xb0\x01\n" +
 	"\aService\x12T\n" +
-	"\vStreamFlows\x12\x1f.mitmflow.v1.StreamFlowsRequest\x1a .mitmflow.v1.StreamFlowsResponse\"\x000\x01B\xab\x01\n" +
+	"\vStreamFlows\x12\x1f.mitmflow.v1.StreamFlowsRequest\x1a .mitmflow.v1.StreamFlowsResponse\"\x000\x01\x12O\n" +
+	"\n" +
+	"UpdateFlow\x12\x1e.mitmflow.v1.UpdateFlowRequest\x1a\x1f.mitmflow.v1.UpdateFlowResponse\"\x00B\xab\x01\n" +
 	"\x0fcom.mitmflow.v1B\rMitmflowProtoP\x01Z<github.com/sudorandom/mitmflow/gen/go/mitmflow/v1;mitmflowv1\xa2\x02\x03MXX\xaa\x02\vMitmflow.V1\xca\x02\vMitmflow\\V1\xe2\x02\x17Mitmflow\\V1\\GPBMetadata\xea\x02\fMitmflow::V1b\beditionsp\xe8\a"
 
-var file_mitmflow_v1_mitmflow_proto_msgTypes = make([]protoimpl.MessageInfo, 5)
+var file_mitmflow_v1_mitmflow_proto_msgTypes = make([]protoimpl.MessageInfo, 7)
 var file_mitmflow_v1_mitmflow_proto_goTypes = []any{
 	(*StreamFlowsRequest)(nil),  // 0: mitmflow.v1.StreamFlowsRequest
 	(*StreamFlowsResponse)(nil), // 1: mitmflow.v1.StreamFlowsResponse
-	(*Flow)(nil),                // 2: mitmflow.v1.Flow
-	(*HTTPFlowExtra)(nil),       // 3: mitmflow.v1.HTTPFlowExtra
-	(*MessageDetails)(nil),      // 4: mitmflow.v1.MessageDetails
-	(*v1.HTTPFlow)(nil),         // 5: mitmproxy.v1.HTTPFlow
-	(*v1.TCPFlow)(nil),          // 6: mitmproxy.v1.TCPFlow
-	(*v1.UDPFlow)(nil),          // 7: mitmproxy.v1.UDPFlow
-	(*v1.DNSFlow)(nil),          // 8: mitmproxy.v1.DNSFlow
+	(*UpdateFlowRequest)(nil),   // 2: mitmflow.v1.UpdateFlowRequest
+	(*UpdateFlowResponse)(nil),  // 3: mitmflow.v1.UpdateFlowResponse
+	(*Flow)(nil),                // 4: mitmflow.v1.Flow
+	(*HTTPFlowExtra)(nil),       // 5: mitmflow.v1.HTTPFlowExtra
+	(*MessageDetails)(nil),      // 6: mitmflow.v1.MessageDetails
+	(*v1.HTTPFlow)(nil),         // 7: mitmproxy.v1.HTTPFlow
+	(*v1.TCPFlow)(nil),          // 8: mitmproxy.v1.TCPFlow
+	(*v1.UDPFlow)(nil),          // 9: mitmproxy.v1.UDPFlow
+	(*v1.DNSFlow)(nil),          // 10: mitmproxy.v1.DNSFlow
 }
 var file_mitmflow_v1_mitmflow_proto_depIdxs = []int32{
-	2, // 0: mitmflow.v1.StreamFlowsResponse.flow:type_name -> mitmflow.v1.Flow
-	5, // 1: mitmflow.v1.Flow.http_flow:type_name -> mitmproxy.v1.HTTPFlow
-	6, // 2: mitmflow.v1.Flow.tcp_flow:type_name -> mitmproxy.v1.TCPFlow
-	7, // 3: mitmflow.v1.Flow.udp_flow:type_name -> mitmproxy.v1.UDPFlow
-	8, // 4: mitmflow.v1.Flow.dns_flow:type_name -> mitmproxy.v1.DNSFlow
-	3, // 5: mitmflow.v1.Flow.http_flow_extra:type_name -> mitmflow.v1.HTTPFlowExtra
-	4, // 6: mitmflow.v1.HTTPFlowExtra.request:type_name -> mitmflow.v1.MessageDetails
-	4, // 7: mitmflow.v1.HTTPFlowExtra.response:type_name -> mitmflow.v1.MessageDetails
-	0, // 8: mitmflow.v1.Service.StreamFlows:input_type -> mitmflow.v1.StreamFlowsRequest
-	1, // 9: mitmflow.v1.Service.StreamFlows:output_type -> mitmflow.v1.StreamFlowsResponse
-	9, // [9:10] is the sub-list for method output_type
-	8, // [8:9] is the sub-list for method input_type
-	8, // [8:8] is the sub-list for extension type_name
-	8, // [8:8] is the sub-list for extension extendee
-	0, // [0:8] is the sub-list for field type_name
+	4,  // 0: mitmflow.v1.StreamFlowsResponse.flow:type_name -> mitmflow.v1.Flow
+	4,  // 1: mitmflow.v1.UpdateFlowResponse.flow:type_name -> mitmflow.v1.Flow
+	7,  // 2: mitmflow.v1.Flow.http_flow:type_name -> mitmproxy.v1.HTTPFlow
+	8,  // 3: mitmflow.v1.Flow.tcp_flow:type_name -> mitmproxy.v1.TCPFlow
+	9,  // 4: mitmflow.v1.Flow.udp_flow:type_name -> mitmproxy.v1.UDPFlow
+	10, // 5: mitmflow.v1.Flow.dns_flow:type_name -> mitmproxy.v1.DNSFlow
+	5,  // 6: mitmflow.v1.Flow.http_flow_extra:type_name -> mitmflow.v1.HTTPFlowExtra
+	6,  // 7: mitmflow.v1.HTTPFlowExtra.request:type_name -> mitmflow.v1.MessageDetails
+	6,  // 8: mitmflow.v1.HTTPFlowExtra.response:type_name -> mitmflow.v1.MessageDetails
+	0,  // 9: mitmflow.v1.Service.StreamFlows:input_type -> mitmflow.v1.StreamFlowsRequest
+	2,  // 10: mitmflow.v1.Service.UpdateFlow:input_type -> mitmflow.v1.UpdateFlowRequest
+	1,  // 11: mitmflow.v1.Service.StreamFlows:output_type -> mitmflow.v1.StreamFlowsResponse
+	3,  // 12: mitmflow.v1.Service.UpdateFlow:output_type -> mitmflow.v1.UpdateFlowResponse
+	11, // [11:13] is the sub-list for method output_type
+	9,  // [9:11] is the sub-list for method input_type
+	9,  // [9:9] is the sub-list for extension type_name
+	9,  // [9:9] is the sub-list for extension extendee
+	0,  // [0:9] is the sub-list for field type_name
 }
 
 func init() { file_mitmflow_v1_mitmflow_proto_init() }
@@ -661,7 +882,7 @@ func file_mitmflow_v1_mitmflow_proto_init() {
 	if File_mitmflow_v1_mitmflow_proto != nil {
 		return
 	}
-	file_mitmflow_v1_mitmflow_proto_msgTypes[2].OneofWrappers = []any{
+	file_mitmflow_v1_mitmflow_proto_msgTypes[4].OneofWrappers = []any{
 		(*flow_HttpFlow)(nil),
 		(*flow_TcpFlow)(nil),
 		(*flow_UdpFlow)(nil),
@@ -673,7 +894,7 @@ func file_mitmflow_v1_mitmflow_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_mitmflow_v1_mitmflow_proto_rawDesc), len(file_mitmflow_v1_mitmflow_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   5,
+			NumMessages:   7,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

@@ -40,6 +40,43 @@ export declare type StreamFlowsResponse = Message<"mitmflow.v1.StreamFlowsRespon
 export declare const StreamFlowsResponseSchema: GenMessage<StreamFlowsResponse>;
 
 /**
+ * @generated from message mitmflow.v1.UpdateFlowRequest
+ */
+export declare type UpdateFlowRequest = Message<"mitmflow.v1.UpdateFlowRequest"> & {
+  /**
+   * @generated from field: string flow_id = 1;
+   */
+  flowId: string;
+
+  /**
+   * @generated from field: bool pinned = 2;
+   */
+  pinned: boolean;
+};
+
+/**
+ * Describes the message mitmflow.v1.UpdateFlowRequest.
+ * Use `create(UpdateFlowRequestSchema)` to create a new message.
+ */
+export declare const UpdateFlowRequestSchema: GenMessage<UpdateFlowRequest>;
+
+/**
+ * @generated from message mitmflow.v1.UpdateFlowResponse
+ */
+export declare type UpdateFlowResponse = Message<"mitmflow.v1.UpdateFlowResponse"> & {
+  /**
+   * @generated from field: mitmflow.v1.Flow flow = 1;
+   */
+  flow?: Flow;
+};
+
+/**
+ * Describes the message mitmflow.v1.UpdateFlowResponse.
+ * Use `create(UpdateFlowResponseSchema)` to create a new message.
+ */
+export declare const UpdateFlowResponseSchema: GenMessage<UpdateFlowResponse>;
+
+/**
  * @generated from message mitmflow.v1.Flow
  */
 export declare type Flow = Message<"mitmflow.v1.Flow"> & {
@@ -76,6 +113,11 @@ export declare type Flow = Message<"mitmflow.v1.Flow"> & {
    * @generated from field: mitmflow.v1.HTTPFlowExtra http_flow_extra = 5;
    */
   httpFlowExtra?: HTTPFlowExtra;
+
+  /**
+   * @generated from field: bool pinned = 6;
+   */
+  pinned: boolean;
 };
 
 /**
@@ -137,6 +179,14 @@ export declare const Service: GenService<{
     methodKind: "server_streaming";
     input: typeof StreamFlowsRequestSchema;
     output: typeof StreamFlowsResponseSchema;
+  },
+  /**
+   * @generated from rpc mitmflow.v1.Service.UpdateFlow
+   */
+  updateFlow: {
+    methodKind: "unary";
+    input: typeof UpdateFlowRequestSchema;
+    output: typeof UpdateFlowResponseSchema;
   },
 }>;
 
