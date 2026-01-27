@@ -1,7 +1,7 @@
 import React, { forwardRef, useMemo, useState, useEffect, useRef } from 'react';
 import { AgGridReact } from 'ag-grid-react';
 import { ColDef, ValueGetterParams } from 'ag-grid-community';
-import { Pin } from 'lucide-react';
+import { Pin, StickyNote } from 'lucide-react';
 import 'ag-grid-community/styles/ag-grid.css';
 import 'ag-grid-community/styles/ag-theme-alpine.css';
 import { Flow } from '../gen/mitmflow/v1/mitmflow_pb';
@@ -17,29 +17,51 @@ interface FlowTableProps {
     onRowSelected: (flow: Flow, options: { event?: React.MouseEvent | React.KeyboardEvent }) => void;
     onToggleRowSelection: (flowId: string) => void;
     onTogglePin: (flow: Flow) => void;
+    pinnedOnly: boolean;
+    onTogglePinnedFilter: () => void;
 }
 
+type CustomColDef = ColDef<Flow> & {
+    headerComponent?: () => React.ReactNode;
+};
+
 const FlowTable = forwardRef<AgGridReact, FlowTableProps>(
-    function FlowTable({ flows, focusedFlowId, selectedFlowIds, onRowSelected, onToggleRowSelection, onTogglePin }, ref) {
+    function FlowTable({ flows, focusedFlowId, selectedFlowIds, onRowSelected, onToggleRowSelection, onTogglePin, pinnedOnly, onTogglePinnedFilter }, ref) {
         // Sort config: track column index (in columnDefs) and direction
         const [sortConfig, setSortConfig] = useState<{ colIndex: number | null; direction: 'asc' | 'desc' }>({ colIndex: 2, direction: 'desc' }); // default sort by Timestamp desc
 
         // Selection header checkbox ref to set indeterminate state
         const selectAllRef = useRef<HTMLInputElement | null>(null);
 
-        const columnDefs: ColDef<Flow>[] = [
+        const columnDefs: CustomColDef[] = [
             { headerName: "", width: 40, headerCheckboxSelection: true, checkboxSelection: true },
             {
                 headerName: "",
                 width: 40,
-                cellRenderer: (params: { data: Flow }) => (
+                headerComponent: () => (
                     <button
-                        onClick={(e) => { e.stopPropagation(); onTogglePin(params.data); }}
-                        className={`p-1 rounded hover:bg-gray-200 dark:hover:bg-zinc-700 ${params.data.pinned ? 'text-orange-500' : 'text-gray-500 dark:text-zinc-500'}`}
-                        title={params.data.pinned ? "Unpin flow" : "Pin flow"}
+                        onClick={onTogglePinnedFilter}
+                        className={`p-1 rounded hover:bg-gray-200 dark:hover:bg-zinc-700 ${pinnedOnly ? 'text-orange-500' : 'text-gray-500 dark:text-zinc-500'}`}
+                        title={pinnedOnly ? "Show all flows" : "Show only pinned flows"}
                     >
-                        <Pin size={14} className={params.data.pinned ? "fill-current" : ""} />
+                        <Pin size={14} className={pinnedOnly ? "fill-current" : ""} />
                     </button>
+                ),
+                cellRenderer: (params: { data: Flow }) => (
+                    <div className="flex items-center justify-center gap-1">
+                        <button
+                            onClick={(e) => { e.stopPropagation(); onTogglePin(params.data); }}
+                            className={`p-1 rounded hover:bg-gray-200 dark:hover:bg-zinc-700 ${params.data.pinned ? 'text-orange-500' : 'text-gray-500 dark:text-zinc-500'}`}
+                            title={params.data.pinned ? "Unpin flow" : "Pin flow"}
+                        >
+                            <Pin size={14} className={params.data.pinned ? "fill-current" : ""} />
+                        </button>
+                        {params.data.note && (
+                            <span title="This flow has a note" className="text-blue-500">
+                                <StickyNote size={12} className="fill-current" />
+                            </span>
+                        )}
+                    </div>
                 ),
                 cellClass: 'text-center',
             },
@@ -307,20 +329,25 @@ const FlowTable = forwardRef<AgGridReact, FlowTableProps>(
                                 }
                                 const isSorted = sortConfig.colIndex === i;
                                 const direction = isSorted ? sortConfig.direction : undefined;
+                                const content = col.headerComponent ? (
+                                    col.headerComponent()
+                                ) : (
+                                    <span className="inline-flex items-center gap-1">
+                                        {col.headerName}
+                                        {isSorted && (
+                                            <span aria-hidden="true">{direction === 'asc' ? '▲' : '▼'}</span>
+                                        )}
+                                    </span>
+                                );
                                 return (
                                     <th
                                         key={i}
                                         className={`${col.headerClass || ''} ${headerBaseClass} cursor-pointer select-none`}
                                         style={{ width: col.width, textAlign: 'left' }}
-                                        onClick={() => handleHeaderSortClick(i)}
+                                        onClick={() => !col.headerComponent && handleHeaderSortClick(i)}
                                         aria-sort={isSorted ? (direction === 'asc' ? 'ascending' : 'descending') : 'none'}
                                     >
-                                        <span className="inline-flex items-center gap-1">
-                                            {col.headerName}
-                                            {isSorted && (
-                                                <span aria-hidden="true">{direction === 'asc' ? '▲' : '▼'}</span>
-                                            )}
-                                        </span>
+                                        {content}
                                     </th>
                                 );
                             })}

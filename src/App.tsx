@@ -12,10 +12,11 @@ import { ContentFormat, getFlowId, getTimestamp } from './utils';
 import { DetailsPanel } from './components/DetailsPanel';
 import FilterModal from './components/FilterModal';
 import SettingsModal from './components/SettingsModal';
-import useFilterStore from './store';
+import useFilterStore, { FlowType } from './store';
 import useSettingsStore from './settingsStore';
 import FlowTable from './components/FlowTable';
 import { isFlowMatch, FilterConfig } from './filterUtils';
+import { Toast } from './components/Toast';
 
 const getHarContent = (content: Uint8Array | undefined, contentType: string | undefined) => {
   if (!content || content.length === 0) {
@@ -161,26 +162,70 @@ const App: React.FC = () => {
   const {
     text: filterText,
     setText: setFilterText,
+    pinnedOnly,
+    setPinnedOnly,
     flowTypes,
+    setFlowTypes,
     http,
+    setHttpMethods,
+    setHttpContentTypes,
+    setHttpStatusCodes,
     clearFilters
   } = useFilterStore();
 
-  const filterRef = useRef<FilterConfig>({ text: filterText, flowTypes, http });
+  // Load from URL
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+
+    if (params.has('q')) {
+      setFilterText(params.get('q') || '');
+    }
+    if (params.has('pinned')) {
+      setPinnedOnly(params.get('pinned') === 'true');
+    }
+    if (params.has('type')) {
+      const types = params.get('type')?.split(',') as FlowType[];
+      setFlowTypes(types || []);
+    }
+    if (params.has('method')) {
+      setHttpMethods(params.get('method')?.split(',') || []);
+    }
+    if (params.has('status')) {
+      setHttpStatusCodes(params.get('status')?.split(',') || []);
+    }
+    if (params.has('content')) {
+      setHttpContentTypes(params.get('content')?.split(',') || []);
+    }
+  }, []);
+
+  // Update URL
+  useEffect(() => {
+    const params = new URLSearchParams();
+    if (filterText) params.set('q', filterText);
+    if (pinnedOnly) params.set('pinned', 'true');
+    if (flowTypes.length > 0) params.set('type', flowTypes.join(','));
+    if (http.methods.length > 0) params.set('method', http.methods.join(','));
+    if (http.statusCodes.length > 0) params.set('status', http.statusCodes.join(','));
+    if (http.contentTypes.length > 0) params.set('content', http.contentTypes.join(','));
+
+    const newUrl = params.toString() ? `?${params.toString()}` : window.location.pathname;
+    window.history.replaceState(null, '', newUrl);
+  }, [filterText, pinnedOnly, flowTypes, http]);
+
+  const filterRef = useRef<FilterConfig>({ text: filterText, pinnedOnly, flowTypes, http });
 
   useEffect(() => {
-    filterRef.current = { text: filterText, flowTypes, http };
-  }, [filterText, flowTypes, http]);
+    filterRef.current = { text: filterText, pinnedOnly, flowTypes, http };
+  }, [filterText, pinnedOnly, flowTypes, http]);
 
   // Re-filter when filter settings change
   useEffect(() => {
     setFlowState(prev => ({
-        all: prev.all,
-        filtered: prev.all.filter(f => isFlowMatch(f, filterRef.current))
+      all: prev.all,
+      filtered: prev.all.filter(f => isFlowMatch(f, filterRef.current))
     }));
-  }, [filterText, flowTypes, http]);
+  }, [filterText, pinnedOnly, flowTypes, http]);
   const [isFilterModalOpen, setIsFilterModalOpen] = useState(false);
-  const [selectedFlow, setSelectedFlow] = useState<Flow | null>(null);
   const [isPanelMinimized, setIsPanelMinimized] = useState(false);
   const [selectedFlowId, setSelectedFlowId] = useState<string | null>(null);
   const [selectedFlowIds, setSelectedFlowIds] = useState<Set<string>>(new Set()); // New state for multi-select
@@ -191,6 +236,15 @@ const App: React.FC = () => {
   const [requestFormats, setRequestFormats] = useState<Map<string, ContentFormat>>(new Map());
   const [responseFormats, setResponseFormats] = useState<Map<string, ContentFormat>>(new Map());
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
+  const [toast, setToast] = useState<{ message: string; visible: boolean } | null>(null);
+
+  const showToast = useCallback((message: string) => {
+    setToast({ message, visible: true });
+  }, []);
+
+  const hideToast = useCallback(() => {
+    setToast(prev => prev ? { ...prev, visible: false } : null);
+  }, []);
 
   // Settings from store
   const { theme, maxFlows, maxBodySize } = useSettingsStore();
@@ -437,6 +491,7 @@ const App: React.FC = () => {
 
 
   const activeFilterCount =
+    (pinnedOnly ? 1 : 0) +
     (flowTypes.length > 0 ? 1 : 0) +
     (http.methods.length > 0 ? 1 : 0) +
     (http.contentTypes.length > 0 ? 1 : 0) +
@@ -483,7 +538,6 @@ const App: React.FC = () => {
   const handleClearFlows = () => {
     setFlowState({ all: [], filtered: [] }); // Clear the main flows array
     setIsFlowsTruncated(false);
-    setSelectedFlow(null);
     setSelectedFlowId(null);
     setSelectedFlowIds(new Set());
     setRequestFormats(new Map()); // Clear formats when flows are cleared
@@ -500,7 +554,6 @@ const App: React.FC = () => {
         all: prev.all.filter(f => !ids.includes(getFlowId(f) || '')),
         filtered: prev.filtered.filter(f => !ids.includes(getFlowId(f) || ''))
       }));
-      setSelectedFlow(null);
       setSelectedFlowId(null);
       setSelectedFlowIds(new Set());
     } catch (err) {
@@ -516,7 +569,16 @@ const App: React.FC = () => {
     }
     try {
       await client.deleteFlows({ all: true });
-      handleClearFlows();
+      const pinnedFlows = flowState.all.filter(f => f.pinned);
+      if (pinnedFlows.length > 0) {
+        setFlowState({
+          all: pinnedFlows,
+          filtered: pinnedFlows.filter(f => isFlowMatch(f, filterRef.current))
+        });
+        showToast("Pinned flows were not deleted. Select and delete them explicitly to remove.");
+      } else {
+        handleClearFlows();
+      }
     } catch (err) {
       console.error("Failed to delete all flows", err);
     }
@@ -533,7 +595,6 @@ const App: React.FC = () => {
         filtered: prev.filtered.filter(f => getFlowId(f) !== flowId)
       }));
       if (selectedFlowId === flowId) {
-        setSelectedFlow(null);
         setSelectedFlowId(null);
       }
       setSelectedFlowIds(prev => {
@@ -562,16 +623,23 @@ const App: React.FC = () => {
     });
   }, []);
 
+  const handleUpdateFlow = useCallback(async (flowId: string, updates: { pinned?: boolean, note?: string }) => {
+    try {
+      await client.updateFlow({ flowId, ...updates });
+
+      if (updates.pinned === true) {
+        showToast("Flow pinned. It will not be deleted automatically.");
+      }
+    } catch (err) {
+      console.error("Failed to update flow", err);
+    }
+  }, [client, showToast]);
+
   const handleTogglePin = useCallback(async (flow: Flow) => {
     const flowId = getFlowId(flow);
     if (!flowId) return;
-    try {
-        await client.updateFlow({ flowId, pinned: !flow.pinned });
-        // Optimistic update? The stream should send the update back.
-    } catch (err) {
-        console.error("Failed to toggle pin", err);
-    }
-  }, [client]);
+    handleUpdateFlow(flowId, { pinned: !flow.pinned });
+  }, [handleUpdateFlow]);
 
   const handleFlowSelection = useCallback((flow: Flow) => {
     const currentFlowId = getFlowId(flow);
@@ -580,14 +648,12 @@ const App: React.FC = () => {
     }
 
     // Update focused and displayed flow
-    setSelectedFlow(flow);
     setSelectedFlowId(currentFlowId);
     lastSelectedFlowId.current = currentFlowId;
     setIsPanelMinimized(false);
   }, []);
 
   const handleClosePanel = useCallback(() => {
-    setSelectedFlow(null);
     setSelectedFlowId(null);
     setDetailsPanelHeight(null); // Reset height when panel is closed
   }, []); // Memoize with useCallback
@@ -840,6 +906,8 @@ const App: React.FC = () => {
             selectedFlowIds={selectedFlowIds}
             onRowSelected={handleFlowSelection}
             onTogglePin={handleTogglePin}
+            pinnedOnly={pinnedOnly}
+            onTogglePinnedFilter={() => setPinnedOnly(!pinnedOnly)}
             onToggleRowSelection={flowId => {
               setSelectedFlowIds(prev => {
                 const newSet = new Set(prev);
@@ -863,6 +931,11 @@ const App: React.FC = () => {
       )}
 
       {/* --- Details Panel --- */}
+      <Toast
+        message={toast?.message || ''}
+        isVisible={!!toast?.visible}
+        onClose={hideToast}
+      />
       <DetailsPanel
         flow={detailsFlow}
         isMinimized={isPanelMinimized}
@@ -871,6 +944,7 @@ const App: React.FC = () => {
         setPanelHeight={setDetailsPanelHeight}
         downloadFlowContent={downloadFlowContent}
         onTogglePin={handleTogglePin}
+        onUpdateFlow={handleUpdateFlow}
         onDeleteFlow={handleDeleteFlow}
       >
         {detailsFlow?.flow?.case === 'httpFlow' && (

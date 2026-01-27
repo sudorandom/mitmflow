@@ -81,10 +81,13 @@ func (s *FlowStorage) SaveFlow(flow *mitmflowv1.Flow) error {
 		return fmt.Errorf("flow has no ID")
 	}
 
-	// Preserve pinned status if updating existing flow
+	// Preserve pinned status and note if updating existing flow
 	if existing, ok := s.flows[id]; ok {
 		if !flow.GetPinned() && existing.GetPinned() {
 			flow.SetPinned(true)
+		}
+		if flow.GetNote() == "" && existing.GetNote() != "" {
+			flow.SetNote(existing.GetNote())
 		}
 	}
 
@@ -98,7 +101,7 @@ func (s *FlowStorage) SaveFlow(flow *mitmflowv1.Flow) error {
 	return nil
 }
 
-func (s *FlowStorage) UpdateFlow(id string, pinned bool) (*mitmflowv1.Flow, error) {
+func (s *FlowStorage) UpdateFlow(id string, pinned *bool, note *string) (*mitmflowv1.Flow, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -107,7 +110,12 @@ func (s *FlowStorage) UpdateFlow(id string, pinned bool) (*mitmflowv1.Flow, erro
 		return nil, fmt.Errorf("flow not found: %s", id)
 	}
 
-	flow.SetPinned(pinned)
+	if pinned != nil {
+		flow.SetPinned(*pinned)
+	}
+	if note != nil {
+		flow.SetNote(*note)
+	}
 
 	if err := s.saveToDisk(flow); err != nil {
 		return nil, err
@@ -139,23 +147,24 @@ func (s *FlowStorage) DeleteAllFlows() (int64, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	count := int64(len(s.flows))
-	s.flows = make(map[string]*mitmflowv1.Flow)
-
-	// Remove all .bin files in directory
-	entries, err := os.ReadDir(s.dir)
-	if err != nil {
-		return 0, fmt.Errorf("failed to read data directory: %w", err)
-	}
-	for _, entry := range entries {
-		if !entry.IsDir() && filepath.Ext(entry.Name()) == ".bin" {
-			if err := os.Remove(filepath.Join(s.dir, entry.Name())); err != nil {
-				log.Printf("failed to remove file %s: %v", entry.Name(), err)
-			}
+	var deletedCount int64
+	// Collect IDs to delete
+	var idsToDelete []string
+	for id, flow := range s.flows {
+		if !flow.GetPinned() {
+			idsToDelete = append(idsToDelete, id)
 		}
 	}
 
-	return count, nil
+	for _, id := range idsToDelete {
+		delete(s.flows, id)
+		if err := os.Remove(filepath.Join(s.dir, id+".bin")); err != nil && !os.IsNotExist(err) {
+			log.Printf("failed to remove flow file %s: %v", id, err)
+		}
+		deletedCount++
+	}
+
+	return deletedCount, nil
 }
 
 func (s *FlowStorage) GetFlows() []*mitmflowv1.Flow {

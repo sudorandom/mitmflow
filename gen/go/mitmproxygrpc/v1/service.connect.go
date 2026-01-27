@@ -2,6 +2,7 @@
 //
 // Source: mitmproxygrpc/v1/service.proto
 
+// buf:lint:ignore PACKAGE_DIRECTORY_MATCH
 package mitmproxyv1
 
 import (

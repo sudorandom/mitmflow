@@ -49,9 +49,14 @@ export declare type UpdateFlowRequest = Message<"mitmflow.v1.UpdateFlowRequest">
   flowId: string;
 
   /**
-   * @generated from field: bool pinned = 2;
+   * @generated from field: bool pinned = 2 [features.field_presence = EXPLICIT];
    */
   pinned: boolean;
+
+  /**
+   * @generated from field: string note = 3 [features.field_presence = EXPLICIT];
+   */
+  note: string;
 };
 
 /**
@@ -155,6 +160,11 @@ export declare type Flow = Message<"mitmflow.v1.Flow"> & {
    * @generated from field: bool pinned = 6;
    */
   pinned: boolean;
+
+  /**
+   * @generated from field: string note = 7;
+   */
+  note: string;
 };
 
 /**
