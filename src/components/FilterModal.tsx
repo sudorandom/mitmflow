@@ -2,15 +2,16 @@ import React from 'react';
 import useFilterStore, { FlowType } from '../store';
 import { X } from 'lucide-react';
 import CreatableSelect from 'react-select/creatable';
+import Select from 'react-select';
 
-const FLOW_TYPES: { id: FlowType; label: string }[] = [
-  { id: 'http', label: 'HTTP' },
-  { id: 'dns', label: 'DNS' },
-  { id: 'tcp', label: 'TCP' },
-  { id: 'udp', label: 'UDP' },
+const FLOW_TYPES: { value: FlowType; label: string }[] = [
+  { value: 'http', label: 'HTTP' },
+  { value: 'dns', label: 'DNS' },
+  { value: 'tcp', label: 'TCP' },
+  { value: 'udp', label: 'UDP' },
 ];
 
-const HTTP_METHODS = ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'HEAD', 'OPTIONS'];
+const HTTP_METHODS = ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'HEAD', 'OPTIONS'].map(m => ({ value: m, label: m }));
 
 const STATUS_CODE_OPTIONS = [
     { value: '200', label: '200 OK' },
@@ -42,6 +43,13 @@ const CONTENT_TYPE_OPTIONS = [
     { value: 'application/octet-stream', label: 'application/octet-stream' },
 ];
 
+const FilterRow = ({ label, children, isEven }: { label: string, children: React.ReactNode, isEven: boolean }) => (
+  <div className={`flex items-center justify-between p-3 px-4 gap-4 ${isEven ? 'bg-gray-100 dark:bg-zinc-900' : 'bg-white dark:bg-zinc-800'}`}>
+    <div className="font-medium text-sm text-gray-700 dark:text-zinc-300 w-1/3 flex-shrink-0">{label}</div>
+    <div className="flex-grow w-2/3 min-w-0">{children}</div>
+  </div>
+);
+
 interface FilterModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -56,22 +64,9 @@ const FilterModal: React.FC<FilterModalProps> = ({ isOpen, onClose }) => {
     setHttpContentTypes,
     setHttpStatusCodes,
     clearFilters,
+    pinnedOnly,
+    setPinnedOnly,
   } = useFilterStore();
-
-  const handleFlowTypeChange = (type: FlowType) => {
-    const newFlowTypes = flowTypes.includes(type)
-      ? flowTypes.filter((t) => t !== type)
-      : [...flowTypes, type];
-    setFlowTypes(newFlowTypes);
-  };
-
-  const handleHttpMethodChange = (method: string) => {
-    const newMethods = methods.includes(method)
-      ? methods.filter((m) => m !== method)
-      : [...methods, method];
-    setHttpMethods(newMethods);
-  };
-
 
   const modalRef = React.useRef<HTMLDivElement>(null);
 
@@ -93,112 +88,117 @@ const FilterModal: React.FC<FilterModalProps> = ({ isOpen, onClose }) => {
     return null;
   }
 
+  // Filter out HTTP-specific options if HTTP is not selected (if flowTypes.length > 0)
+  const showHttpFilters = flowTypes.length === 0 || flowTypes.includes('http');
+
+  let rowIndex = 0;
+
+  const selectStyles = {
+    menuPortal: (base: any) => ({ ...base, zIndex: 9999 })
+  };
+
   return (
     <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center backdrop-blur-sm">
       <div
         ref={modalRef}
         tabIndex={0}
-        className="bg-white dark:bg-zinc-800 rounded-lg shadow-xl p-6 w-full max-w-2xl text-gray-900 dark:text-white border border-gray-200 dark:border-zinc-700"
+        className="bg-white dark:bg-zinc-800 rounded-lg shadow-xl w-full max-w-2xl text-gray-900 dark:text-white border border-gray-200 dark:border-zinc-700 flex flex-col max-h-[90vh]"
       >
-        {/* Style injection for react-select dark mode support via CSS variables if we used a class,
-            but here we passed styles object.
-            Actually, react-select styles prop doesn't read CSS vars easily without helper.
-            Let's keep it simple: use classNames for the container and let react-select use default white for now,
-            or use a library that handles it.
-            To avoid complexity, I'll stick to default styles but ensure text is black so it is readable.
-        */}
-
-        <div className="flex justify-between items-center mb-4">
-          <h2 className="text-2xl font-semibold">Advanced Filters</h2>
+        <div className="flex justify-between items-center p-4 border-b border-gray-200 dark:border-zinc-700">
+          <h2 className="text-xl font-semibold">Advanced Filters</h2>
           <button onClick={onClose} className="text-gray-500 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-white">
             <X size={24} />
           </button>
         </div>
 
-        {/* --- Filters --- */}
-        <div className="space-y-6">
-          {/* Flow Type Filter */}
-          <div>
-            <h3 className="text-lg font-medium mb-2">Flow Type</h3>
-            <div className="flex flex-wrap gap-2">
-              {FLOW_TYPES.map(({ id, label }) => (
-                <label key={id} className="flex items-center space-x-2 cursor-pointer select-none">
+        <div className="overflow-y-auto">
+            {/* Pinned Only */}
+            <FilterRow label="Pinned Only" isEven={rowIndex++ % 2 !== 0}>
+                <label className="flex items-center space-x-2 cursor-pointer select-none">
                   <input
                     type="checkbox"
-                    checked={flowTypes.includes(id)}
-                    onChange={() => handleFlowTypeChange(id)}
+                    checked={pinnedOnly}
+                    onChange={(e) => setPinnedOnly(e.target.checked)}
                     className="form-checkbox h-5 w-5 rounded bg-gray-100 dark:bg-zinc-700 border-gray-300 dark:border-zinc-600 text-orange-500 focus:ring-orange-500"
                   />
-                  <span>{label}</span>
                 </label>
-              ))}
-            </div>
-          </div>
+            </FilterRow>
 
-          {/* Conditional HTTP Filters */}
-          {(flowTypes.length === 0 || flowTypes.includes('http')) && (
-            <>
-              {/* HTTP Method Filter */}
-              <div>
-                <h3 className="text-lg font-medium mb-2">HTTP Method</h3>
-                <div className="flex flex-wrap gap-2">
-                  {HTTP_METHODS.map((method) => (
-                    <label key={method} className="flex items-center space-x-2 cursor-pointer select-none">
-                      <input
-                        type="checkbox"
-                        checked={methods.includes(method)}
-                        onChange={() => handleHttpMethodChange(method)}
-                        className="form-checkbox h-5 w-5 rounded bg-gray-100 dark:bg-zinc-700 border-gray-300 dark:border-zinc-600 text-orange-500 focus:ring-orange-500"
-                      />
-                      <span>{method}</span>
-                    </label>
-                  ))}
-                </div>
-              </div>
-
-              {/* HTTP Status Code Filter */}
-              <div>
-                <h3 className="text-lg font-medium mb-2">HTTP Status Code</h3>
-                <CreatableSelect
+            {/* Flow Type */}
+            <FilterRow label="Flow Type" isEven={rowIndex++ % 2 !== 0}>
+                <Select
                     isMulti
-                    options={STATUS_CODE_OPTIONS}
-                    value={statusCodes.map(sc => ({ value: sc, label: sc }))}
-                    onChange={(selected) => setHttpStatusCodes(selected.map(s => s.value))}
-                    className="text-black"
-                    placeholder="e.g., 200, 4xx, 500-599"
+                    options={FLOW_TYPES}
+                    value={FLOW_TYPES.filter(t => flowTypes.includes(t.value))}
+                    onChange={(selected) => setFlowTypes(selected.map(s => s.value))}
+                    className="text-black text-sm"
+                    placeholder="Select types..."
+                    menuPortalTarget={document.body}
+                    styles={selectStyles}
                 />
-              </div>
+            </FilterRow>
 
-              {/* HTTP Content Type Filter */}
-              <div>
-                <h3 className="text-lg font-medium mb-2">HTTP Content Type</h3>
-                <CreatableSelect
-                    isMulti
-                    options={CONTENT_TYPE_OPTIONS}
-                    value={contentTypes.map(ct => ({ value: ct, label: ct }))}
-                    onChange={(selected) => setHttpContentTypes(selected.map(s => s.value))}
-                    className="text-black"
-                    placeholder="e.g., application/json, text/html"
-                />
-              </div>
-            </>
-          )}
+            {showHttpFilters && (
+                <>
+                    {/* HTTP Method */}
+                    <FilterRow label="HTTP Method" isEven={rowIndex++ % 2 !== 0}>
+                        <Select
+                            isMulti
+                            options={HTTP_METHODS}
+                            value={HTTP_METHODS.filter(m => methods.includes(m.value))}
+                            onChange={(selected) => setHttpMethods(selected.map(s => s.value))}
+                            className="text-black text-sm"
+                            placeholder="Select methods..."
+                            menuPortalTarget={document.body}
+                            styles={selectStyles}
+                        />
+                    </FilterRow>
+
+                    {/* HTTP Status Code */}
+                    <FilterRow label="HTTP Status Code" isEven={rowIndex++ % 2 !== 0}>
+                        <CreatableSelect
+                            isMulti
+                            options={STATUS_CODE_OPTIONS}
+                            value={statusCodes.map(sc => ({ value: sc, label: sc }))}
+                            onChange={(selected) => setHttpStatusCodes(selected.map(s => s.value))}
+                            className="text-black text-sm"
+                            placeholder="e.g., 200, 4xx, 500-599"
+                            menuPortalTarget={document.body}
+                            styles={selectStyles}
+                        />
+                    </FilterRow>
+
+                    {/* HTTP Content Type */}
+                    <FilterRow label="HTTP Content Type" isEven={rowIndex++ % 2 !== 0}>
+                        <CreatableSelect
+                            isMulti
+                            options={CONTENT_TYPE_OPTIONS}
+                            value={contentTypes.map(ct => ({ value: ct, label: ct }))}
+                            onChange={(selected) => setHttpContentTypes(selected.map(s => s.value))}
+                            className="text-black text-sm"
+                            placeholder="e.g., application/json, text/html"
+                            menuPortalTarget={document.body}
+                            styles={selectStyles}
+                        />
+                    </FilterRow>
+                </>
+            )}
         </div>
 
         {/* --- Actions --- */}
-        <div className="flex justify-end items-center mt-6 pt-4 border-t border-gray-200 dark:border-zinc-700">
+        <div className="flex justify-end items-center p-4 border-t border-gray-200 dark:border-zinc-700 bg-gray-50 dark:bg-zinc-900 rounded-b-lg">
           <button
             onClick={() => {
               clearFilters();
               onClose();
             }}
-            className="text-gray-500 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-white px-4 py-2 rounded-md transition-colors"
+            className="text-gray-500 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-white px-4 py-2 rounded-md transition-colors text-sm"
           >
             Clear All
           </button>
           <button
             onClick={onClose}
-            className="bg-orange-500 hover:bg-orange-600 text-white font-bold py-2 px-4 rounded-md ml-2 transition-colors"
+            className="bg-orange-500 hover:bg-orange-600 text-white font-bold py-2 px-4 rounded-md ml-2 transition-colors text-sm"
           >
             Apply
           </button>
