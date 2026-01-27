@@ -949,6 +949,7 @@ const App: React.FC = () => {
       >
         {detailsFlow?.flow?.case === 'httpFlow' && (
           <HttpFlowDetails
+            key={selectedFlowId}
             flow={detailsFlow}
             requestFormat={requestFormats.get(selectedFlowId!) || 'auto'}
             setRequestFormat={(format) => handleSetRequestFormat(selectedFlowId!, format)}
@@ -958,13 +959,13 @@ const App: React.FC = () => {
           />
         )}
         {detailsFlow?.flow?.case === 'dnsFlow' && (
-          <DnsFlowDetails flow={detailsFlow} />
+          <DnsFlowDetails key={selectedFlowId} flow={detailsFlow} />
         )}
         {detailsFlow?.flow?.case === 'tcpFlow' && (
-            <TcpFlowDetails flow={detailsFlow} />
+            <TcpFlowDetails key={selectedFlowId} flow={detailsFlow} />
         )}
         {detailsFlow?.flow?.case === 'udpFlow' && (
-            <UdpFlowDetails flow={detailsFlow} />
+            <UdpFlowDetails key={selectedFlowId} flow={detailsFlow} />
         )}
       </DetailsPanel>
     </div>

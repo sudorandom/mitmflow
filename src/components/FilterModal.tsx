@@ -56,6 +56,8 @@ const FilterModal: React.FC<FilterModalProps> = ({ isOpen, onClose }) => {
     setHttpContentTypes,
     setHttpStatusCodes,
     clearFilters,
+    pinnedOnly,
+    setPinnedOnly,
   } = useFilterStore();
 
   const handleFlowTypeChange = (type: FlowType) => {
@@ -117,6 +119,20 @@ const FilterModal: React.FC<FilterModalProps> = ({ isOpen, onClose }) => {
 
         {/* --- Filters --- */}
         <div className="space-y-6">
+          {/* General Filters */}
+          <div>
+            <h3 className="text-lg font-medium mb-2">General</h3>
+            <label className="flex items-center space-x-2 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={pinnedOnly}
+                onChange={(e) => setPinnedOnly(e.target.checked)}
+                className="form-checkbox h-5 w-5 rounded bg-gray-100 dark:bg-zinc-700 border-gray-300 dark:border-zinc-600 text-orange-500 focus:ring-orange-500"
+              />
+              <span>Pinned Only</span>
+            </label>
+          </div>
+
           {/* Flow Type Filter */}
           <div>
             <h3 className="text-lg font-medium mb-2">Flow Type</h3>
