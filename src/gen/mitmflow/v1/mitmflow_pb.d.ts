@@ -77,6 +77,43 @@ export declare type UpdateFlowResponse = Message<"mitmflow.v1.UpdateFlowResponse
 export declare const UpdateFlowResponseSchema: GenMessage<UpdateFlowResponse>;
 
 /**
+ * @generated from message mitmflow.v1.DeleteFlowsRequest
+ */
+export declare type DeleteFlowsRequest = Message<"mitmflow.v1.DeleteFlowsRequest"> & {
+  /**
+   * @generated from field: repeated string flow_ids = 1;
+   */
+  flowIds: string[];
+
+  /**
+   * @generated from field: bool all = 2;
+   */
+  all: boolean;
+};
+
+/**
+ * Describes the message mitmflow.v1.DeleteFlowsRequest.
+ * Use `create(DeleteFlowsRequestSchema)` to create a new message.
+ */
+export declare const DeleteFlowsRequestSchema: GenMessage<DeleteFlowsRequest>;
+
+/**
+ * @generated from message mitmflow.v1.DeleteFlowsResponse
+ */
+export declare type DeleteFlowsResponse = Message<"mitmflow.v1.DeleteFlowsResponse"> & {
+  /**
+   * @generated from field: int64 count = 1;
+   */
+  count: bigint;
+};
+
+/**
+ * Describes the message mitmflow.v1.DeleteFlowsResponse.
+ * Use `create(DeleteFlowsResponseSchema)` to create a new message.
+ */
+export declare const DeleteFlowsResponseSchema: GenMessage<DeleteFlowsResponse>;
+
+/**
  * @generated from message mitmflow.v1.Flow
  */
 export declare type Flow = Message<"mitmflow.v1.Flow"> & {
@@ -187,6 +224,14 @@ export declare const Service: GenService<{
     methodKind: "unary";
     input: typeof UpdateFlowRequestSchema;
     output: typeof UpdateFlowResponseSchema;
+  },
+  /**
+   * @generated from rpc mitmflow.v1.Service.DeleteFlows
+   */
+  deleteFlows: {
+    methodKind: "unary";
+    input: typeof DeleteFlowsRequestSchema;
+    output: typeof DeleteFlowsResponseSchema;
   },
 }>;
 

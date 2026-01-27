@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
-import { Search, Pause, Play, Download, Braces, HardDriveDownload, Menu, Filter, X, Settings, Trash } from 'lucide-react';
+import { Search, Pause, Play, Download, Braces, HardDriveDownload, Menu, Filter, X, Settings, Trash, ChevronDown } from 'lucide-react';
 import { createConnectTransport } from "@connectrpc/connect-web";
 import { createClient } from "@connectrpc/connect";
 import { Service, Flow, FlowSchema } from "./gen/mitmflow/v1/mitmflow_pb"
@@ -14,6 +14,7 @@ import FilterModal from './components/FilterModal';
 import SettingsModal from './components/SettingsModal';
 import useFilterStore from './store';
 import useSettingsStore from './settingsStore';
+import FlowTable from './components/FlowTable';
 
 const getHarContent = (content: Uint8Array | undefined, contentType: string | undefined) => {
   if (!content || content.length === 0) {
@@ -138,8 +139,6 @@ const generateHarBlob = (flowsToExport: Flow[]): Blob => {
   return new Blob([JSON.stringify(har, null, 2)], { type: 'application/json;charset=utf-8' });
 };
 
-import FlowTable from './components/FlowTable';
-
 // --- MAIN APP COMPONENT ---
 
 declare global {
@@ -171,6 +170,7 @@ const App: React.FC = () => {
   const [selectedFlowId, setSelectedFlowId] = useState<string | null>(null);
   const [selectedFlowIds, setSelectedFlowIds] = useState<Set<string>>(new Set()); // New state for multi-select
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isDeleteMenuOpen, setIsDeleteMenuOpen] = useState(false); // New state for delete menu
   const [isBulkDownloadOpen, setIsBulkDownloadOpen] = useState(false); // New state for bulk download menu
   const [detailsPanelHeight, setDetailsPanelHeight] = useState<number | null>(null);
   const [requestFormats, setRequestFormats] = useState<Map<string, ContentFormat>>(new Map());
@@ -213,6 +213,7 @@ const App: React.FC = () => {
   const mainTableRef = useRef<HTMLDivElement>(null); // Ref for the main table scrolling area
   const lastSelectedFlowId = useRef<string | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
+  const deleteMenuRef = useRef<HTMLDivElement>(null); // Ref for delete menu
   const bulkDownloadRef = useRef<HTMLDivElement>(null); // New ref for bulk download menu
 
   const downloadFlowContent = useCallback((flow: Flow, type: 'har' | 'flow-json' | 'request' | 'response') => {
@@ -319,6 +320,9 @@ const App: React.FC = () => {
               return rFlowId && incomingFlowId && rFlowId === incomingFlowId;
             });
             if (existingIndex !== -1) {
+              // Check if flow was removed (e.g. deletion from backend)
+              // Currently streamFlows primarily sends updates, not deletions.
+              // If the flow is being updated, handle it.
               const newFlows = [...prevFlows];
               newFlows[existingIndex] = incomingFlow;
               return newFlows;
@@ -355,13 +359,13 @@ const App: React.FC = () => {
     };
   }, [isPaused, maxFlows, maxBodySize]);
 
-
-
-
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
         setIsMenuOpen(false);
+      }
+      if (deleteMenuRef.current && !deleteMenuRef.current.contains(event.target as Node)) {
+        setIsDeleteMenuOpen(false);
       }
       if (bulkDownloadRef.current && !bulkDownloadRef.current.contains(event.target as Node)) {
         setIsBulkDownloadOpen(false);
@@ -545,7 +549,57 @@ const App: React.FC = () => {
     setSelectedFlowIds(new Set());
     setRequestFormats(new Map()); // Clear formats when flows are cleared
     setResponseFormats(new Map()); // Clear formats when flows are cleared
+    setIsDeleteMenuOpen(false);
   };
+
+  const handleDeleteFlowsInView = async () => {
+    const ids = filteredFlows.map(getFlowId).filter((id): id is string => !!id);
+    if (ids.length === 0) return;
+    try {
+      await client.deleteFlows({ flowIds: ids });
+      setFlows(prev => prev.filter(f => !ids.includes(getFlowId(f) || '')));
+      setSelectedFlow(null);
+      setSelectedFlowId(null);
+      setSelectedFlowIds(new Set());
+    } catch (err) {
+      console.error("Failed to delete flows in view", err);
+    }
+    setIsDeleteMenuOpen(false);
+  };
+
+  const handleDeleteAllFlows = async () => {
+    if (!window.confirm("Are you sure you want to delete all flows? This cannot be undone.")) {
+      setIsDeleteMenuOpen(false);
+      return;
+    }
+    try {
+      await client.deleteFlows({ all: true });
+      handleClearFlows();
+    } catch (err) {
+      console.error("Failed to delete all flows", err);
+    }
+    setIsDeleteMenuOpen(false);
+  };
+
+  const handleDeleteFlow = useCallback(async (flow: Flow) => {
+    const flowId = getFlowId(flow);
+    if (!flowId) return;
+    try {
+      await client.deleteFlows({ flowIds: [flowId] });
+      setFlows(prev => prev.filter(f => getFlowId(f) !== flowId));
+      if (selectedFlowId === flowId) {
+        setSelectedFlow(null);
+        setSelectedFlowId(null);
+      }
+      setSelectedFlowIds(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(flowId);
+        return newSet;
+      });
+    } catch (err) {
+      console.error("Failed to delete flow", err);
+    }
+  }, [client, selectedFlowId]);
 
   const handleSetRequestFormat = useCallback((flowId: string, format: ContentFormat) => {
     setRequestFormats(prev => {
@@ -634,12 +688,26 @@ const App: React.FC = () => {
                   {isPaused ? <Play size={20} /> : <Pause size={20} />}
                   {isPaused ? 'Resume' : 'Pause'}
                 </button>
-                <button
-                  onClick={() => { handleClearFlows(); setIsMenuOpen(false); }}
-                  className="block w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-zinc-200 hover:bg-gray-100 dark:hover:bg-zinc-700 flex items-center gap-1.5"
-                >
-                  <Trash size={20} /> Clear Flows
-                </button>
+                <div className="border-t border-zinc-700 my-1"></div>
+                 <button
+                    onClick={() => { handleClearFlows(); setIsMenuOpen(false); }}
+                    className="block w-full text-left px-4 py-2 text-sm text-zinc-200 hover:bg-zinc-700 flex items-center gap-1.5"
+                  >
+                    Clear View
+                  </button>
+                   <button
+                    onClick={() => { handleDeleteFlowsInView(); setIsMenuOpen(false); }}
+                    className="block w-full text-left px-4 py-2 text-sm text-zinc-200 hover:bg-zinc-700 flex items-center gap-1.5"
+                  >
+                    Delete in View
+                  </button>
+                   <button
+                    onClick={() => { handleDeleteAllFlows(); setIsMenuOpen(false); }}
+                    className="block w-full text-left px-4 py-2 text-sm text-red-400 hover:bg-zinc-700 flex items-center gap-1.5"
+                  >
+                    Delete All
+                  </button>
+                <div className="border-t border-zinc-700 my-1"></div>
                 <div className="relative inline-block w-full" ref={bulkDownloadRef}>
                   <button
                     onClick={(e) => { e.stopPropagation(); setIsBulkDownloadOpen(o => !o); }}
@@ -690,12 +758,40 @@ const App: React.FC = () => {
               {isPaused ? <Play size={20} /> : <Pause size={20} />}
             </button>
             
-            <button
-              onClick={handleClearFlows}
-              className="bg-gray-100 dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 text-gray-700 dark:text-zinc-200 px-3 py-1 rounded-full text-sm font-medium flex items-center gap-1.5 hover:bg-gray-200 dark:hover:bg-zinc-700"
-            >
-              <Trash size={20} />
-            </button>
+            {/* Delete Dropdown */}
+            <div className="relative inline-block" ref={deleteMenuRef}>
+              <button
+                onClick={() => setIsDeleteMenuOpen(!isDeleteMenuOpen)}
+                aria-label="Delete options"
+                className="bg-zinc-800 border border-zinc-700 text-zinc-200 px-3 py-1 rounded-full text-sm font-medium flex items-center gap-1.5 hover:bg-zinc-700"
+              >
+                <Trash size={20} />
+                <ChevronDown size={14} />
+              </button>
+              {isDeleteMenuOpen && (
+                 <div className="absolute left-0 mt-2 w-48 bg-zinc-800 border border-zinc-700 rounded-md shadow-lg z-50">
+                    <button
+                    onClick={handleClearFlows}
+                    className="block w-full text-left px-4 py-2 text-sm text-zinc-200 hover:bg-zinc-700"
+                  >
+                    Clear View
+                  </button>
+                   <button
+                    onClick={handleDeleteFlowsInView}
+                    className="block w-full text-left px-4 py-2 text-sm text-zinc-200 hover:bg-zinc-700"
+                  >
+                    Delete in View
+                  </button>
+                   <button
+                    onClick={handleDeleteAllFlows}
+                    className="block w-full text-left px-4 py-2 text-sm text-red-400 hover:bg-zinc-700"
+                  >
+                    Delete All
+                  </button>
+                 </div>
+              )}
+            </div>
+
             <button
                 onClick={() => setIsSettingsModalOpen(true)}
                 className="bg-gray-100 dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 text-gray-700 dark:text-zinc-200 px-3 py-1 rounded-full text-sm font-medium flex items-center gap-1.5 hover:bg-gray-200 dark:hover:bg-zinc-700"
@@ -826,6 +922,7 @@ const App: React.FC = () => {
         setPanelHeight={setDetailsPanelHeight}
         downloadFlowContent={downloadFlowContent}
         onTogglePin={handleTogglePin}
+        onDeleteFlow={handleDeleteFlow}
       >
         {selectedFlow?.flow?.case === 'httpFlow' && (
           <HttpFlowDetails

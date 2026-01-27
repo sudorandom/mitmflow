@@ -12,7 +12,7 @@ echo "Sending flows to localhost:50051 every ${SLEEP_DURATION}s..."
 generate_data() {
     while true; do
         fauxrpc generate \
-            --schema=fauxrpc-image.binpb \
+            --schema=schema.binpb \
             --target=mitmproxy.v1.ExportFlowRequest \
             --stubs=stubs 2>/dev/null
         sleep "$SLEEP_DURATION"
@@ -21,7 +21,7 @@ generate_data() {
 
 generate_data | buf curl \
     --http2-prior-knowledge \
-    --schema fauxrpc-image.binpb \
+    --schema schema.binpb \
     --protocol grpc \
     --data @- \
     http://localhost:50051/mitmproxy.v1.Service/ExportFlow

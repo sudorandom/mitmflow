@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { Download, X, ChevronDown, Pin } from 'lucide-react';
+import { Download, X, ChevronDown, Pin, Trash } from 'lucide-react';
 import { Flow } from '../gen/mitmflow/v1/mitmflow_pb';
 import { getFlowTitle } from '../utils';
 import FlowIcon from './FlowIcon';
@@ -15,6 +15,7 @@ interface DetailsPanelProps {
   children: React.ReactNode;
   downloadFlowContent: (flow: Flow, type: 'har' | 'flow-json' | 'request' | 'response') => void;
   onTogglePin: (flow: Flow) => void;
+  onDeleteFlow: (flow: Flow) => void;
 }
 
 export const DetailsPanel = forwardRef<HTMLDivElement, DetailsPanelProps>(({
@@ -26,6 +27,7 @@ export const DetailsPanel = forwardRef<HTMLDivElement, DetailsPanelProps>(({
   children,
   downloadFlowContent,
   onTogglePin,
+  onDeleteFlow,
 }, ref) => {
   const [isResizing, setIsResizing] = useState(false);
   const [isDownloadOpen, setDownloadOpen] = useState(false);
@@ -164,6 +166,18 @@ export const DetailsPanel = forwardRef<HTMLDivElement, DetailsPanelProps>(({
         />
         <div className="font-mono text-sm truncate text-gray-700 dark:text-zinc-300">{getFlowTitle(flow)}</div>
         <div className="ml-auto flex items-center gap-2">
+          <button
+            onClick={() => {
+              if (window.confirm("Are you sure you want to delete this flow?")) {
+                onDeleteFlow(flow);
+                onClose();
+              }
+            }}
+            className="p-1 text-zinc-500 hover:text-red-400"
+            title="Delete Flow"
+          >
+            <Trash size={20} />
+          </button>
           <div className="relative" ref={downloadRef}>
             <button
               onClick={() => setDownloadOpen(!isDownloadOpen)}

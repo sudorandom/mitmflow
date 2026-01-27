@@ -7,6 +7,7 @@ import "mitmproxygrpc/v1/service.proto";
 service Service {
   rpc StreamFlows(StreamFlowsRequest) returns (stream StreamFlowsResponse) {}
   rpc UpdateFlow(UpdateFlowRequest) returns (UpdateFlowResponse) {}
+  rpc DeleteFlows(DeleteFlowsRequest) returns (DeleteFlowsResponse) {}
 }
 
 message StreamFlowsRequest {}
@@ -22,6 +23,15 @@ message UpdateFlowRequest {
 
 message UpdateFlowResponse {
   Flow flow = 1;
+}
+
+message DeleteFlowsRequest {
+  repeated string flow_ids = 1;
+  bool all = 2;
+}
+
+message DeleteFlowsResponse {
+  int64 count = 1;
 }
 
 message Flow {
