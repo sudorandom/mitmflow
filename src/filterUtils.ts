@@ -3,6 +3,7 @@ import { FlowType } from "./store";
 
 export interface FilterConfig {
   text: string;
+  pinnedOnly: boolean;
   flowTypes: FlowType[];
   http: {
     methods: string[];
@@ -13,6 +14,10 @@ export interface FilterConfig {
 
 export const isFlowMatch = (flow: Flow, filter: FilterConfig): boolean => {
   if (!flow.flow) return false;
+
+  if (filter.pinnedOnly && !flow.pinned) {
+    return false;
+  }
 
   const filterText = filter.text.toLowerCase();
 

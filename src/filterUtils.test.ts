@@ -5,6 +5,7 @@ import { Flow } from './gen/mitmflow/v1/mitmflow_pb';
 describe('isFlowMatch', () => {
     const emptyFilter: FilterConfig = {
         text: '',
+        pinnedOnly: false,
         flowTypes: [],
         http: { methods: [], contentTypes: [], statusCodes: [] }
     };
@@ -133,5 +134,22 @@ describe('isFlowMatch', () => {
         } as unknown as Flow;
 
         expect(isFlowMatch(flow, { ...emptyFilter, text: 'websocket' })).toBe(true);
+    });
+
+    it('respects pinned filter', () => {
+        const pinnedFlow = {
+            flow: { case: 'httpFlow', value: {} },
+            pinned: true
+        } as unknown as Flow;
+
+        const unpinnedFlow = {
+            flow: { case: 'httpFlow', value: {} },
+            pinned: false
+        } as unknown as Flow;
+
+        const filter: FilterConfig = { ...emptyFilter, pinnedOnly: true };
+
+        expect(isFlowMatch(pinnedFlow, filter)).toBe(true);
+        expect(isFlowMatch(unpinnedFlow, filter)).toBe(false);
     });
 });

@@ -139,8 +139,19 @@ func (s *MITMFlowServer) UpdateFlow(
 	ctx context.Context,
 	req *connect.Request[mitmflowv1.UpdateFlowRequest],
 ) (*connect.Response[mitmflowv1.UpdateFlowResponse], error) {
-	log.Printf("UpdateFlow: ID=%s Pinned=%v", req.Msg.GetFlowId(), req.Msg.GetPinned())
-	flow, err := s.storage.UpdateFlow(req.Msg.GetFlowId(), req.Msg.GetPinned())
+	log.Printf("UpdateFlow: ID=%s Pinned=%v Note=%v", req.Msg.GetFlowId(), req.Msg.GetPinned(), req.Msg.GetNote())
+	var pinned *bool
+	if req.Msg.HasPinned() {
+		p := req.Msg.GetPinned()
+		pinned = &p
+	}
+	var note *string
+	if req.Msg.HasNote() {
+		n := req.Msg.GetNote()
+		note = &n
+	}
+
+	flow, err := s.storage.UpdateFlow(req.Msg.GetFlowId(), pinned, note)
 	if err != nil {
 		log.Printf("UpdateFlow error: %v", err)
 		return nil, connect.NewError(connect.CodeNotFound, err)

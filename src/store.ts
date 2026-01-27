@@ -14,6 +14,9 @@ interface FilterState {
   text: string;
   setText: (text: string) => void;
 
+  pinnedOnly: boolean;
+  setPinnedOnly: (pinnedOnly: boolean) => void;
+
   // Advanced Filters
   flowTypes: FlowType[];
   setFlowTypes: (flowTypes: FlowType[]) => void;
@@ -34,6 +37,8 @@ const useFilterStore = create<FilterState>()(
     (set) => ({
       text: '',
       setText: (text) => set({ text }),
+      pinnedOnly: false,
+      setPinnedOnly: (pinnedOnly) => set({ pinnedOnly }),
       flowTypes: [],
       setFlowTypes: (flowTypes) => set({ flowTypes }),
       http: {
@@ -50,6 +55,7 @@ const useFilterStore = create<FilterState>()(
       clearFilters: () =>
         set((state) => ({
           text: '',
+          pinnedOnly: false,
           flowTypes: [],
           http: {
             ...state.http,
@@ -63,6 +69,7 @@ const useFilterStore = create<FilterState>()(
       name: 'filter-storage', // name of the item in the storage (must be unique)
       partialize: (state) => ({
         text: state.text,
+        pinnedOnly: state.pinnedOnly,
         flowTypes: state.flowTypes,
         http: state.http,
       }),

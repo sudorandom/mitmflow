@@ -3,6 +3,8 @@
 // option features.field_presence = EXPLICIT;
 /* eslint-disable */
 
+// buf:lint:ignore PACKAGE_DIRECTORY_MATCH
+
 import type { GenEnum, GenFile, GenMessage, GenService } from "@bufbuild/protobuf/codegenv2";
 import type { Message } from "@bufbuild/protobuf";
 import type { Timestamp } from "@bufbuild/protobuf/wkt";

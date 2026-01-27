@@ -18,7 +18,8 @@ message StreamFlowsResponse {
 
 message UpdateFlowRequest {
   string flow_id = 1;
-  bool pinned = 2;
+  bool pinned = 2 [features.field_presence = EXPLICIT];
+  string note = 3 [features.field_presence = EXPLICIT];
 }
 
 message UpdateFlowResponse {
@@ -43,6 +44,7 @@ message Flow {
   }
   HTTPFlowExtra http_flow_extra = 5;
   bool pinned = 6;
+  string note = 7;
 }
 
 message HTTPFlowExtra {

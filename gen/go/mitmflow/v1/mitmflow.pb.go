@@ -136,6 +136,7 @@ type UpdateFlowRequest struct {
 	state                  protoimpl.MessageState `protogen:"opaque.v1"`
 	xxx_hidden_FlowId      *string                `protobuf:"bytes,1,opt,name=flow_id,json=flowId"`
 	xxx_hidden_Pinned      bool                   `protobuf:"varint,2,opt,name=pinned"`
+	xxx_hidden_Note        *string                `protobuf:"bytes,3,opt,name=note"`
 	XXX_raceDetectHookData protoimpl.RaceDetectHookData
 	XXX_presence           [1]uint32
 	unknownFields          protoimpl.UnknownFields
@@ -184,14 +185,29 @@ func (x *UpdateFlowRequest) GetPinned() bool {
 	return false
 }
 
+func (x *UpdateFlowRequest) GetNote() string {
+	if x != nil {
+		if x.xxx_hidden_Note != nil {
+			return *x.xxx_hidden_Note
+		}
+		return ""
+	}
+	return ""
+}
+
 func (x *UpdateFlowRequest) SetFlowId(v string) {
 	x.xxx_hidden_FlowId = &v
-	protoimpl.X.SetPresent(&(x.XXX_presence[0]), 0, 2)
+	protoimpl.X.SetPresent(&(x.XXX_presence[0]), 0, 3)
 }
 
 func (x *UpdateFlowRequest) SetPinned(v bool) {
 	x.xxx_hidden_Pinned = v
-	protoimpl.X.SetPresent(&(x.XXX_presence[0]), 1, 2)
+	protoimpl.X.SetPresent(&(x.XXX_presence[0]), 1, 3)
+}
+
+func (x *UpdateFlowRequest) SetNote(v string) {
+	x.xxx_hidden_Note = &v
+	protoimpl.X.SetPresent(&(x.XXX_presence[0]), 2, 3)
 }
 
 func (x *UpdateFlowRequest) HasFlowId() bool {
@@ -208,6 +224,13 @@ func (x *UpdateFlowRequest) HasPinned() bool {
 	return protoimpl.X.Present(&(x.XXX_presence[0]), 1)
 }
 
+func (x *UpdateFlowRequest) HasNote() bool {
+	if x == nil {
+		return false
+	}
+	return protoimpl.X.Present(&(x.XXX_presence[0]), 2)
+}
+
 func (x *UpdateFlowRequest) ClearFlowId() {
 	protoimpl.X.ClearPresent(&(x.XXX_presence[0]), 0)
 	x.xxx_hidden_FlowId = nil
@@ -218,11 +241,17 @@ func (x *UpdateFlowRequest) ClearPinned() {
 	x.xxx_hidden_Pinned = false
 }
 
+func (x *UpdateFlowRequest) ClearNote() {
+	protoimpl.X.ClearPresent(&(x.XXX_presence[0]), 2)
+	x.xxx_hidden_Note = nil
+}
+
 type UpdateFlowRequest_builder struct {
 	_ [0]func() // Prevents comparability and use of unkeyed literals for the builder.
 
 	FlowId *string
 	Pinned *bool
+	Note   *string
 }
 
 func (b0 UpdateFlowRequest_builder) Build() *UpdateFlowRequest {
@@ -230,12 +259,16 @@ func (b0 UpdateFlowRequest_builder) Build() *UpdateFlowRequest {
 	b, x := &b0, m0
 	_, _ = b, x
 	if b.FlowId != nil {
-		protoimpl.X.SetPresentNonAtomic(&(x.XXX_presence[0]), 0, 2)
+		protoimpl.X.SetPresentNonAtomic(&(x.XXX_presence[0]), 0, 3)
 		x.xxx_hidden_FlowId = b.FlowId
 	}
 	if b.Pinned != nil {
-		protoimpl.X.SetPresentNonAtomic(&(x.XXX_presence[0]), 1, 2)
+		protoimpl.X.SetPresentNonAtomic(&(x.XXX_presence[0]), 1, 3)
 		x.xxx_hidden_Pinned = *b.Pinned
+	}
+	if b.Note != nil {
+		protoimpl.X.SetPresentNonAtomic(&(x.XXX_presence[0]), 2, 3)
+		x.xxx_hidden_Note = b.Note
 	}
 	return m0
 }
@@ -477,6 +510,7 @@ type Flow struct {
 	xxx_hidden_Flow          isFlow_Flow            `protobuf_oneof:"flow"`
 	xxx_hidden_HttpFlowExtra *HTTPFlowExtra         `protobuf:"bytes,5,opt,name=http_flow_extra,json=httpFlowExtra"`
 	xxx_hidden_Pinned        bool                   `protobuf:"varint,6,opt,name=pinned"`
+	xxx_hidden_Note          *string                `protobuf:"bytes,7,opt,name=note"`
 	XXX_raceDetectHookData   protoimpl.RaceDetectHookData
 	XXX_presence             [1]uint32
 	unknownFields            protoimpl.UnknownFields
@@ -558,6 +592,16 @@ func (x *Flow) GetPinned() bool {
 	return false
 }
 
+func (x *Flow) GetNote() string {
+	if x != nil {
+		if x.xxx_hidden_Note != nil {
+			return *x.xxx_hidden_Note
+		}
+		return ""
+	}
+	return ""
+}
+
 func (x *Flow) SetHttpFlow(v *v1.HTTPFlow) {
 	if v == nil {
 		x.xxx_hidden_Flow = nil
@@ -596,7 +640,12 @@ func (x *Flow) SetHttpFlowExtra(v *HTTPFlowExtra) {
 
 func (x *Flow) SetPinned(v bool) {
 	x.xxx_hidden_Pinned = v
-	protoimpl.X.SetPresent(&(x.XXX_presence[0]), 2, 3)
+	protoimpl.X.SetPresent(&(x.XXX_presence[0]), 2, 4)
+}
+
+func (x *Flow) SetNote(v string) {
+	x.xxx_hidden_Note = &v
+	protoimpl.X.SetPresent(&(x.XXX_presence[0]), 3, 4)
 }
 
 func (x *Flow) HasFlow() bool {
@@ -652,6 +701,13 @@ func (x *Flow) HasPinned() bool {
 	return protoimpl.X.Present(&(x.XXX_presence[0]), 2)
 }
 
+func (x *Flow) HasNote() bool {
+	if x == nil {
+		return false
+	}
+	return protoimpl.X.Present(&(x.XXX_presence[0]), 3)
+}
+
 func (x *Flow) ClearFlow() {
 	x.xxx_hidden_Flow = nil
 }
@@ -689,6 +745,11 @@ func (x *Flow) ClearPinned() {
 	x.xxx_hidden_Pinned = false
 }
 
+func (x *Flow) ClearNote() {
+	protoimpl.X.ClearPresent(&(x.XXX_presence[0]), 3)
+	x.xxx_hidden_Note = nil
+}
+
 const Flow_Flow_not_set_case case_Flow_Flow = 0
 const Flow_HttpFlow_case case_Flow_Flow = 1
 const Flow_TcpFlow_case case_Flow_Flow = 2
@@ -724,6 +785,7 @@ type Flow_builder struct {
 	// -- end of xxx_hidden_Flow
 	HttpFlowExtra *HTTPFlowExtra
 	Pinned        *bool
+	Note          *string
 }
 
 func (b0 Flow_builder) Build() *Flow {
@@ -744,8 +806,12 @@ func (b0 Flow_builder) Build() *Flow {
 	}
 	x.xxx_hidden_HttpFlowExtra = b.HttpFlowExtra
 	if b.Pinned != nil {
-		protoimpl.X.SetPresentNonAtomic(&(x.XXX_presence[0]), 2, 3)
+		protoimpl.X.SetPresentNonAtomic(&(x.XXX_presence[0]), 2, 4)
 		x.xxx_hidden_Pinned = *b.Pinned
+	}
+	if b.Note != nil {
+		protoimpl.X.SetPresentNonAtomic(&(x.XXX_presence[0]), 3, 4)
+		x.xxx_hidden_Note = b.Note
 	}
 	return m0
 }
@@ -980,24 +1046,26 @@ const file_mitmflow_v1_mitmflow_proto_rawDesc = "" +
 	"\x1amitmflow/v1/mitmflow.proto\x12\vmitmflow.v1\x1a\x1emitmproxygrpc/v1/service.proto\"\x14\n" +
 	"\x12StreamFlowsRequest\"<\n" +
 	"\x13StreamFlowsResponse\x12%\n" +
-	"\x04flow\x18\x01 \x01(\v2\x11.mitmflow.v1.FlowR\x04flow\"D\n" +
+	"\x04flow\x18\x01 \x01(\v2\x11.mitmflow.v1.FlowR\x04flow\"f\n" +
 	"\x11UpdateFlowRequest\x12\x17\n" +
-	"\aflow_id\x18\x01 \x01(\tR\x06flowId\x12\x16\n" +
-	"\x06pinned\x18\x02 \x01(\bR\x06pinned\";\n" +
+	"\aflow_id\x18\x01 \x01(\tR\x06flowId\x12\x1d\n" +
+	"\x06pinned\x18\x02 \x01(\bB\x05\xaa\x01\x02\b\x01R\x06pinned\x12\x19\n" +
+	"\x04note\x18\x03 \x01(\tB\x05\xaa\x01\x02\b\x01R\x04note\";\n" +
 	"\x12UpdateFlowResponse\x12%\n" +
 	"\x04flow\x18\x01 \x01(\v2\x11.mitmflow.v1.FlowR\x04flow\"A\n" +
 	"\x12DeleteFlowsRequest\x12\x19\n" +
 	"\bflow_ids\x18\x01 \x03(\tR\aflowIds\x12\x10\n" +
 	"\x03all\x18\x02 \x01(\bR\x03all\"+\n" +
 	"\x13DeleteFlowsResponse\x12\x14\n" +
-	"\x05count\x18\x01 \x01(\x03R\x05count\"\xbd\x02\n" +
+	"\x05count\x18\x01 \x01(\x03R\x05count\"\xd1\x02\n" +
 	"\x04Flow\x125\n" +
 	"\thttp_flow\x18\x01 \x01(\v2\x16.mitmproxy.v1.HTTPFlowH\x00R\bhttpFlow\x122\n" +
 	"\btcp_flow\x18\x02 \x01(\v2\x15.mitmproxy.v1.TCPFlowH\x00R\atcpFlow\x122\n" +
 	"\budp_flow\x18\x03 \x01(\v2\x15.mitmproxy.v1.UDPFlowH\x00R\audpFlow\x122\n" +
 	"\bdns_flow\x18\x04 \x01(\v2\x15.mitmproxy.v1.DNSFlowH\x00R\adnsFlow\x12B\n" +
 	"\x0fhttp_flow_extra\x18\x05 \x01(\v2\x1a.mitmflow.v1.HTTPFlowExtraR\rhttpFlowExtra\x12\x16\n" +
-	"\x06pinned\x18\x06 \x01(\bR\x06pinnedB\x06\n" +
+	"\x06pinned\x18\x06 \x01(\bR\x06pinned\x12\x12\n" +
+	"\x04note\x18\a \x01(\tR\x04noteB\x06\n" +
 	"\x04flow\"\x7f\n" +
 	"\rHTTPFlowExtra\x125\n" +
 	"\arequest\x18\x01 \x01(\v2\x1b.mitmflow.v1.MessageDetailsR\arequest\x127\n" +
