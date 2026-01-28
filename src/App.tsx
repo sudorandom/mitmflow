@@ -8,7 +8,7 @@ import { DnsFlowDetails } from './components/DnsFlowDetails';
 import { HttpFlowDetails } from './components/HttpFlowDetails';
 import { TcpFlowDetails } from './components/TcpFlowDetails';
 import { UdpFlowDetails } from './components/UdpFlowDetails';
-import { ContentFormat, getFlowId, getTimestamp } from './utils';
+import { ContentFormat, getFlowId, getTimestamp, getFlowTimestampNs } from './utils';
 import { DetailsPanel } from './components/DetailsPanel';
 import FilterModal from './components/FilterModal';
 import SettingsModal from './components/SettingsModal';
@@ -159,6 +159,7 @@ const App: React.FC = () => {
   const [isFlowsTruncated, setIsFlowsTruncated] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
   const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>('connecting');
+  const latestTimestampNs = useRef<bigint>(BigInt(0));
   const {
     text: filterText,
     setText: setFilterText,
@@ -226,6 +227,7 @@ const App: React.FC = () => {
     }));
   }, [filterText, pinnedOnly, flowTypes, http]);
   const [isFilterModalOpen, setIsFilterModalOpen] = useState(false);
+  const handleCloseFilterModal = useCallback(() => setIsFilterModalOpen(false), []);
   const [isPanelMinimized, setIsPanelMinimized] = useState(false);
   const [selectedFlowId, setSelectedFlowId] = useState<string | null>(null);
   const [selectedFlowIds, setSelectedFlowIds] = useState<Set<string>>(new Set()); // New state for multi-select
@@ -358,7 +360,7 @@ const App: React.FC = () => {
       const signal = abortController.signal;
 
       try {
-        const stream = client.streamFlows({}, { signal });
+        const stream = client.streamFlows({ sinceTimestampNs: latestTimestampNs.current }, { signal });
         setConnectionStatus('live'); // Stream established
         for await (const response of stream) {
           if (!response.flow || !response.flow.flow) {
@@ -369,6 +371,10 @@ const App: React.FC = () => {
                 return prevState;
               }
               const incomingFlow = response.flow;
+              const flowTs = getFlowTimestampNs(incomingFlow);
+              if (flowTs > latestTimestampNs.current) {
+                latestTimestampNs.current = flowTs;
+              }
 
               if (incomingFlow.flow.case === 'httpFlow') {
                 const httpFlow = incomingFlow.flow.value;
@@ -888,7 +894,7 @@ const App: React.FC = () => {
 
       <FilterModal
         isOpen={isFilterModalOpen}
-        onClose={() => setIsFilterModalOpen(false)}
+        onClose={handleCloseFilterModal}
       />
 
       <SettingsModal

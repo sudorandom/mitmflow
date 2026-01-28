@@ -208,4 +208,4 @@ const FilterModal: React.FC<FilterModalProps> = ({ isOpen, onClose }) => {
   );
 };
 
-export default FilterModal;
+export default React.memo(FilterModal);

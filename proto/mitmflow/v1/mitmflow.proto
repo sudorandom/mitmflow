@@ -10,7 +10,9 @@ service Service {
   rpc DeleteFlows(DeleteFlowsRequest) returns (DeleteFlowsResponse) {}
 }
 
-message StreamFlowsRequest {}
+message StreamFlowsRequest {
+  int64 since_timestamp_ns = 1;
+}
 
 message StreamFlowsResponse {
   Flow flow = 1;

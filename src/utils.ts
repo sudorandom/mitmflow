@@ -197,6 +197,12 @@ export const getFlowTimestampStart = (flow: Flow | undefined | null): Timestamp 
   }
 };
 
+export const getFlowTimestampNs = (flow: Flow | undefined | null): bigint => {
+  const ts = getFlowTimestampStart(flow);
+  if (!ts) return BigInt(0);
+  return BigInt(ts.seconds) * BigInt(1000000000) + BigInt(ts.nanos);
+};
+
 export const formatDuration = (durationMs: number | undefined): string => {
     if (durationMs === undefined) {
         return '...';
