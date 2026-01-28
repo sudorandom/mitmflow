@@ -165,6 +165,8 @@ const App: React.FC = () => {
     setText: setFilterText,
     pinnedOnly,
     setPinnedOnly,
+    hasNote,
+    setHasNote,
     flowTypes,
     setFlowTypes,
     http,
@@ -183,6 +185,9 @@ const App: React.FC = () => {
     }
     if (params.has('pinned')) {
       setPinnedOnly(params.get('pinned') === 'true');
+    }
+    if (params.has('hasNote')) {
+      setHasNote(params.get('hasNote') === 'true');
     }
     if (params.has('type')) {
       const types = params.get('type')?.split(',') as FlowType[];
@@ -204,6 +209,7 @@ const App: React.FC = () => {
     const params = new URLSearchParams();
     if (filterText) params.set('q', filterText);
     if (pinnedOnly) params.set('pinned', 'true');
+    if (hasNote) params.set('hasNote', 'true');
     if (flowTypes.length > 0) params.set('type', flowTypes.join(','));
     if (http.methods.length > 0) params.set('method', http.methods.join(','));
     if (http.statusCodes.length > 0) params.set('status', http.statusCodes.join(','));
@@ -211,13 +217,13 @@ const App: React.FC = () => {
 
     const newUrl = params.toString() ? `?${params.toString()}` : window.location.pathname;
     window.history.replaceState(null, '', newUrl);
-  }, [filterText, pinnedOnly, flowTypes, http]);
+  }, [filterText, pinnedOnly, hasNote, flowTypes, http]);
 
-  const filterRef = useRef<FilterConfig>({ text: filterText, pinnedOnly, flowTypes, http });
+  const filterRef = useRef<FilterConfig>({ text: filterText, pinnedOnly, hasNote, flowTypes, http });
 
   useEffect(() => {
-    filterRef.current = { text: filterText, pinnedOnly, flowTypes, http };
-  }, [filterText, pinnedOnly, flowTypes, http]);
+    filterRef.current = { text: filterText, pinnedOnly, hasNote, flowTypes, http };
+  }, [filterText, pinnedOnly, hasNote, flowTypes, http]);
 
   // Re-filter when filter settings change
   useEffect(() => {
@@ -225,7 +231,7 @@ const App: React.FC = () => {
       all: prev.all,
       filtered: prev.all.filter(f => isFlowMatch(f, filterRef.current))
     }));
-  }, [filterText, pinnedOnly, flowTypes, http]);
+  }, [filterText, pinnedOnly, hasNote, flowTypes, http]);
   const [isFilterModalOpen, setIsFilterModalOpen] = useState(false);
   const handleCloseFilterModal = useCallback(() => setIsFilterModalOpen(false), []);
   const [isPanelMinimized, setIsPanelMinimized] = useState(false);
@@ -498,6 +504,7 @@ const App: React.FC = () => {
 
   const activeFilterCount =
     (pinnedOnly ? 1 : 0) +
+    (hasNote ? 1 : 0) +
     (flowTypes.length > 0 ? 1 : 0) +
     (http.methods.length > 0 ? 1 : 0) +
     (http.contentTypes.length > 0 ? 1 : 0) +

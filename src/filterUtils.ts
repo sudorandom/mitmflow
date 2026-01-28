@@ -4,6 +4,7 @@ import { FlowType } from "./store";
 export interface FilterConfig {
   text: string;
   pinnedOnly: boolean;
+  hasNote: boolean;
   flowTypes: FlowType[];
   http: {
     methods: string[];
@@ -16,6 +17,10 @@ export const isFlowMatch = (flow: Flow, filter: FilterConfig): boolean => {
   if (!flow.flow) return false;
 
   if (filter.pinnedOnly && !flow.pinned) {
+    return false;
+  }
+
+  if (filter.hasNote && !flow.note) {
     return false;
   }
 
