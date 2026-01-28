@@ -26,9 +26,10 @@ export const isFlowMatch = (flow: Flow, filter: FilterConfig): boolean => {
     let isMatch = false;
     const clientIp = flow.flow.value?.client?.peernameHost || '';
     const serverIp = flow.flow.value?.server?.addressHost || '';
+    const note = flow.note || '';
 
     // Check common fields
-    const commonMatch = `${clientIp} ${serverIp}`.toLowerCase().includes(filterText);
+    const commonMatch = `${clientIp} ${serverIp} ${note}`.toLowerCase().includes(filterText);
     if (commonMatch) {
         isMatch = true;
     } else {
