@@ -65,6 +65,9 @@ const NoteModal: React.FC<NoteModalProps> = ({ isOpen, initialNote, onClose, onS
             placeholder="Add a note to this flow..."
             className="w-full text-sm p-3 bg-gray-50 dark:bg-zinc-900 border border-gray-200 dark:border-zinc-700 rounded focus:ring-2 focus:ring-orange-500 focus:outline-none resize-none h-40 dark:text-zinc-200"
           />
+          <p className="mt-2 text-xs text-gray-500 dark:text-zinc-500 text-right">
+            Supports Markdown syntax
+          </p>
         </div>
 
         <div className="flex justify-end items-center p-4 border-t border-gray-200 dark:border-zinc-700 bg-gray-50 dark:bg-zinc-900 rounded-b-lg">

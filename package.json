@@ -14,6 +14,7 @@
     "@bufbuild/protobuf": "2.10.0",
     "@connectrpc/connect": "^2.1.0",
     "@connectrpc/connect-web": "^2.1.0",
+    "@tailwindcss/typography": "^0.5.19",
     "@tanstack/react-table": "^8.21.3",
     "ag-grid-community": "^31.3.4",
     "ag-grid-react": "^31.3.4",
@@ -23,8 +24,10 @@
     "lucide-react": "^0.309.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
+    "react-markdown": "^10.1.0",
     "react-select": "^5.10.2",
     "react-syntax-highlighter": "^16.1.0",
+    "remark-gfm": "^4.0.1",
     "tslib": "^2.8.1",
     "zustand": "^5.0.8"
   },
