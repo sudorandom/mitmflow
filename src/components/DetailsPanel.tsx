@@ -1,10 +1,11 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { Download, X, ChevronDown, Pin, Trash } from 'lucide-react';
+import { Download, X, ChevronDown, Pin, Trash, StickyNote } from 'lucide-react';
 import { Flow } from '../gen/mitmflow/v1/mitmflow_pb';
 import { getFlowTitle, getFlowId } from '../utils';
 import FlowIcon from './FlowIcon';
 import { StatusPill } from './StatusPill';
 import { forwardRef } from 'react';
+import NoteModal from './NoteModal';
 
 interface DetailsPanelProps {
   flow: Flow | null;
@@ -33,7 +34,7 @@ export const DetailsPanel = forwardRef<HTMLDivElement, DetailsPanelProps>(({
 }, ref) => {
   const [isResizing, setIsResizing] = useState(false);
   const [isDownloadOpen, setDownloadOpen] = useState(false);
-  const [note, setNote] = useState('');
+  const [isNoteModalOpen, setIsNoteModalOpen] = useState(false);
   const downloadRef = useRef<HTMLDivElement>(null);
 
   const handleMouseDown = useCallback(() => {
@@ -79,12 +80,6 @@ export const DetailsPanel = forwardRef<HTMLDivElement, DetailsPanelProps>(({
     };
   }, [downloadRef]);
 
-  useEffect(() => {
-    if (flow) {
-        setNote(flow.note || '');
-    }
-  }, [flow]);
-
   // Only close on Escape if panel is focused; do not block other keys
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -96,13 +91,6 @@ export const DetailsPanel = forwardRef<HTMLDivElement, DetailsPanelProps>(({
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [onClose, ref]);
-
-  const handleNoteBlur = () => {
-      const flowId = flow ? getFlowId(flow) : null;
-      if (flowId && flow && note !== (flow.note || '')) {
-          onUpdateFlow(flowId, { note });
-      }
-  };
 
   if (!flow) {
     return null;
@@ -192,6 +180,13 @@ export const DetailsPanel = forwardRef<HTMLDivElement, DetailsPanelProps>(({
           >
             <Trash size={20} />
           </button>
+          <button
+            onClick={() => setIsNoteModalOpen(true)}
+            className={`p-1 rounded hover:bg-gray-200 dark:hover:bg-zinc-700 ${flow.note ? 'text-blue-500' : 'text-gray-500 dark:text-zinc-500 hover:text-gray-900 dark:hover:text-zinc-200'}`}
+            title={flow.note ? "Edit note" : "Add note"}
+          >
+            <StickyNote size={20} className={flow.note ? "fill-current" : ""} />
+          </button>
           <div className="relative" ref={downloadRef}>
             <button
               onClick={() => setDownloadOpen(!isDownloadOpen)}
@@ -262,22 +257,23 @@ export const DetailsPanel = forwardRef<HTMLDivElement, DetailsPanelProps>(({
           </button>
         </div>
       </div>
-      <div className="p-3 px-4 border-b border-gray-200 dark:border-zinc-800 bg-gray-50 dark:bg-zinc-900">
-        <label className="block text-xs font-medium text-gray-500 dark:text-zinc-400 mb-1">
-            Note
-        </label>
-        <textarea
-            value={note}
-            onChange={(e) => setNote(e.target.value)}
-            onBlur={handleNoteBlur}
-            placeholder="Add a note to this flow..."
-            className="w-full text-sm p-2 bg-white dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 rounded focus:ring-2 focus:ring-orange-500 focus:outline-none resize-none h-16 dark:text-zinc-200"
-        />
-      </div>
       {/* Scrollable content area: flex-1 ensures it grows and overflow-auto allows keyboard paging once focused */}
       <div className="flex-1 min-h-0 overflow-auto bg-white dark:bg-zinc-900">
         {children}
       </div>
+
+      <NoteModal
+        isOpen={isNoteModalOpen}
+        initialNote={flow.note || ''}
+        onClose={() => setIsNoteModalOpen(false)}
+        onSave={(newNote) => {
+            const flowId = getFlowId(flow);
+            if (flowId) {
+                onUpdateFlow(flowId, { note: newNote });
+            }
+            setIsNoteModalOpen(false);
+        }}
+      />
     </div>
   );
 });

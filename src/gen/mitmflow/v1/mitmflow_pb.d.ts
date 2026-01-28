@@ -15,6 +15,10 @@ export declare const file_mitmflow_v1_mitmflow: GenFile;
  * @generated from message mitmflow.v1.StreamFlowsRequest
  */
 export declare type StreamFlowsRequest = Message<"mitmflow.v1.StreamFlowsRequest"> & {
+  /**
+   * @generated from field: int64 since_timestamp_ns = 1;
+   */
+  sinceTimestampNs: bigint;
 };
 
 /**

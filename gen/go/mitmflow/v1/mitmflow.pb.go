@@ -22,9 +22,12 @@ const (
 )
 
 type StreamFlowsRequest struct {
-	state         protoimpl.MessageState `protogen:"opaque.v1"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state                       protoimpl.MessageState `protogen:"opaque.v1"`
+	xxx_hidden_SinceTimestampNs int64                  `protobuf:"varint,1,opt,name=since_timestamp_ns,json=sinceTimestampNs"`
+	XXX_raceDetectHookData      protoimpl.RaceDetectHookData
+	XXX_presence                [1]uint32
+	unknownFields               protoimpl.UnknownFields
+	sizeCache                   protoimpl.SizeCache
 }
 
 func (x *StreamFlowsRequest) Reset() {
@@ -52,15 +55,44 @@ func (x *StreamFlowsRequest) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
+func (x *StreamFlowsRequest) GetSinceTimestampNs() int64 {
+	if x != nil {
+		return x.xxx_hidden_SinceTimestampNs
+	}
+	return 0
+}
+
+func (x *StreamFlowsRequest) SetSinceTimestampNs(v int64) {
+	x.xxx_hidden_SinceTimestampNs = v
+	protoimpl.X.SetPresent(&(x.XXX_presence[0]), 0, 1)
+}
+
+func (x *StreamFlowsRequest) HasSinceTimestampNs() bool {
+	if x == nil {
+		return false
+	}
+	return protoimpl.X.Present(&(x.XXX_presence[0]), 0)
+}
+
+func (x *StreamFlowsRequest) ClearSinceTimestampNs() {
+	protoimpl.X.ClearPresent(&(x.XXX_presence[0]), 0)
+	x.xxx_hidden_SinceTimestampNs = 0
+}
+
 type StreamFlowsRequest_builder struct {
 	_ [0]func() // Prevents comparability and use of unkeyed literals for the builder.
 
+	SinceTimestampNs *int64
 }
 
 func (b0 StreamFlowsRequest_builder) Build() *StreamFlowsRequest {
 	m0 := &StreamFlowsRequest{}
 	b, x := &b0, m0
 	_, _ = b, x
+	if b.SinceTimestampNs != nil {
+		protoimpl.X.SetPresentNonAtomic(&(x.XXX_presence[0]), 0, 1)
+		x.xxx_hidden_SinceTimestampNs = *b.SinceTimestampNs
+	}
 	return m0
 }
 
@@ -1043,8 +1075,9 @@ var File_mitmflow_v1_mitmflow_proto protoreflect.FileDescriptor
 
 const file_mitmflow_v1_mitmflow_proto_rawDesc = "" +
 	"\n" +
-	"\x1amitmflow/v1/mitmflow.proto\x12\vmitmflow.v1\x1a\x1emitmproxygrpc/v1/service.proto\"\x14\n" +
-	"\x12StreamFlowsRequest\"<\n" +
+	"\x1amitmflow/v1/mitmflow.proto\x12\vmitmflow.v1\x1a\x1emitmproxygrpc/v1/service.proto\"B\n" +
+	"\x12StreamFlowsRequest\x12,\n" +
+	"\x12since_timestamp_ns\x18\x01 \x01(\x03R\x10sinceTimestampNs\"<\n" +
 	"\x13StreamFlowsResponse\x12%\n" +
 	"\x04flow\x18\x01 \x01(\v2\x11.mitmflow.v1.FlowR\x04flow\"f\n" +
 	"\x11UpdateFlowRequest\x12\x17\n" +

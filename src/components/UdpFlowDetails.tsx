@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Flow } from '../gen/mitmflow/v1/mitmflow_pb';
 import HexViewer from '../HexViewer';
 import { ConnectionTab } from './ConnectionTab';
+import { StickyNote } from 'lucide-react';
 
 export const UdpFlowDetails: React.FC<{ flow: Flow }> = ({ flow }) => {
     const [selectedTab, setSelectedTab] = useState<'summary' | 'connection'>('summary');
@@ -32,6 +33,14 @@ export const UdpFlowDetails: React.FC<{ flow: Flow }> = ({ flow }) => {
             <div className="p-5 overflow-y-auto flex-grow text-gray-900 dark:text-zinc-300">
                 {selectedTab === 'summary' && (
                     <div>
+                        {flow.note && (
+                            <div className="bg-yellow-50 dark:bg-yellow-950/30 p-4 rounded border border-yellow-200 dark:border-yellow-900/50 mb-4">
+                                <h5 className="font-semibold text-yellow-700 dark:text-yellow-400 mb-2 flex items-center gap-2">
+                                    <StickyNote size={16} /> Note
+                                </h5>
+                                <div className="text-gray-800 dark:text-zinc-200 whitespace-pre-wrap font-sans">{flow.note}</div>
+                            </div>
+                        )}
                         <h3 className="font-semibold text-gray-900 dark:text-white">Messages</h3>
                         {udpFlow.messages.map((msg, index) => (
                             <div key={index} className="mt-2">

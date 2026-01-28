@@ -24,4 +24,4 @@ generate_data | buf curl \
     --schema schema.binpb \
     --protocol grpc \
     --data @- \
-    http://localhost:50051/mitmproxy.v1.Service/ExportFlow
+    http://127.0.0.1:50051/mitmproxy.v1.Service/ExportFlow

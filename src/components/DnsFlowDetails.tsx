@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Flow } from "../gen/mitmflow/v1/mitmflow_pb";
 import { ConnectionTab } from './ConnectionTab';
+import { StickyNote } from 'lucide-react';
 
 export const DnsFlowDetails: React.FC<{
     flow: Flow;
@@ -33,6 +34,14 @@ export const DnsFlowDetails: React.FC<{
             <div className="p-5 overflow-y-auto flex-grow text-gray-900 dark:text-zinc-300">
                 {selectedTab === 'summary' && (
                     <div className="columns-1 md:columns-2 gap-4 text-sm font-mono space-y-4">
+                        {flow.note && (
+                            <div className="break-inside-avoid bg-yellow-50 dark:bg-yellow-950/30 p-4 rounded border border-yellow-200 dark:border-yellow-900/50 mb-4">
+                                <h5 className="font-semibold text-yellow-700 dark:text-yellow-400 mb-2 flex items-center gap-2">
+                                    <StickyNote size={16} /> Note
+                                </h5>
+                                <div className="text-gray-800 dark:text-zinc-200 whitespace-pre-wrap font-sans">{flow.note}</div>
+                            </div>
+                        )}
                         <div className="break-inside-avoid bg-gray-50 dark:bg-zinc-800 p-4 rounded border border-gray-200 dark:border-zinc-700">
                             <h5 className="font-semibold text-gray-700 dark:text-zinc-400 mb-3 border-b border-gray-200 dark:border-zinc-700 pb-2">DNS Query</h5>
                             <pre className="whitespace-pre-wrap break-all text-gray-800 dark:text-zinc-300">{dnsFlow.request?.questions.map(q => `${q.name} ${q.type} ${q.class}`).join('\n')}</pre>

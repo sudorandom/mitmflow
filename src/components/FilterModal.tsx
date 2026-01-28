@@ -66,6 +66,8 @@ const FilterModal: React.FC<FilterModalProps> = ({ isOpen, onClose }) => {
     clearFilters,
     pinnedOnly,
     setPinnedOnly,
+    hasNote,
+    setHasNote,
   } = useFilterStore();
 
   const modalRef = React.useRef<HTMLDivElement>(null);
@@ -119,6 +121,18 @@ const FilterModal: React.FC<FilterModalProps> = ({ isOpen, onClose }) => {
                     type="checkbox"
                     checked={pinnedOnly}
                     onChange={(e) => setPinnedOnly(e.target.checked)}
+                    className="form-checkbox h-5 w-5 rounded bg-gray-100 dark:bg-zinc-700 border-gray-300 dark:border-zinc-600 text-orange-500 focus:ring-orange-500"
+                  />
+                </label>
+            </FilterRow>
+
+            {/* Has Note */}
+            <FilterRow label="Has Note" isEven={rowIndex++ % 2 !== 0}>
+                <label className="flex items-center space-x-2 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={hasNote}
+                    onChange={(e) => setHasNote(e.target.checked)}
                     className="form-checkbox h-5 w-5 rounded bg-gray-100 dark:bg-zinc-700 border-gray-300 dark:border-zinc-600 text-orange-500 focus:ring-orange-500"
                   />
                 </label>
@@ -208,4 +222,4 @@ const FilterModal: React.FC<FilterModalProps> = ({ isOpen, onClose }) => {
   );
 };
 
-export default FilterModal;
+export default React.memo(FilterModal);
