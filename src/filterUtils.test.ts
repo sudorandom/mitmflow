@@ -6,6 +6,7 @@ describe('isFlowMatch', () => {
     const emptyFilter: FilterConfig = {
         text: '',
         pinnedOnly: false,
+        hasNote: false,
         flowTypes: [],
         http: { methods: [], contentTypes: [], statusCodes: [] }
     };

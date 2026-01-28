@@ -1,11 +1,10 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Download, X, ChevronDown, Pin, Trash, StickyNote } from 'lucide-react';
 import { Flow } from '../gen/mitmflow/v1/mitmflow_pb';
-import { getFlowTitle, getFlowId } from '../utils';
+import { getFlowTitle } from '../utils';
 import FlowIcon from './FlowIcon';
 import { StatusPill } from './StatusPill';
 import { forwardRef } from 'react';
-import NoteModal from './NoteModal';
 
 interface DetailsPanelProps {
   flow: Flow | null;
@@ -16,8 +15,8 @@ interface DetailsPanelProps {
   children: React.ReactNode;
   downloadFlowContent: (flow: Flow, type: 'har' | 'flow-json' | 'request' | 'response') => void;
   onTogglePin: (flow: Flow) => void;
-  onUpdateFlow: (flowId: string, updates: { pinned?: boolean; note?: string }) => void;
   onDeleteFlow: (flow: Flow) => void;
+  onEditNote: () => void;
 }
 
 export const DetailsPanel = forwardRef<HTMLDivElement, DetailsPanelProps>(({
@@ -29,12 +28,11 @@ export const DetailsPanel = forwardRef<HTMLDivElement, DetailsPanelProps>(({
   children,
   downloadFlowContent,
   onTogglePin,
-  onUpdateFlow,
   onDeleteFlow,
+  onEditNote,
 }, ref) => {
   const [isResizing, setIsResizing] = useState(false);
   const [isDownloadOpen, setDownloadOpen] = useState(false);
-  const [isNoteModalOpen, setIsNoteModalOpen] = useState(false);
   const downloadRef = useRef<HTMLDivElement>(null);
 
   const handleMouseDown = useCallback(() => {
@@ -181,7 +179,7 @@ export const DetailsPanel = forwardRef<HTMLDivElement, DetailsPanelProps>(({
             <Trash size={20} />
           </button>
           <button
-            onClick={() => setIsNoteModalOpen(true)}
+            onClick={onEditNote}
             className={`p-1 rounded hover:bg-gray-200 dark:hover:bg-zinc-700 ${flow.note ? 'text-blue-500' : 'text-gray-500 dark:text-zinc-500 hover:text-gray-900 dark:hover:text-zinc-200'}`}
             title={flow.note ? "Edit note" : "Add note"}
           >
@@ -261,19 +259,6 @@ export const DetailsPanel = forwardRef<HTMLDivElement, DetailsPanelProps>(({
       <div className="flex-1 min-h-0 overflow-auto bg-white dark:bg-zinc-900">
         {children}
       </div>
-
-      <NoteModal
-        isOpen={isNoteModalOpen}
-        initialNote={flow.note || ''}
-        onClose={() => setIsNoteModalOpen(false)}
-        onSave={(newNote) => {
-            const flowId = getFlowId(flow);
-            if (flowId) {
-                onUpdateFlow(flowId, { note: newNote });
-            }
-            setIsNoteModalOpen(false);
-        }}
-      />
     </div>
   );
 });

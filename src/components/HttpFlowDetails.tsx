@@ -4,10 +4,10 @@ import { Flow, MessageDetails } from "../gen/mitmflow/v1/mitmflow_pb";
 import { Light as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { atomOneDark } from 'react-syntax-highlighter/dist/esm/styles/hljs'; // A simple, light theme
 import HexViewer from '../HexViewer';
-import { ContentFormat, FormattedContent, formatContent, getContentType, getTimestamp, formatSize, formatBytes } from '../utils';
+import { ContentFormat, FormattedContent, formatContent, getContentType, getTimestamp, formatSize, formatBytes, getFlowId } from '../utils';
 import { ConnectionTab } from './ConnectionTab';
 import { TimingRow } from './TimingRow';
-import { StickyNote } from 'lucide-react';
+import { NoteDisplay } from './NoteDisplay';
 
 const formatHeaders = (headers: { [key: string]: string }): string => {
     return Object.entries(headers)
@@ -147,7 +147,9 @@ export const HttpFlowDetails: React.FC<{
     responseFormat: ContentFormat;
     setResponseFormat: (format: ContentFormat) => void;
     contentRef: React.RefObject<HTMLDivElement>;
-}> = ({ flow, requestFormat, setRequestFormat, responseFormat, setResponseFormat, contentRef }) => {
+    onEditNote: () => void;
+    onUpdateFlow: (flowId: string, updates: { pinned?: boolean; note?: string }) => void;
+}> = ({ flow, requestFormat, setRequestFormat, responseFormat, setResponseFormat, contentRef, onEditNote, onUpdateFlow }) => {
     const httpFlow = flow.flow.case === 'httpFlow' ? flow.flow.value : null;
 
     const queryParams = useMemo(() => {
@@ -257,14 +259,18 @@ export const HttpFlowDetails: React.FC<{
             <div className="p-5 overflow-y-auto flex-grow text-gray-900 dark:text-zinc-300" ref={contentRef}>
                 {selectedTab === 'summary' && (
                     <div className="columns-1 md:columns-2 gap-4 text-sm font-mono space-y-4">
-                        {flow.note && (
-                            <div className="break-inside-avoid bg-yellow-50 dark:bg-yellow-950/30 p-4 rounded border border-yellow-200 dark:border-yellow-900/50 mb-4">
-                                <h5 className="font-semibold text-yellow-700 dark:text-yellow-400 mb-2 flex items-center gap-2">
-                                    <StickyNote size={16} /> Note
-                                </h5>
-                                <div className="text-gray-800 dark:text-zinc-200 whitespace-pre-wrap font-sans">{flow.note}</div>
-                            </div>
-                        )}
+                        <NoteDisplay
+                            note={flow.note || ''}
+                            onEdit={onEditNote}
+                            onDelete={() => {
+                                if (window.confirm("Are you sure you want to delete this note?")) {
+                                    const flowId = getFlowId(flow);
+                                    if (flowId) {
+                                        onUpdateFlow(flowId, { note: "" });
+                                    }
+                                }
+                            }}
+                        />
                         <div className="break-inside-avoid bg-gray-50 dark:bg-zinc-800 p-4 rounded border border-gray-200 dark:border-zinc-700">
                             <h5 className="font-semibold text-gray-700 dark:text-zinc-400 mb-3 border-b border-gray-200 dark:border-zinc-700 pb-2">Flow Details</h5>
                             <div className="grid grid-cols-2 gap-x-4 gap-y-2">

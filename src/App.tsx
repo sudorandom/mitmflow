@@ -11,6 +11,7 @@ import { UdpFlowDetails } from './components/UdpFlowDetails';
 import { ContentFormat, getFlowId, getTimestamp, getFlowTimestampNs } from './utils';
 import { DetailsPanel } from './components/DetailsPanel';
 import FilterModal from './components/FilterModal';
+import NoteModal from './components/NoteModal';
 import SettingsModal from './components/SettingsModal';
 import useFilterStore, { FlowType } from './store';
 import useSettingsStore from './settingsStore';
@@ -233,6 +234,7 @@ const App: React.FC = () => {
     }));
   }, [filterText, pinnedOnly, hasNote, flowTypes, http]);
   const [isFilterModalOpen, setIsFilterModalOpen] = useState(false);
+  const [isNoteModalOpen, setIsNoteModalOpen] = useState(false);
   const handleCloseFilterModal = useCallback(() => setIsFilterModalOpen(false), []);
   const [isPanelMinimized, setIsPanelMinimized] = useState(false);
   const [selectedFlowId, setSelectedFlowId] = useState<string | null>(null);
@@ -909,6 +911,19 @@ const App: React.FC = () => {
         onClose={() => setIsSettingsModalOpen(false)}
       />
 
+      <NoteModal
+        isOpen={isNoteModalOpen}
+        initialNote={detailsFlow?.note || ''}
+        onClose={() => setIsNoteModalOpen(false)}
+        onSave={(newNote) => {
+            const flowId = getFlowId(detailsFlow);
+            if (flowId) {
+                handleUpdateFlow(flowId, { note: newNote });
+            }
+            setIsNoteModalOpen(false);
+        }}
+      />
+
 
       {/* --- Main Content: Table + Details --- */}
       <div className="flex flex-col flex-grow min-h-0">
@@ -957,8 +972,8 @@ const App: React.FC = () => {
         setPanelHeight={setDetailsPanelHeight}
         downloadFlowContent={downloadFlowContent}
         onTogglePin={handleTogglePin}
-        onUpdateFlow={handleUpdateFlow}
         onDeleteFlow={handleDeleteFlow}
+        onEditNote={() => setIsNoteModalOpen(true)}
       >
         {detailsFlow?.flow?.case === 'httpFlow' && (
           <HttpFlowDetails
@@ -969,16 +984,18 @@ const App: React.FC = () => {
             responseFormat={responseFormats.get(selectedFlowId!) || 'auto'}
             setResponseFormat={(format) => handleSetResponseFormat(selectedFlowId!, format)}
             contentRef={contentRef}
+            onEditNote={() => setIsNoteModalOpen(true)}
+            onUpdateFlow={handleUpdateFlow}
           />
         )}
         {detailsFlow?.flow?.case === 'dnsFlow' && (
-          <DnsFlowDetails key={selectedFlowId} flow={detailsFlow} />
+          <DnsFlowDetails key={selectedFlowId} flow={detailsFlow} onEditNote={() => setIsNoteModalOpen(true)} onUpdateFlow={handleUpdateFlow} />
         )}
         {detailsFlow?.flow?.case === 'tcpFlow' && (
-            <TcpFlowDetails key={selectedFlowId} flow={detailsFlow} />
+            <TcpFlowDetails key={selectedFlowId} flow={detailsFlow} onEditNote={() => setIsNoteModalOpen(true)} onUpdateFlow={handleUpdateFlow} />
         )}
         {detailsFlow?.flow?.case === 'udpFlow' && (
-            <UdpFlowDetails key={selectedFlowId} flow={detailsFlow} />
+            <UdpFlowDetails key={selectedFlowId} flow={detailsFlow} onEditNote={() => setIsNoteModalOpen(true)} onUpdateFlow={handleUpdateFlow} />
         )}
       </DetailsPanel>
     </div>
