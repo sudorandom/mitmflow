@@ -42,13 +42,13 @@
 2.  **Start the `mitmproxy` addon:**
 
     ```bash
-    mitmweb -s grpc_addon.py --set grpc_addr=http://127.0.0.1:50051 --set grpc_events=all
+    mitmproxy -s extra_addons.py --set grpc_addr=http://127.0.0.1:50051 --set grpc_events=all
     ```
 
     You can customize the gRPC server address and the event types to emit using the `grpc_addr` and `grpc_events` options. For example, to connect to a different gRPC server and only emit `request` and `response` events, you would use the following command:
 
     ```bash
-    mitmweb -s grpc_addon.py --set grpc_addr=http://localhost:50052 --set grpc_events=request,response
+    mitmproxy -s extra_addons.py --set grpc_addr=http://localhost:50052 --set grpc_events=request,response
     ```
 
 3.  **Start the web interface:**
