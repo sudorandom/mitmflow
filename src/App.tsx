@@ -160,9 +160,9 @@ const App: React.FC = () => {
   const [isFlowsTruncated, setIsFlowsTruncated] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
   const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>('connecting');
-  const [hasBeenConnected, setHasBeenConnected] = useState(false);
+  const [setHasBeenConnected] = useState(false);
   const [retryCount, setRetryCount] = useState(0);
-  const [immediateRetryDone, setImmediateRetryDone] = useState(false);
+  const [setImmediateRetryDone] = useState(false);
   const latestTimestampNs = useRef<bigint>(BigInt(0));
   const {
     text: filterText,
