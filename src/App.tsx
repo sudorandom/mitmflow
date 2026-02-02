@@ -160,6 +160,9 @@ const App: React.FC = () => {
   const [isFlowsTruncated, setIsFlowsTruncated] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
   const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>('connecting');
+  const [hasBeenConnected, setHasBeenConnected] = useState(false);
+  const [retryCount, setRetryCount] = useState(0);
+  const [immediateRetryDone, setImmediateRetryDone] = useState(false);
   const latestTimestampNs = useRef<bigint>(BigInt(0));
   const {
     text: filterText,
@@ -358,103 +361,107 @@ const App: React.FC = () => {
       return;
     }
 
-    setConnectionStatus('connecting'); // Set to connecting immediately when not paused
+    setConnectionStatus('connecting');
 
     let timeoutId: NodeJS.Timeout;
-    let abortController = new AbortController(); // Declare here to be accessible in cleanup
+    let abortController = new AbortController();
 
     const attemptConnection = async () => {
-      abortController = new AbortController(); // Create a new AbortController for each attempt
+      abortController = new AbortController();
       const signal = abortController.signal;
 
       try {
         const stream = client.streamFlows({ sinceTimestampNs: latestTimestampNs.current }, { signal });
-        setConnectionStatus('live'); // Stream established
+        setConnectionStatus('live');
+        setHasBeenConnected(true);
+        setRetryCount(0);
+        setImmediateRetryDone(false); // Reset on successful connection
+
         for await (const response of stream) {
           if (!response.flow || !response.flow.flow) {
             continue;
           }
-            setFlowState(prevState => {
-              if (!response.flow) {
-                return prevState;
+          setFlowState(prevState => {
+            if (!response.flow) {
+              return prevState;
+            }
+            const incomingFlow = response.flow;
+            const flowTs = getFlowTimestampNs(incomingFlow);
+            if (flowTs > latestTimestampNs.current) {
+              latestTimestampNs.current = flowTs;
+            }
+
+            if (incomingFlow.flow.case === 'httpFlow') {
+              const httpFlow = incomingFlow.flow.value;
+              const maxBodySizeBytes = maxBodySize * 1024;
+              if (httpFlow.request && httpFlow.request.content.length > maxBodySizeBytes) {
+                httpFlow.request.content = httpFlow.request.content.slice(0, maxBodySizeBytes);
+                httpFlow.request.contentTruncated = true;
               }
-              const incomingFlow = response.flow;
-              const flowTs = getFlowTimestampNs(incomingFlow);
-              if (flowTs > latestTimestampNs.current) {
-                latestTimestampNs.current = flowTs;
+              if (httpFlow.response && httpFlow.response.content.length > maxBodySizeBytes) {
+                httpFlow.response.content = httpFlow.response.content.slice(0, maxBodySizeBytes);
+                httpFlow.response.contentTruncated = true;
               }
+            }
 
-              if (incomingFlow.flow.case === 'httpFlow') {
-                const httpFlow = incomingFlow.flow.value;
-                const maxBodySizeBytes = maxBodySize * 1024;
-                if (httpFlow.request && httpFlow.request.content.length > maxBodySizeBytes) {
-                  httpFlow.request.content = httpFlow.request.content.slice(0, maxBodySizeBytes);
-                  httpFlow.request.contentTruncated = true;
-                }
-                if (httpFlow.response && httpFlow.response.content.length > maxBodySizeBytes) {
-                  httpFlow.response.content = httpFlow.response.content.slice(0, maxBodySizeBytes);
-                  httpFlow.response.contentTruncated = true;
-                }
-              }
-
-              const incomingFlowId = getFlowId(incomingFlow);
-              const existingIndex = prevState.all.findIndex(r => {
-                const rFlowId = getFlowId(r);
-                return rFlowId && incomingFlowId && rFlowId === incomingFlowId;
-              });
-
-              let newAll = [...prevState.all];
-              let newFiltered = [...prevState.filtered];
-
-              if (existingIndex !== -1) {
-                // Update existing flow
-                newAll[existingIndex] = incomingFlow;
-
-                // Update in filtered list if present
-                const filteredIndex = newFiltered.findIndex(r => getFlowId(r) === incomingFlowId);
-                const matches = isFlowMatch(incomingFlow, filterRef.current);
-
-                if (filteredIndex !== -1) {
-                   if (matches) {
-                       newFiltered[filteredIndex] = incomingFlow;
-                   } else {
-                       // No longer matches, remove
-                       newFiltered.splice(filteredIndex, 1);
-                   }
-                } else if (matches) {
-                    // Didn't exist in filtered (maybe wasn't matching before), but now matches.
-                    // Prepend to filtered list to show it.
-                    newFiltered = [incomingFlow, ...newFiltered];
-                }
-              } else {
-                // New flow
-                newAll = [incomingFlow, ...newAll];
-
-                // Handle truncation on All
-                let droppedFlowId: string | undefined;
-                if (newAll.length > maxFlows) {
-                    const dropped = newAll.pop();
-                    droppedFlowId = getFlowId(dropped);
-                    setIsFlowsTruncated(true);
-                }
-
-                // Update Filtered
-                if (isFlowMatch(incomingFlow, filterRef.current)) {
-                    newFiltered = [incomingFlow, ...newFiltered];
-                }
-
-                // Handle truncation on Filtered
-                // If the dropped flow from ALL was in FILTERED, remove it.
-                if (droppedFlowId) {
-                    const droppedIndex = newFiltered.findIndex(f => getFlowId(f) === droppedFlowId);
-                    if (droppedIndex !== -1) {
-                        newFiltered.splice(droppedIndex, 1);
-                    }
-                }
-              }
-
-              return { all: newAll, filtered: newFiltered };
+            const incomingFlowId = getFlowId(incomingFlow);
+            const existingIndex = prevState.all.findIndex(r => {
+              const rFlowId = getFlowId(r);
+              return rFlowId && incomingFlowId && rFlowId === incomingFlowId;
             });
+
+            let newAll = [...prevState.all];
+            let newFiltered = [...prevState.filtered];
+
+            if (existingIndex !== -1) {
+              // Update existing flow
+              newAll[existingIndex] = incomingFlow;
+
+              // Update in filtered list if present
+              const filteredIndex = newFiltered.findIndex(r => getFlowId(r) === incomingFlowId);
+              const matches = isFlowMatch(incomingFlow, filterRef.current);
+
+              if (filteredIndex !== -1) {
+                if (matches) {
+                  newFiltered[filteredIndex] = incomingFlow;
+                } else {
+                  // No longer matches, remove
+                  newFiltered.splice(filteredIndex, 1);
+                }
+              } else if (matches) {
+                // Didn't exist in filtered (maybe wasn't matching before), but now matches.
+                // Prepend to filtered list to show it.
+                newFiltered = [incomingFlow, ...newFiltered];
+              }
+            } else {
+              // New flow
+              newAll = [incomingFlow, ...newAll];
+
+              // Handle truncation on All
+              let droppedFlowId: string | undefined;
+              if (newAll.length > maxFlows) {
+                const dropped = newAll.pop();
+                droppedFlowId = getFlowId(dropped);
+                setIsFlowsTruncated(true);
+              }
+
+              // Update Filtered
+              if (isFlowMatch(incomingFlow, filterRef.current)) {
+                newFiltered = [incomingFlow, ...newFiltered];
+              }
+
+              // Handle truncation on Filtered
+              // If the dropped flow from ALL was in FILTERED, remove it.
+              if (droppedFlowId) {
+                const droppedIndex = newFiltered.findIndex(f => getFlowId(f) === droppedFlowId);
+                if (droppedIndex !== -1) {
+                  newFiltered.splice(droppedIndex, 1);
+                }
+              }
+            }
+
+            return { all: newAll, filtered: newFiltered };
+          });
         }
         // Stream completed without error, re-attempt after a delay
         if (!isPaused) {
@@ -465,10 +472,19 @@ const App: React.FC = () => {
           return;
         }
         console.error(err);
-        setConnectionStatus('failed');
-        // Retry after a delay if failed and not paused
-        if (!isPaused) {
-          timeoutId = setTimeout(attemptConnection, 5000); // Retry after 5 seconds on error
+
+        if (hasBeenConnected && !immediateRetryDone) {
+          // First failure after a successful connection, retry immediately
+          setImmediateRetryDone(true);
+          attemptConnection();
+        } else {
+          // Either never connected or subsequent failure, use exponential backoff
+          setConnectionStatus('failed');
+          const delay = Math.min(30000, 2000 * (2 ** retryCount)); // Exponential backoff with a cap
+          setRetryCount(prev => prev + 1);
+          if (!isPaused) {
+            timeoutId = setTimeout(attemptConnection, delay);
+          }
         }
       }
     };
@@ -477,7 +493,7 @@ const App: React.FC = () => {
 
     return () => {
       clearTimeout(timeoutId);
-      abortController.abort(); // Abort the current connection attempt
+      abortController.abort();
     };
   }, [isPaused, maxFlows, maxBodySize]);
 
