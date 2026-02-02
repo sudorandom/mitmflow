@@ -160,9 +160,7 @@ const App: React.FC = () => {
   const [isFlowsTruncated, setIsFlowsTruncated] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
   const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>('connecting');
-  const [setHasBeenConnected] = useState(false);
   const [retryCount, setRetryCount] = useState(0);
-  const [setImmediateRetryDone] = useState(false);
   const latestTimestampNs = useRef<bigint>(BigInt(0));
   const {
     text: filterText,
@@ -396,9 +394,7 @@ const App: React.FC = () => {
 
         // 3. SUCCESS STATE
         setConnectionStatus('live');
-        setHasBeenConnected(true);
         setRetryCount(0);
-        setImmediateRetryDone(false);
 
         // 4. STABILITY LOGIC: If we stay connected for 5 seconds, we "refund" the retry token.
         // This allows us to handle a load balancer timeout every hour, not just once per page load.
@@ -491,7 +487,6 @@ const App: React.FC = () => {
         if (!retryState.used) {
             console.log("Attempting silent immediate retry...");
             retryState.used = true; // Mark as used
-            setImmediateRetryDone(true); // For UI/Debug if needed
             
             // Retry immediately (recursive call)
             attemptConnection(); 
