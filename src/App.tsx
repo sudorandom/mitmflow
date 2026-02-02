@@ -150,7 +150,7 @@ declare global {
   }
 }
 
-type ConnectionStatus = 'connecting' | 'live' | 'paused' | 'failed';
+type ConnectionStatus = 'connecting' | 'live' | 'paused' | 'failed' | 'reconnecting';
 
 const App: React.FC = () => {
   // Use relative URL - in dev mode Vite proxies to backend, in production both are served from same origin
@@ -361,30 +361,58 @@ const App: React.FC = () => {
       return;
     }
 
-    setConnectionStatus('connecting');
-
-    let timeoutId: NodeJS.Timeout;
     let abortController = new AbortController();
+    let timeoutId: NodeJS.Timeout;
+    let stabilityTimer: NodeJS.Timeout;
+
+    // We use a ref to track if we have "spent" our one-time instant retry.
+    // This persists across the recursive calls without being reset by closures.
+    // Default is false (we haven't used it yet).
+    const retryState = { used: false };
 
     const attemptConnection = async () => {
       abortController = new AbortController();
       const signal = abortController.signal;
 
+      // 1. Determine Status based on if we are using our "Free Retry"
+      if (retryState.used) {
+        setConnectionStatus('reconnecting');
+      } else {
+        setConnectionStatus('connecting');
+      }
+
       try {
-        const stream = client.streamFlows({ sinceTimestampNs: latestTimestampNs.current }, { signal });
+        const streamPromise = client.streamFlows({ sinceTimestampNs: latestTimestampNs.current }, { signal });
+        
+        // 2. UX DELAY: If we are "Reconnecting" (Yellow), force a 1s wait.
+        // This prevents the UI from flickering Yellow->Red too fast if the server is truly down,
+        // giving the user a moment to realize "Oh, it's trying to reconnect".
+        const delayPromise = retryState.used 
+          ? new Promise(resolve => setTimeout(resolve, 1000)) 
+          : Promise.resolve();
+
+        const [response] = await Promise.all([streamPromise, delayPromise]);
+        const stream = response;
+
+        // 3. SUCCESS STATE
         setConnectionStatus('live');
         setHasBeenConnected(true);
         setRetryCount(0);
-        setImmediateRetryDone(false); // Reset on successful connection
+        setImmediateRetryDone(false);
+
+        // 4. STABILITY LOGIC: If we stay connected for 5 seconds, we "refund" the retry token.
+        // This allows us to handle a load balancer timeout every hour, not just once per page load.
+        clearTimeout(stabilityTimer);
+        stabilityTimer = setTimeout(() => {
+            retryState.used = false; // Reset! We can retry instantly again if needed.
+        }, 5000);
 
         for await (const response of stream) {
-          if (!response.flow || !response.flow.flow) {
-            continue;
-          }
-          setFlowState(prevState => {
-            if (!response.flow) {
-              return prevState;
-            }
+          if (!response.flow || !response.flow.flow) continue;
+          
+          // ... (Your existing setFlowState logic remains exactly the same) ...
+           setFlowState(prevState => {
+             if (!response.flow) return prevState;
             const incomingFlow = response.flow;
             const flowTs = getFlowTimestampNs(incomingFlow);
             if (flowTs > latestTimestampNs.current) {
@@ -414,10 +442,7 @@ const App: React.FC = () => {
             let newFiltered = [...prevState.filtered];
 
             if (existingIndex !== -1) {
-              // Update existing flow
               newAll[existingIndex] = incomingFlow;
-
-              // Update in filtered list if present
               const filteredIndex = newFiltered.findIndex(r => getFlowId(r) === incomingFlowId);
               const matches = isFlowMatch(incomingFlow, filterRef.current);
 
@@ -425,33 +450,22 @@ const App: React.FC = () => {
                 if (matches) {
                   newFiltered[filteredIndex] = incomingFlow;
                 } else {
-                  // No longer matches, remove
                   newFiltered.splice(filteredIndex, 1);
                 }
               } else if (matches) {
-                // Didn't exist in filtered (maybe wasn't matching before), but now matches.
-                // Prepend to filtered list to show it.
                 newFiltered = [incomingFlow, ...newFiltered];
               }
             } else {
-              // New flow
               newAll = [incomingFlow, ...newAll];
-
-              // Handle truncation on All
               let droppedFlowId: string | undefined;
               if (newAll.length > maxFlows) {
                 const dropped = newAll.pop();
                 droppedFlowId = getFlowId(dropped);
                 setIsFlowsTruncated(true);
               }
-
-              // Update Filtered
               if (isFlowMatch(incomingFlow, filterRef.current)) {
                 newFiltered = [incomingFlow, ...newFiltered];
               }
-
-              // Handle truncation on Filtered
-              // If the dropped flow from ALL was in FILTERED, remove it.
               if (droppedFlowId) {
                 const droppedIndex = newFiltered.findIndex(f => getFlowId(f) === droppedFlowId);
                 if (droppedIndex !== -1) {
@@ -459,32 +473,37 @@ const App: React.FC = () => {
                 }
               }
             }
-
             return { all: newAll, filtered: newFiltered };
           });
         }
-        // Stream completed without error, re-attempt after a delay
+        
+        // Stream finished normally
         if (!isPaused) {
-          timeoutId = setTimeout(attemptConnection, 2000); // Re-attempt after 2 seconds
+          timeoutId = setTimeout(attemptConnection, 2000);
         }
-      } catch (err) {
-        if (signal.aborted) {
-          return;
-        }
-        console.error(err);
 
-        if (hasBeenConnected && !immediateRetryDone) {
-          // First failure after a successful connection, retry immediately
-          setImmediateRetryDone(true);
-          attemptConnection();
+      } catch (err) {
+        if (signal.aborted) return;
+        console.error("Connection stream error:", err);
+
+        // 5. FAILURE LOGIC
+        // If we haven't used our retry token yet, use it now!
+        if (!retryState.used) {
+            console.log("Attempting silent immediate retry...");
+            retryState.used = true; // Mark as used
+            setImmediateRetryDone(true); // For UI/Debug if needed
+            
+            // Retry immediately (recursive call)
+            attemptConnection(); 
         } else {
-          // Either never connected or subsequent failure, use exponential backoff
-          setConnectionStatus('failed');
-          const delay = Math.min(30000, 2000 * (2 ** retryCount)); // Exponential backoff with a cap
-          setRetryCount(prev => prev + 1);
-          if (!isPaused) {
-            timeoutId = setTimeout(attemptConnection, delay);
-          }
+            // We already tried to recover instantly and failed again.
+            // Now we must show the error state.
+            setConnectionStatus('failed');
+            const delay = Math.min(30000, 2000 * (2 ** retryCount));
+            setRetryCount(prev => prev + 1);
+            if (!isPaused) {
+                timeoutId = setTimeout(attemptConnection, delay);
+            }
         }
       }
     };
@@ -493,6 +512,7 @@ const App: React.FC = () => {
 
     return () => {
       clearTimeout(timeoutId);
+      clearTimeout(stabilityTimer); // Clean up the stability timer
       abortController.abort();
     };
   }, [isPaused, maxFlows, maxBodySize]);
@@ -700,19 +720,21 @@ const App: React.FC = () => {
         <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">Flows</h1>
         <div className="flex items-center gap-2 ml-2">
           {/* Connection Status Indicator */}
-          <div className={`flex items-center justify-center w-28 gap-2 px-3 py-1 rounded-full text-sm font-medium
+          <div className={`flex items-center justify-center w-32 gap-2 px-3 py-1 rounded-full text-sm font-medium
             ${connectionStatus === 'live' ? 'text-green-600 dark:text-green-400 bg-green-100 dark:bg-green-900/50' : ''}
             ${connectionStatus === 'paused' ? 'text-yellow-600 dark:text-yellow-400 bg-yellow-100 dark:bg-yellow-900/50' : ''}
             ${connectionStatus === 'connecting' ? 'text-blue-600 dark:text-blue-400 bg-blue-100 dark:bg-blue-900/50' : ''}
+            ${connectionStatus === 'reconnecting' ? 'text-orange-600 dark:text-orange-400 bg-orange-100 dark:bg-orange-900/50' : ''}
             ${connectionStatus === 'failed' ? 'text-red-600 dark:text-red-400 bg-red-100 dark:bg-red-900/50' : ''}
           `}>
-            <span className={`w-2 h-2 rounded-full
+            <span className={`w-2 h-2 rounded-full align-middle
               ${connectionStatus === 'live' ? 'bg-green-500 dark:bg-green-400 animate-pulse' : ''}
               ${connectionStatus === 'paused' ? 'bg-yellow-500 dark:bg-yellow-400' : ''}
               ${connectionStatus === 'connecting' ? 'bg-blue-500 dark:bg-blue-400 animate-pulse' : ''}
+              ${connectionStatus === 'reconnecting' ? 'bg-orange-500 dark:bg-orange-400 animate-pulse' : ''}
               ${connectionStatus === 'failed' ? 'bg-red-500 dark:bg-red-400' : ''}
             `} />
-            {connectionStatus.charAt(0).toUpperCase() + connectionStatus.slice(1)}
+            {connectionStatus === 'reconnecting' ? 'Reconnecting' : connectionStatus.charAt(0).toUpperCase() + connectionStatus.slice(1)}
           </div>
           <div className="md:hidden relative" ref={menuRef}>
             <button
