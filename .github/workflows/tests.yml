@@ -26,5 +26,7 @@ jobs:
         run: pnpm install
       - name: Run Frontend Tests
         run: pnpm test run
+      - name: Run Frontend Tests
+        run: pnpm build
       - name: Run Frontend Linter
         run: pnpm lint

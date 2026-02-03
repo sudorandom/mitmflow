@@ -2,8 +2,7 @@ import React from 'react';
 import useFilterStore, { FlowType } from '../store';
 import { X } from 'lucide-react';
 import CreatableSelect from 'react-select/creatable';
-import Select from 'react-select';
-import { CSSObjectWithLabel } from 'react-select/dist/declarations/src/Emotion';
+import Select, { CSSObjectWithLabel } from 'react-select';
 
 const FLOW_TYPES: { value: FlowType; label: string }[] = [
   { value: 'http', label: 'HTTP' },
