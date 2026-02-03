@@ -149,7 +149,9 @@ export const HttpFlowDetails: React.FC<{
     contentRef: React.RefObject<HTMLDivElement>;
     onEditNote: () => void;
     onUpdateFlow: (flowId: string, updates: { pinned?: boolean; note?: string }) => void;
-}> = ({ flow, requestFormat, setRequestFormat, responseFormat, setResponseFormat, contentRef, onEditNote, onUpdateFlow }) => {
+    selectedTab: string;
+    onTabChange: (tab: string) => void;
+}> = ({ flow, requestFormat, setRequestFormat, responseFormat, setResponseFormat, contentRef, onEditNote, onUpdateFlow, selectedTab, onTabChange }) => {
     const httpFlow = flow.flow.case === 'httpFlow' ? flow.flow.value : null;
 
     const queryParams = useMemo(() => {
@@ -206,8 +208,6 @@ export const HttpFlowDetails: React.FC<{
         return `${statusLine}\n${headers}`;
     }, [httpFlow.response]);
 
-    const [selectedTab, setSelectedTab] = useState<'summary' | 'request' | 'response' | 'websocket' | 'connection'>('summary');
-
     const statusClass = useMemo(() => {
         if (!httpFlow?.response) return 'text-gray-500 dark:text-zinc-500';
         if (httpFlow.response.statusCode >= 500) return 'text-red-500 font-bold';
@@ -224,33 +224,33 @@ export const HttpFlowDetails: React.FC<{
                 <div className="flex items-center px-4">
                     <button
                         className={`px-3 py-2 text-sm font-medium border-b-2 ${selectedTab === 'summary' ? 'border-orange-500 text-orange-500' : 'border-transparent text-gray-500 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-white'}`}
-                        onClick={() => setSelectedTab('summary')}
+                        onClick={() => onTabChange('summary')}
                     >
                         Summary
                     </button>
                     <button
                         className={`px-3 py-2 text-sm font-medium border-b-2 ${selectedTab === 'request' ? 'border-orange-500 text-orange-500' : 'border-transparent text-gray-500 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-white'}`}
-                        onClick={() => setSelectedTab('request')}
+                        onClick={() => onTabChange('request')}
                     >
                         Request
                     </button>
                     <button
                         className={`px-3 py-2 text-sm font-medium border-b-2 ${selectedTab === 'response' ? 'border-orange-500 text-orange-500' : 'border-transparent text-gray-500 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-white'}`}
-                        onClick={() => setSelectedTab('response')}
+                        onClick={() => onTabChange('response')}
                     >
                         Response
                     </button>
                     {httpFlow.isWebsocket && (
                         <button
                             className={`px-3 py-2 text-sm font-medium border-b-2 ${selectedTab === 'websocket' ? 'border-orange-500 text-orange-500' : 'border-transparent text-gray-500 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-white'}`}
-                            onClick={() => setSelectedTab('websocket')}
+                            onClick={() => onTabChange('websocket')}
                         >
                             WebSocket
                         </button>
                     )}
                     <button
                         className={`px-3 py-2 text-sm font-medium border-b-2 ${selectedTab === 'connection' ? 'border-orange-500 text-orange-500' : 'border-transparent text-gray-500 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-white'}`}
-                        onClick={() => setSelectedTab('connection')}
+                        onClick={() => onTabChange('connection')}
                     >
                         Connection
                     </button>

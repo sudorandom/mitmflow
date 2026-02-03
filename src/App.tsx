@@ -248,6 +248,7 @@ const App: React.FC = () => {
   const [responseFormats, setResponseFormats] = useState<Map<string, ContentFormat>>(new Map());
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
   const [toast, setToast] = useState<{ message: string; visible: boolean } | null>(null);
+  const [lastSelectedTabs, setLastSelectedTabs] = useState<Record<string, string>>({});
 
   const showToast = useCallback((message: string) => {
     setToast({ message, visible: true });
@@ -549,6 +550,14 @@ const App: React.FC = () => {
   const detailsFlow = useMemo(() =>
     selectedFlowId ? flowState.all.find(f => getFlowId(f) === selectedFlowId) || null : null
   , [flowState.all, selectedFlowId]);
+
+  const getFlowType = (flow: Flow | null): string => {
+    if (!flow?.flow?.case) return 'unknown';
+    if (flow.flow.case === 'httpFlow' && flow.flow.value.isWebsocket) {
+      return 'websocket';
+    }
+    return flow.flow.case;
+  }
 
   // --- Event Handlers ---
   const handleDownloadSelectedFlows = (format: 'har' | 'json') => {
@@ -1019,16 +1028,38 @@ const App: React.FC = () => {
             contentRef={contentRef}
             onEditNote={() => setIsNoteModalOpen(true)}
             onUpdateFlow={handleUpdateFlow}
+            selectedTab={lastSelectedTabs[getFlowType(detailsFlow)] || 'summary'}
+            onTabChange={(tab) => setLastSelectedTabs(prev => ({ ...prev, [getFlowType(detailsFlow)]: tab }))}
           />
         )}
         {detailsFlow?.flow?.case === 'dnsFlow' && (
-          <DnsFlowDetails key={selectedFlowId} flow={detailsFlow} onEditNote={() => setIsNoteModalOpen(true)} onUpdateFlow={handleUpdateFlow} />
+          <DnsFlowDetails
+            key={selectedFlowId}
+            flow={detailsFlow}
+            onEditNote={() => setIsNoteModalOpen(true)}
+            onUpdateFlow={handleUpdateFlow}
+            selectedTab={lastSelectedTabs[getFlowType(detailsFlow)] || 'summary'}
+            onTabChange={(tab) => setLastSelectedTabs(prev => ({ ...prev, [getFlowType(detailsFlow)]: tab }))}
+          />
         )}
         {detailsFlow?.flow?.case === 'tcpFlow' && (
-            <TcpFlowDetails key={selectedFlowId} flow={detailsFlow} onEditNote={() => setIsNoteModalOpen(true)} onUpdateFlow={handleUpdateFlow} />
+            <TcpFlowDetails
+              key={selectedFlowId}
+              flow={detailsFlow}
+              onEditNote={() => setIsNoteModalOpen(true)}
+              onUpdateFlow={handleUpdateFlow}
+              selectedTab={lastSelectedTabs[getFlowType(detailsFlow)] || 'summary'}
+              onTabChange={(tab) => setLastSelectedTabs(prev => ({ ...prev, [getFlowType(detailsFlow)]: tab }))}
+            />
         )}
         {detailsFlow?.flow?.case === 'udpFlow' && (
-            <UdpFlowDetails key={selectedFlowId} flow={detailsFlow} onEditNote={() => setIsNoteModalOpen(true)} onUpdateFlow={handleUpdateFlow} />
+            <UdpFlowDetails
+              key={selectedFlowId}
+              flow={detailsFlow} onEditNote={() => setIsNoteModalOpen(true)}
+              onUpdateFlow={handleUpdateFlow}
+              selectedTab={lastSelectedTabs[getFlowType(detailsFlow)] || 'summary'}
+              onTabChange={(tab) => setLastSelectedTabs(prev => ({ ...prev, [getFlowType(detailsFlow)]: tab }))}
+            />
         )}
       </DetailsPanel>
     </div>

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { Flow } from '../gen/mitmflow/v1/mitmflow_pb';
 import HexViewer from '../HexViewer';
 import { ConnectionTab } from './ConnectionTab';
@@ -9,8 +9,9 @@ export const UdpFlowDetails: React.FC<{
     flow: Flow;
     onEditNote: () => void;
     onUpdateFlow: (flowId: string, updates: { pinned?: boolean; note?: string }) => void;
-}> = ({ flow, onEditNote, onUpdateFlow }) => {
-    const [selectedTab, setSelectedTab] = useState<'summary' | 'connection'>('summary');
+    selectedTab: string;
+    onTabChange: (tab: string) => void;
+}> = ({ flow, onEditNote, onUpdateFlow, selectedTab, onTabChange }) => {
 
     if (flow.flow.case !== 'udpFlow') {
         return null;
@@ -23,13 +24,13 @@ export const UdpFlowDetails: React.FC<{
                 <div className="flex items-center px-4">
                     <button
                         className={`px-3 py-2 text-sm font-medium border-b-2 ${selectedTab === 'summary' ? 'border-orange-500 text-orange-500' : 'border-transparent text-gray-500 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-white'}`}
-                        onClick={() => setSelectedTab('summary')}
+                        onClick={() => onTabChange('summary')}
                     >
                         Summary
                     </button>
                     <button
                         className={`px-3 py-2 text-sm font-medium border-b-2 ${selectedTab === 'connection' ? 'border-orange-500 text-orange-500' : 'border-transparent text-gray-500 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-white'}`}
-                        onClick={() => setSelectedTab('connection')}
+                        onClick={() => onTabChange('connection')}
                     >
                         Connection
                     </button>
