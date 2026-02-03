@@ -81,7 +81,8 @@ export const isFlowMatch = (flow: Flow, filter: FilterConfig): boolean => {
                                 }
                             }
                         }
-                    } catch (e) {
+                    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+                    } catch (_e) {
                         // ignore decoding errors
                     }
                 }

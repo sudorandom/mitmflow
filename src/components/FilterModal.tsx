@@ -3,6 +3,7 @@ import useFilterStore, { FlowType } from '../store';
 import { X } from 'lucide-react';
 import CreatableSelect from 'react-select/creatable';
 import Select from 'react-select';
+import { CSSObjectWithLabel } from 'react-select/dist/declarations/src/Emotion';
 
 const FLOW_TYPES: { value: FlowType; label: string }[] = [
   { value: 'http', label: 'HTTP' },
@@ -96,7 +97,7 @@ const FilterModal: React.FC<FilterModalProps> = ({ isOpen, onClose }) => {
   let rowIndex = 0;
 
   const selectStyles = {
-    menuPortal: (base: any) => ({ ...base, zIndex: 9999 })
+    menuPortal: (base: CSSObjectWithLabel) => ({ ...base, zIndex: 9999 })
   };
 
   return (

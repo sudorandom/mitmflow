@@ -1,6 +1,8 @@
 node_modules
 schema.binpb
 mitmflow_data/
+test-results/
+flows/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
