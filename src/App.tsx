@@ -457,30 +457,38 @@ const App: React.FC = () => {
               }
             } else {
               newAll = [incomingFlow, ...newAll];
-              let droppedFlowId: string | undefined;
-              if (newAll.length > maxFlows) {
-                const dropped = newAll.pop();
-                droppedFlowId = getFlowId(dropped);
-                setIsFlowsTruncated(true);
-              }
+
               if (isFlowMatch(incomingFlow, filterRef.current)) {
                 newFiltered = [incomingFlow, ...newFiltered];
               }
-              if (droppedFlowId) {
-                const droppedIndex = newFiltered.findIndex(f => getFlowId(f) === droppedFlowId);
-                if (droppedIndex !== -1) {
-                  newFiltered.splice(droppedIndex, 1);
-                }
-                // Also remove from selection if present
+
+              if (newAll.length > maxFlows) {
+                // Batch prune all excess flows
+                const excessCount = newAll.length - maxFlows;
+                const droppedFlows = newAll.splice(newAll.length - excessCount, excessCount);
+                setIsFlowsTruncated(true);
+
+                // Collect IDs of dropped flows
+                const droppedIds = new Set(droppedFlows.map(f => getFlowId(f)).filter((id): id is string => !!id));
+
+                // Remove dropped flows from filtered list
+                newFiltered = newFiltered.filter(f => !droppedIds.has(getFlowId(f)!));
+
+                // Update selected flows if any dropped flow was selected
                 // Note: We use functional update unconditionally because 'selectedFlowIds' in this closure might be stale
-                setSelectedFlowIds(prev => {
-                  if (prev.has(droppedFlowId!)) {
-                    const newSet = new Set(prev);
-                    newSet.delete(droppedFlowId!);
-                    return newSet;
-                  }
-                  return prev;
-                });
+                if (droppedIds.size > 0) {
+                    setSelectedFlowIds(prev => {
+                        let hasChanges = false;
+                        const newSet = new Set(prev);
+                        for (const id of droppedIds) {
+                            if (newSet.has(id)) {
+                                newSet.delete(id);
+                                hasChanges = true;
+                            }
+                        }
+                        return hasChanges ? newSet : prev;
+                    });
+                }
               }
             }
             return { all: newAll, filtered: newFiltered };
