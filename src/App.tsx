@@ -470,6 +470,16 @@ const App: React.FC = () => {
                 if (droppedIndex !== -1) {
                   newFiltered.splice(droppedIndex, 1);
                 }
+                // Also remove from selection if present
+                // Note: We use functional update unconditionally because 'selectedFlowIds' in this closure might be stale
+                setSelectedFlowIds(prev => {
+                  if (prev.has(droppedFlowId!)) {
+                    const newSet = new Set(prev);
+                    newSet.delete(droppedFlowId!);
+                    return newSet;
+                  }
+                  return prev;
+                });
               }
             }
             return { all: newAll, filtered: newFiltered };
