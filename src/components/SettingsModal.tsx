@@ -11,6 +11,18 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
   const { theme, setTheme, maxFlows, setMaxFlows, maxBodySize, setMaxBodySize } = useSettingsStore();
   const modalRef = React.useRef<HTMLDivElement>(null);
 
+  // Local state for buffered settings
+  const [localMaxFlows, setLocalMaxFlows] = React.useState(maxFlows);
+  const [localMaxBodySize, setLocalMaxBodySize] = React.useState(maxBodySize);
+
+  // Sync local state with store when modal opens
+  React.useEffect(() => {
+    if (isOpen) {
+      setLocalMaxFlows(maxFlows);
+      setLocalMaxBodySize(maxBodySize);
+    }
+  }, [isOpen, maxFlows, maxBodySize]);
+
   // Only close on Escape if modal is open and focused
   React.useEffect(() => {
     if (!isOpen) return;
@@ -28,6 +40,12 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
   if (!isOpen) {
     return null;
   }
+
+  const handleSave = () => {
+    setMaxFlows(localMaxFlows);
+    setMaxBodySize(localMaxBodySize);
+    onClose();
+  };
 
   const ThemeOption = ({ value, label, icon: Icon }: { value: ThemeMode, label: string, icon: React.ElementType }) => (
     <button
@@ -73,8 +91,8 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
             <input
               type="number"
               id="max-flows"
-              value={maxFlows}
-              onChange={(e) => setMaxFlows(Number(e.target.value))}
+              value={localMaxFlows}
+              onChange={(e) => setLocalMaxFlows(Number(e.target.value))}
               className="bg-gray-50 dark:bg-zinc-900 border border-gray-300 dark:border-zinc-700 rounded-md text-gray-900 dark:text-zinc-200 px-3 py-2 w-full focus:outline-none focus:ring-2 focus:ring-orange-500"
             />
           </div>
@@ -85,11 +103,26 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
             <input
               type="number"
               id="max-body-size"
-              value={maxBodySize}
-              onChange={(e) => setMaxBodySize(Number(e.target.value))}
+              value={localMaxBodySize}
+              onChange={(e) => setLocalMaxBodySize(Number(e.target.value))}
               className="bg-gray-50 dark:bg-zinc-900 border border-gray-300 dark:border-zinc-700 rounded-md text-gray-900 dark:text-zinc-200 px-3 py-2 w-full focus:outline-none focus:ring-2 focus:ring-orange-500"
             />
           </div>
+        </div>
+
+        <div className="flex items-center justify-end gap-3 mt-8">
+          <button
+            onClick={onClose}
+            className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-zinc-300 bg-white dark:bg-zinc-800 border border-gray-300 dark:border-zinc-700 rounded-md hover:bg-gray-50 dark:hover:bg-zinc-700"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={handleSave}
+            className="px-4 py-2 text-sm font-medium text-white bg-orange-500 border border-orange-500 rounded-md hover:bg-orange-600 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2"
+          >
+            Save
+          </button>
         </div>
       </div>
     </div>
