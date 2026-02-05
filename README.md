@@ -33,10 +33,10 @@
 
 ### Running mitmflow
 
-1.  **Start the `mitmflow` server:**
+1.  **Start the development environment (backend + frontend):**
 
     ```bash
-    go run .
+    just dev
     ```
 
 2.  **Start the `mitmproxy` addon:**
@@ -51,12 +51,6 @@
     mitmproxy -s extra_addons.py --set grpc_addr=http://localhost:50052 --set grpc_events=request,response
     ```
 
-3.  **Start the web interface:**
-
-    ```bash
-    pnpm dev
-    ```
-
 ## Developer Guide
 
 ### Mise
@@ -66,18 +60,8 @@ All tooling is installed using [mise-en-place](https://mise.jdx.dev). This is a 
 
 For frontend development, you can use `fauxrpc` to test the web interface without running the `mitmflow` server or `mitmproxy`.
 
-1.  **Start `fauxrpc`:**
+```bash
+just dev-fauxrpc
+```
 
-    ```bash
-    just fauxrpc
-    ```
-
-This creates a "fake" server which emits randomized responses useful for testing the frontend.
-
-2.  **Start the web interface:**
-
-    ```bash
-    pnpm dev
-    ```
-
-This runs the frontend in a mode that will automatically pick up any changes are reflect it in the frontend.
+This starts the frontend and a "fake" server (`fauxrpc`) which emits randomized responses useful for testing. `fauxrpc` is configured to use streaming stubs (defined in `stubs/output/`), providing a realistic simulation of incoming traffic.
