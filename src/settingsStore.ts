@@ -25,13 +25,14 @@ const useSettingsStore = create<SettingsState>()(
     {
       name: 'settings-storage',
       version: 1,
-      migrate: (persistedState: any, version) => {
+      migrate: (persistedState: unknown, version) => {
         if (version === 0) {
           // migration from version 0 to 1
+          const state = persistedState as Partial<SettingsState>;
           return {
-            ...persistedState,
-            maxFlows: persistedState.maxFlows ?? 500,
-            maxBodySize: persistedState.maxBodySize ?? 1024,
+            ...state,
+            maxFlows: state.maxFlows ?? 500,
+            maxBodySize: state.maxBodySize ?? 1024,
           };
         }
         return persistedState as SettingsState;
