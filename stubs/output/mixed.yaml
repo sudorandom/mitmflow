@@ -1,0 +1,190 @@
+---
+stubs:
+- id: mixed-stream
+  target: mitmflow.v1.Service/StreamFlows
+  stream:
+    repeated: true
+    items:
+      # JSON
+      - delay: 1s
+        cel_content: |
+          {
+            "flow": {
+              "http_flow": {
+                "id": fake_uuid(),
+                "request": {
+                  "method": fake_http_method(),
+                  "url": fake_url()+'.json',
+                  "headers": { "User-Agent": fake_user_agent() },
+                  "http_version": "HTTP/3"
+                },
+                "response": {
+                  "status_code": fake_http_status_code(),
+                  "headers": { "Content-Type": "application/json", "Server": fake_product_name() },
+                  "content": base64.encode(b'{"name": "John", "age": 30, "car": null}'),
+                  "http_version": "HTTP/3"
+                },
+                "timestamp_start": fake_date(),
+                "duration_ms": fake_float32(),
+                "client": { "peername_host": fake_i_pv4_address(), "peername_port": fake_int8(), "sockname_host": fake_i_pv4_address(), "sockname_port": fake_int8(), "id": fake_uuid() },
+                "server": { "peername_host": fake_i_pv4_address(), "peername_port": fake_int8(), "sockname_host": fake_i_pv4_address(), "sockname_port": fake_int8(), "id": fake_uuid() }
+              }
+            }
+          }
+      # XML
+      - delay: 1s
+        cel_content: |
+          {
+            "flow": {
+              "http_flow": {
+                "id": fake_uuid(),
+                "request": {
+                  "method": fake_http_method(),
+                  "url": fake_url()+'.xml',
+                  "headers": { "User-Agent": fake_user_agent() },
+                  "http_version": "HTTP/1.1"
+                },
+                "response": {
+                  "status_code": fake_http_status_code(),
+                  "headers": { "Content-Type": "application/xml", "Server": fake_product_name() },
+                  "content": base64.encode(b'<root>Hello, world!</root>'),
+                  "http_version": "HTTP/1.1"
+                },
+                "timestamp_start": fake_date(),
+                "duration_ms": fake_float32(),
+                "client": { "peername_host": fake_i_pv4_address(), "peername_port": fake_int8(), "sockname_host": fake_i_pv4_address(), "sockname_port": fake_int8(), "id": fake_uuid() },
+                "server": { "peername_host": fake_i_pv4_address(), "peername_port": fake_int8(), "sockname_host": fake_i_pv4_address(), "sockname_port": fake_int8(), "id": fake_uuid() }
+              }
+            }
+          }
+      # Text
+      - delay: 1s
+        cel_content: |
+          {
+            "flow": {
+              "http_flow": {
+                "id": fake_uuid(),
+                "request": {
+                  "method": fake_http_method(),
+                  "url": fake_url()+'.txt',
+                  "headers": { "User-Agent": fake_user_agent() },
+                  "http_version": "HTTP/3"
+                },
+                "response": {
+                  "status_code": fake_http_status_code(),
+                  "headers": { "Content-Type": "text/plain", "Server": fake_product_name() },
+                  "content": base64.encode(b'Hello, this is a plain text response.'),
+                  "http_version": "HTTP/3"
+                },
+                "timestamp_start": fake_date(),
+                "duration_ms": fake_float32(),
+                "client": { "peername_host": fake_i_pv4_address(), "peername_port": fake_int8(), "sockname_host": fake_i_pv4_address(), "sockname_port": fake_int8(), "id": fake_uuid() },
+                "server": { "peername_host": fake_i_pv4_address(), "peername_port": fake_int8(), "sockname_host": fake_i_pv4_address(), "sockname_port": fake_int8(), "id": fake_uuid() }
+              }
+            }
+          }
+      # SVG
+      - delay: 1s
+        cel_content: |
+          {
+            "flow": {
+              "http_flow": {
+                "id": fake_uuid(),
+                "request": {
+                  "method": fake_http_method(),
+                  "url": fake_url()+'.svg',
+                  "headers": { "User-Agent": fake_user_agent() }
+                },
+                "response": {
+                  "status_code": fake_http_status_code(),
+                  "headers": { "Content-Type": "image/svg+xml", "Server": fake_product_name() },
+                  "content": b'<svg height="100" width="100" xmlns="http://www.w3.org/2000/svg"><circle cx="50" cy="50" r="40" stroke="black" stroke-width="3" fill="red" /></svg>'
+                },
+                "timestamp_start": fake_date(),
+                "duration_ms": fake_float32(),
+                "client": { "peername_host": fake_i_pv4_address(), "peername_port": fake_int8(), "sockname_host": fake_i_pv4_address(), "sockname_port": fake_int8(), "id": fake_uuid() },
+                "server": { "peername_host": fake_i_pv4_address(), "peername_port": fake_int8(), "sockname_host": fake_i_pv4_address(), "sockname_port": fake_int8(), "id": fake_uuid() }
+              }
+            }
+          }
+      # GRPC
+      - delay: 1s
+        cel_content: |
+          {
+            "flow": {
+              "http_flow": {
+                "id": fake_uuid(),
+                "request": {
+                  "method": fake_http_method(),
+                  "url": fake_url()+'/someservice.SomeService/SomeMethod',
+                  "headers": { "User-Agent": fake_user_agent() },
+                  "http_version": "HTTP/2"
+                },
+                "response": {
+                  "status_code": fake_http_status_code(),
+                  "headers": { "Content-Type": "application/protobuf", "Server": fake_product_name() },
+                  "content": b'',
+                  "http_version": "HTTP/2"
+                },
+                "timestamp_start": fake_date(),
+                "duration_ms": fake_float32(),
+                "client": { "peername_host": fake_i_pv4_address(), "peername_port": fake_int8(), "sockname_host": fake_i_pv4_address(), "sockname_port": fake_int8(), "id": fake_uuid() },
+                "server": { "peername_host": fake_i_pv4_address(), "peername_port": fake_int8(), "sockname_host": fake_i_pv4_address(), "sockname_port": fake_int8(), "id": fake_uuid() }
+              },
+              "http_flow_extra": {
+                "response": {
+                  "textual_frames": [
+                    '1: {\n  1: {"type.googleapis.com/proto3.TestMessage"}\n  2: {`1005420e65787065637465645f76616c756500000000`}\n}'
+                  ]
+                }
+              }
+            }
+          }
+      # TCP
+      - delay: 1s
+        cel_content: |
+          {
+            "flow": {
+              "tcp_flow": {
+                "id": fake_uuid(),
+                "messages": [
+                  { "content": base64.encode(b'Hello, server!'), "from_client": true, "timestamp": fake_date() },
+                  { "content": base64.encode(b'Hello, client!'), "from_client": false, "timestamp": fake_date() }
+                ],
+                "timestamp_start": fake_date(),
+                "duration_ms": fake_float32(),
+                "client": { "peername_host": fake_i_pv4_address(), "peername_port": fake_int8() },
+                "server": { "address_host": fake_i_pv4_address(), "address_port": fake_int8() }
+              }
+            }
+          }
+      # WebSocket
+      - delay: 1s
+        cel_content: |
+          {
+            "flow": {
+              "http_flow": {
+                "id": fake_uuid(),
+                "request": {
+                  "method": "GET",
+                  "url": fake_url(),
+                  "headers": { "User-Agent": fake_user_agent(), "Upgrade": "websocket", "Connection": "Upgrade" },
+                  "http_version": "HTTP/1.1"
+                },
+                "response": {
+                  "status_code": 101,
+                  "headers": { "Upgrade": "websocket", "Connection": "Upgrade" },
+                  "http_version": "HTTP/1.1"
+                },
+                "is_websocket": true,
+                "websocket_messages": [
+                  { "content": base64.encode(b'Hello, server!'), "from_client": true, "timestamp": fake_date() },
+                  { "content": base64.encode(b'Hello, client!'), "from_client": false, "timestamp": fake_date() }
+                ],
+                "timestamp_start": fake_date(),
+                "duration_ms": fake_float32(),
+                "client": { "peername_host": fake_i_pv4_address(), "peername_port": fake_int8(), "sockname_host": fake_i_pv4_address(), "sockname_port": fake_int8(), "id": fake_uuid() },
+                "server": { "peername_host": fake_i_pv4_address(), "peername_port": fake_int8(), "sockname_host": fake_i_pv4_address(), "sockname_port": fake_int8(), "address_port": fake_int8(), "address_host": fake_i_pv4_address(), "id": fake_uuid() }
+              }
+            }
+          }

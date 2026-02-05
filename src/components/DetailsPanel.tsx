@@ -195,7 +195,7 @@ export const DetailsPanel = forwardRef<HTMLDivElement, DetailsPanelProps>(({
               <ChevronDown size={16} />
             </button>
             {isDownloadOpen && (
-              <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 rounded-md shadow-lg z-10">
+              <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 rounded-md shadow-lg z-50">
                 <a
                   href="#"
                   onClick={(e) => {

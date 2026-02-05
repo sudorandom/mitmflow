@@ -237,6 +237,7 @@ const App: React.FC = () => {
   const [isFilterModalOpen, setIsFilterModalOpen] = useState(false);
   const [isNoteModalOpen, setIsNoteModalOpen] = useState(false);
   const handleCloseFilterModal = useCallback(() => setIsFilterModalOpen(false), []);
+  const handleCloseSettingsModal = useCallback(() => setIsSettingsModalOpen(false), []);
   const [isPanelMinimized, setIsPanelMinimized] = useState(false);
   const [selectedFlowId, setSelectedFlowId] = useState<string | null>(null);
   const [selectedFlowIds, setSelectedFlowIds] = useState<Set<string>>(new Set()); // New state for multi-select
@@ -259,7 +260,9 @@ const App: React.FC = () => {
   }, []);
 
   // Settings from store
-  const { theme, maxFlows, maxBodySize } = useSettingsStore();
+  const { theme, maxFlows: storedMaxFlows, maxBodySize } = useSettingsStore();
+  // Ensure maxFlows is a valid number, defaulting to 500 if undefined or invalid (e.g. NaN from old local storage)
+  const maxFlows = Number.isFinite(storedMaxFlows) ? storedMaxFlows : 500;
 
   // Theme application
   useEffect(() => {
@@ -454,19 +457,37 @@ const App: React.FC = () => {
               }
             } else {
               newAll = [incomingFlow, ...newAll];
-              let droppedFlowId: string | undefined;
-              if (newAll.length > maxFlows) {
-                const dropped = newAll.pop();
-                droppedFlowId = getFlowId(dropped);
-                setIsFlowsTruncated(true);
-              }
+
               if (isFlowMatch(incomingFlow, filterRef.current)) {
                 newFiltered = [incomingFlow, ...newFiltered];
               }
-              if (droppedFlowId) {
-                const droppedIndex = newFiltered.findIndex(f => getFlowId(f) === droppedFlowId);
-                if (droppedIndex !== -1) {
-                  newFiltered.splice(droppedIndex, 1);
+
+              if (newAll.length > maxFlows) {
+                // Batch prune all excess flows
+                const excessCount = newAll.length - maxFlows;
+                const droppedFlows = newAll.splice(newAll.length - excessCount, excessCount);
+                setIsFlowsTruncated(true);
+
+                // Collect IDs of dropped flows
+                const droppedIds = new Set(droppedFlows.map(f => getFlowId(f)).filter((id): id is string => !!id));
+
+                // Remove dropped flows from filtered list
+                newFiltered = newFiltered.filter(f => !droppedIds.has(getFlowId(f)!));
+
+                // Update selected flows if any dropped flow was selected
+                // Note: We use functional update unconditionally because 'selectedFlowIds' in this closure might be stale
+                if (droppedIds.size > 0) {
+                    setSelectedFlowIds(prev => {
+                        let hasChanges = false;
+                        const newSet = new Set(prev);
+                        for (const id of droppedIds) {
+                            if (newSet.has(id)) {
+                                newSet.delete(id);
+                                hasChanges = true;
+                            }
+                        }
+                        return hasChanges ? newSet : prev;
+                    });
                 }
               }
             }
@@ -950,7 +971,7 @@ const App: React.FC = () => {
 
       <SettingsModal
         isOpen={isSettingsModalOpen}
-        onClose={() => setIsSettingsModalOpen(false)}
+        onClose={handleCloseSettingsModal}
       />
 
       <NoteModal
