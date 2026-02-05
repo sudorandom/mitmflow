@@ -259,7 +259,9 @@ const App: React.FC = () => {
   }, []);
 
   // Settings from store
-  const { theme, maxFlows, maxBodySize } = useSettingsStore();
+  const { theme, maxFlows: storedMaxFlows, maxBodySize } = useSettingsStore();
+  // Ensure maxFlows is a number, defaulting to 500 if undefined (e.g. old local storage)
+  const maxFlows = storedMaxFlows ?? 500;
 
   // Theme application
   useEffect(() => {

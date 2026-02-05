@@ -24,6 +24,18 @@ const useSettingsStore = create<SettingsState>()(
     }),
     {
       name: 'settings-storage',
+      version: 1,
+      migrate: (persistedState: any, version) => {
+        if (version === 0) {
+          // migration from version 0 to 1
+          return {
+            ...persistedState,
+            maxFlows: persistedState.maxFlows ?? 500,
+            maxBodySize: persistedState.maxBodySize ?? 1024,
+          };
+        }
+        return persistedState as SettingsState;
+      },
     }
   )
 );
