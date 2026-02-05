@@ -1,4 +1,4 @@
----
+# yaml-language-server: $schema=https://raw.githubusercontent.com/sudorandom/fauxrpc/refs/heads/main/stubs.schema.json
 stubs:
 - id: mixed-stream
   target: mitmflow.v1.Service/StreamFlows
@@ -6,7 +6,7 @@ stubs:
     repeated: true
     items:
       # JSON
-      - delay: 1s
+      - delay: 50ms
         cel_content: |
           {
             "flow": {
@@ -24,7 +24,7 @@ stubs:
                   "content": base64.encode(b'{"name": "John", "age": 30, "car": null}'),
                   "http_version": "HTTP/3"
                 },
-                "timestamp_start": fake_date(),
+                "timestamp_start": now,
                 "duration_ms": fake_float32(),
                 "client": { "peername_host": fake_i_pv4_address(), "peername_port": fake_int8(), "sockname_host": fake_i_pv4_address(), "sockname_port": fake_int8(), "id": fake_uuid() },
                 "server": { "peername_host": fake_i_pv4_address(), "peername_port": fake_int8(), "sockname_host": fake_i_pv4_address(), "sockname_port": fake_int8(), "id": fake_uuid() }
@@ -32,7 +32,7 @@ stubs:
             }
           }
       # XML
-      - delay: 1s
+      - delay: 50ms
         cel_content: |
           {
             "flow": {
@@ -50,7 +50,7 @@ stubs:
                   "content": base64.encode(b'<root>Hello, world!</root>'),
                   "http_version": "HTTP/1.1"
                 },
-                "timestamp_start": fake_date(),
+                "timestamp_start": now,
                 "duration_ms": fake_float32(),
                 "client": { "peername_host": fake_i_pv4_address(), "peername_port": fake_int8(), "sockname_host": fake_i_pv4_address(), "sockname_port": fake_int8(), "id": fake_uuid() },
                 "server": { "peername_host": fake_i_pv4_address(), "peername_port": fake_int8(), "sockname_host": fake_i_pv4_address(), "sockname_port": fake_int8(), "id": fake_uuid() }
@@ -58,7 +58,7 @@ stubs:
             }
           }
       # Text
-      - delay: 1s
+      - delay: 50ms
         cel_content: |
           {
             "flow": {
@@ -76,7 +76,7 @@ stubs:
                   "content": base64.encode(b'Hello, this is a plain text response.'),
                   "http_version": "HTTP/3"
                 },
-                "timestamp_start": fake_date(),
+                "timestamp_start": now,
                 "duration_ms": fake_float32(),
                 "client": { "peername_host": fake_i_pv4_address(), "peername_port": fake_int8(), "sockname_host": fake_i_pv4_address(), "sockname_port": fake_int8(), "id": fake_uuid() },
                 "server": { "peername_host": fake_i_pv4_address(), "peername_port": fake_int8(), "sockname_host": fake_i_pv4_address(), "sockname_port": fake_int8(), "id": fake_uuid() }
@@ -84,7 +84,7 @@ stubs:
             }
           }
       # SVG
-      - delay: 1s
+      - delay: 50ms
         cel_content: |
           {
             "flow": {
@@ -100,7 +100,7 @@ stubs:
                   "headers": { "Content-Type": "image/svg+xml", "Server": fake_product_name() },
                   "content": b'<svg height="100" width="100" xmlns="http://www.w3.org/2000/svg"><circle cx="50" cy="50" r="40" stroke="black" stroke-width="3" fill="red" /></svg>'
                 },
-                "timestamp_start": fake_date(),
+                "timestamp_start": now,
                 "duration_ms": fake_float32(),
                 "client": { "peername_host": fake_i_pv4_address(), "peername_port": fake_int8(), "sockname_host": fake_i_pv4_address(), "sockname_port": fake_int8(), "id": fake_uuid() },
                 "server": { "peername_host": fake_i_pv4_address(), "peername_port": fake_int8(), "sockname_host": fake_i_pv4_address(), "sockname_port": fake_int8(), "id": fake_uuid() }
@@ -108,7 +108,7 @@ stubs:
             }
           }
       # GRPC
-      - delay: 1s
+      - delay: 50ms
         cel_content: |
           {
             "flow": {
@@ -126,7 +126,7 @@ stubs:
                   "content": b'',
                   "http_version": "HTTP/2"
                 },
-                "timestamp_start": fake_date(),
+                "timestamp_start": now,
                 "duration_ms": fake_float32(),
                 "client": { "peername_host": fake_i_pv4_address(), "peername_port": fake_int8(), "sockname_host": fake_i_pv4_address(), "sockname_port": fake_int8(), "id": fake_uuid() },
                 "server": { "peername_host": fake_i_pv4_address(), "peername_port": fake_int8(), "sockname_host": fake_i_pv4_address(), "sockname_port": fake_int8(), "id": fake_uuid() }
@@ -141,7 +141,7 @@ stubs:
             }
           }
       # TCP
-      - delay: 1s
+      - delay: 50ms
         cel_content: |
           {
             "flow": {
@@ -151,7 +151,7 @@ stubs:
                   { "content": base64.encode(b'Hello, server!'), "from_client": true, "timestamp": fake_date() },
                   { "content": base64.encode(b'Hello, client!'), "from_client": false, "timestamp": fake_date() }
                 ],
-                "timestamp_start": fake_date(),
+                "timestamp_start": now,
                 "duration_ms": fake_float32(),
                 "client": { "peername_host": fake_i_pv4_address(), "peername_port": fake_int8() },
                 "server": { "address_host": fake_i_pv4_address(), "address_port": fake_int8() }
@@ -159,7 +159,7 @@ stubs:
             }
           }
       # WebSocket
-      - delay: 1s
+      - delay: 50ms
         cel_content: |
           {
             "flow": {
@@ -181,7 +181,7 @@ stubs:
                   { "content": base64.encode(b'Hello, server!'), "from_client": true, "timestamp": fake_date() },
                   { "content": base64.encode(b'Hello, client!'), "from_client": false, "timestamp": fake_date() }
                 ],
-                "timestamp_start": fake_date(),
+                "timestamp_start": now,
                 "duration_ms": fake_float32(),
                 "client": { "peername_host": fake_i_pv4_address(), "peername_port": fake_int8(), "sockname_host": fake_i_pv4_address(), "sockname_port": fake_int8(), "id": fake_uuid() },
                 "server": { "peername_host": fake_i_pv4_address(), "peername_port": fake_int8(), "sockname_host": fake_i_pv4_address(), "sockname_port": fake_int8(), "address_port": fake_int8(), "address_host": fake_i_pv4_address(), "id": fake_uuid() }
