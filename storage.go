@@ -15,10 +15,11 @@ import (
 )
 
 type FlowStorage struct {
-	mu       sync.RWMutex
-	dir      string
-	maxFlows int
-	flows    map[string]*mitmflowv1.Flow
+	mu          sync.RWMutex
+	dir         string
+	maxFlows    int
+	flows       map[string]*mitmflowv1.Flow
+	sortedFlows []*mitmflowv1.Flow
 }
 
 func NewFlowStorage(dir string, maxFlows int) (*FlowStorage, error) {
@@ -27,9 +28,10 @@ func NewFlowStorage(dir string, maxFlows int) (*FlowStorage, error) {
 	}
 
 	s := &FlowStorage{
-		dir:      dir,
-		maxFlows: maxFlows,
-		flows:    make(map[string]*mitmflowv1.Flow),
+		dir:         dir,
+		maxFlows:    maxFlows,
+		flows:       make(map[string]*mitmflowv1.Flow),
+		sortedFlows: make([]*mitmflowv1.Flow, 0),
 	}
 
 	if err := s.loadFlows(); err != nil {
@@ -84,6 +86,13 @@ func (s *FlowStorage) loadFlows() error {
 		return err
 	}
 
+	for _, f := range s.flows {
+		s.sortedFlows = append(s.sortedFlows, f)
+	}
+	sort.Slice(s.sortedFlows, func(i, j int) bool {
+		return getFlowStartTime(s.sortedFlows[i]) < getFlowStartTime(s.sortedFlows[j])
+	})
+
 	s.prune()
 
 	return nil
@@ -99,7 +108,9 @@ func (s *FlowStorage) SaveFlow(flow *mitmflowv1.Flow) error {
 	}
 
 	// Preserve pinned status and note if updating existing flow
+	isUpdate := false
 	if existing, ok := s.flows[id]; ok {
+		isUpdate = true
 		if !flow.GetPinned() && existing.GetPinned() {
 			flow.SetPinned(true)
 		}
@@ -109,6 +120,7 @@ func (s *FlowStorage) SaveFlow(flow *mitmflowv1.Flow) error {
 	}
 
 	s.flows[id] = flow
+	s.updateSortedFlows(flow, isUpdate)
 
 	if err := s.saveToDisk(flow); err != nil {
 		return err
@@ -148,15 +160,29 @@ func (s *FlowStorage) DeleteFlows(ids []string) (int64, error) {
 	defer s.mu.Unlock()
 
 	var count int64
+	toDelete := make(map[string]bool)
 	for _, id := range ids {
 		if _, ok := s.flows[id]; ok {
 			delete(s.flows, id)
+			toDelete[id] = true
 			if err := os.Remove(filepath.Join(s.dir, id+".bin")); err != nil && !os.IsNotExist(err) {
 				log.Printf("failed to remove flow file %s: %v", id, err)
 			}
 			count++
 		}
 	}
+
+	if count > 0 {
+		newSortedFlows := make([]*mitmflowv1.Flow, 0, len(s.sortedFlows)-int(count))
+		for _, f := range s.sortedFlows {
+			id := getFlowID(f)
+			if !toDelete[id] {
+				newSortedFlows = append(newSortedFlows, f)
+			}
+		}
+		s.sortedFlows = newSortedFlows
+	}
+
 	return count, nil
 }
 
@@ -173,12 +199,25 @@ func (s *FlowStorage) DeleteAllFlows() (int64, error) {
 		}
 	}
 
+	toDelete := make(map[string]bool)
 	for _, id := range idsToDelete {
 		delete(s.flows, id)
+		toDelete[id] = true
 		if err := os.Remove(filepath.Join(s.dir, id+".bin")); err != nil && !os.IsNotExist(err) {
 			log.Printf("failed to remove flow file %s: %v", id, err)
 		}
 		deletedCount++
+	}
+
+	if deletedCount > 0 {
+		newSortedFlows := make([]*mitmflowv1.Flow, 0, len(s.sortedFlows)-int(deletedCount))
+		for _, f := range s.sortedFlows {
+			id := getFlowID(f)
+			if !toDelete[id] {
+				newSortedFlows = append(newSortedFlows, f)
+			}
+		}
+		s.sortedFlows = newSortedFlows
 	}
 
 	return deletedCount, nil
@@ -188,13 +227,8 @@ func (s *FlowStorage) GetFlows() []*mitmflowv1.Flow {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
-	flows := make([]*mitmflowv1.Flow, 0, len(s.flows))
-	for _, f := range s.flows {
-		flows = append(flows, f)
-	}
-	sort.Slice(flows, func(i, j int) bool {
-		return getFlowStartTime(flows[i]) < getFlowStartTime(flows[j])
-	})
+	flows := make([]*mitmflowv1.Flow, len(s.sortedFlows))
+	copy(flows, s.sortedFlows)
 
 	return flows
 }
@@ -211,31 +245,28 @@ func (s *FlowStorage) saveToDisk(flow *mitmflowv1.Flow) error {
 }
 
 func (s *FlowStorage) prune() {
-	// Collect unpinned flows
-	var unpinned []*mitmflowv1.Flow
-	for _, f := range s.flows {
-		if !f.GetPinned() {
-			unpinned = append(unpinned, f)
-		}
-	}
-
-	if len(unpinned) <= s.maxFlows {
+	if len(s.flows) <= s.maxFlows {
 		return
 	}
 
-	// Sort unpinned by timestamp (oldest first)
-	sort.Slice(unpinned, func(i, j int) bool {
-		return getFlowStartTime(unpinned[i]) < getFlowStartTime(unpinned[j])
-	})
+	toRemove := len(s.flows) - s.maxFlows
+	removedCount := 0
 
-	// Remove oldest
-	toRemoveCount := len(unpinned) - s.maxFlows
-	for i := 0; i < toRemoveCount; i++ {
-		f := unpinned[i]
-		id := getFlowID(f)
-		delete(s.flows, id)
-		os.Remove(filepath.Join(s.dir, id+".bin"))
+	// s.sortedFlows is sorted by timestamp (oldest first)
+	// We iterate and remove unpinned flows until we satisfy the limit
+	newSortedFlows := make([]*mitmflowv1.Flow, 0, len(s.sortedFlows))
+
+	for _, f := range s.sortedFlows {
+		if removedCount < toRemove && !f.GetPinned() {
+			id := getFlowID(f)
+			delete(s.flows, id)
+			os.Remove(filepath.Join(s.dir, id+".bin"))
+			removedCount++
+			continue
+		}
+		newSortedFlows = append(newSortedFlows, f)
 	}
+	s.sortedFlows = newSortedFlows
 }
 
 func getFlowID(flow *mitmflowv1.Flow) string {
@@ -279,4 +310,40 @@ func getFlowStartTime(flow *mitmflowv1.Flow) int64 {
 		}
 	}
 	return 0
+}
+
+func (s *FlowStorage) updateSortedFlows(flow *mitmflowv1.Flow, isUpdate bool) {
+	if isUpdate {
+		id := getFlowID(flow)
+		s.removeFromSortedFlows(id)
+	}
+	s.insertIntoSortedFlows(flow)
+}
+
+func (s *FlowStorage) removeFromSortedFlows(id string) {
+	for i, f := range s.sortedFlows {
+		if getFlowID(f) == id {
+			// Remove
+			s.sortedFlows = append(s.sortedFlows[:i], s.sortedFlows[i+1:]...)
+			return
+		}
+	}
+}
+
+func (s *FlowStorage) insertIntoSortedFlows(flow *mitmflowv1.Flow) {
+	newTime := getFlowStartTime(flow)
+	// Optimization: check last
+	if len(s.sortedFlows) == 0 || newTime >= getFlowStartTime(s.sortedFlows[len(s.sortedFlows)-1]) {
+		s.sortedFlows = append(s.sortedFlows, flow)
+		return
+	}
+
+	// Binary search
+	index := sort.Search(len(s.sortedFlows), func(i int) bool {
+		return getFlowStartTime(s.sortedFlows[i]) >= newTime
+	})
+
+	s.sortedFlows = append(s.sortedFlows, nil)           // Extend capacity
+	copy(s.sortedFlows[index+1:], s.sortedFlows[index:]) // Shift
+	s.sortedFlows[index] = flow
 }
