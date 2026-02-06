@@ -5,10 +5,12 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"runtime"
 	"sort"
 	"sync"
 
 	mitmflowv1 "github.com/sudorandom/mitmflow/gen/go/mitmflow/v1"
+	"golang.org/x/sync/errgroup"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -43,28 +45,43 @@ func (s *FlowStorage) loadFlows() error {
 		return fmt.Errorf("failed to read data directory: %w", err)
 	}
 
+	var mu sync.Mutex
+	g := new(errgroup.Group)
+	g.SetLimit(runtime.GOMAXPROCS(0) * 4)
+
 	for _, entry := range entries {
+		entry := entry
 		if entry.IsDir() || filepath.Ext(entry.Name()) != ".bin" {
 			continue
 		}
 
-		data, err := os.ReadFile(filepath.Join(s.dir, entry.Name()))
-		if err != nil {
-			log.Printf("failed to read flow file %s: %v", entry.Name(), err)
-			continue
-		}
+		g.Go(func() error {
+			data, err := os.ReadFile(filepath.Join(s.dir, entry.Name()))
+			if err != nil {
+				log.Printf("failed to read flow file %s: %v", entry.Name(), err)
+				return nil
+			}
 
-		flow := &mitmflowv1.Flow{}
-		if err := proto.Unmarshal(data, flow); err != nil {
-			log.Printf("failed to unmarshal flow file %s: %v", entry.Name(), err)
-			continue
-		}
+			flow := &mitmflowv1.Flow{}
+			if err := proto.Unmarshal(data, flow); err != nil {
+				log.Printf("failed to unmarshal flow file %s: %v", entry.Name(), err)
+				return nil
+			}
 
-		id := getFlowID(flow)
-		if id == "" {
-			continue
-		}
-		s.flows[id] = flow
+			id := getFlowID(flow)
+			if id == "" {
+				return nil
+			}
+
+			mu.Lock()
+			s.flows[id] = flow
+			mu.Unlock()
+			return nil
+		})
+	}
+
+	if err := g.Wait(); err != nil {
+		return err
 	}
 
 	s.prune()
