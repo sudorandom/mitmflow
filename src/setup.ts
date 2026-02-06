@@ -21,13 +21,13 @@ class WorkerMock {
   constructor(stringUrl: string) {
     this.url = stringUrl;
   }
-  postMessage(msg: any) {
+  postMessage(_msg: any) {
     // Mock implementation or ignore
   }
   terminate() {}
-  addEventListener(type: string, listener: EventListener) {}
-  removeEventListener(type: string, listener: EventListener) {}
-  dispatchEvent(event: Event): boolean { return true; }
+  addEventListener(_type: string, _listener: EventListener) {}
+  removeEventListener(_type: string, _listener: EventListener) {}
+  dispatchEvent(_event: Event): boolean { return true; }
 }
 
 global.Worker = WorkerMock as any;
