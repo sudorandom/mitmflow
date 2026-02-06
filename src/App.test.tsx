@@ -1,4 +1,4 @@
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, act } from '@testing-library/react';
 import { vi, test, expect } from 'vitest';
 import App from './App';
 import { createClient } from '@connectrpc/connect';
@@ -23,27 +23,30 @@ test('renders the main app component', () => {
 
 test('renders the details panel when a flow is selected', async () => {
     const mockFlow = {
-        flow: {
-            flow: {
-                case: 'httpFlow',
-                value: {
-                    id: '1',
-                    request: {
-                        method: 'GET',
-                        url: 'http://example.com',
-                        httpVersion: 'HTTP/1.1',
-                        headers: {},
-                        content: new Uint8Array(),
-                    },
-                    response: {
-                        statusCode: 200,
-                        httpVersion: 'HTTP/1.1',
-                        headers: {},
-                        content: new Uint8Array(),
+        response: {
+            case: 'flow',
+            value: {
+                flow: {
+                    case: 'httpFlow',
+                    value: {
+                        id: '1',
+                        request: {
+                            method: 'GET',
+                            url: 'http://example.com',
+                            httpVersion: 'HTTP/1.1',
+                            headers: {},
+                            content: new Uint8Array(),
+                        },
+                        response: {
+                            statusCode: 200,
+                            httpVersion: 'HTTP/1.1',
+                            headers: {},
+                            content: new Uint8Array(),
+                        },
                     },
                 },
-            },
-        },
+            }
+        }
     };
 
     mockedCreateClient.mockReturnValue({
@@ -68,27 +71,30 @@ test('renders the details panel when a flow is selected', async () => {
 
 test('details panel is focusable for keyboard scrolling', async () => {
     const mockFlow = {
-        flow: {
-            flow: {
-                case: 'httpFlow',
-                value: {
-                    id: '1',
-                    request: {
-                        method: 'GET',
-                        url: 'http://example.com',
-                        httpVersion: 'HTTP/1.1',
-                        headers: {},
-                        content: new Uint8Array(),
-                    },
-                    response: {
-                        statusCode: 200,
-                        httpVersion: 'HTTP/1.1',
-                        headers: {},
-                        content: new Uint8Array(),
+        response: {
+            case: 'flow',
+            value: {
+                flow: {
+                    case: 'httpFlow',
+                    value: {
+                        id: '1',
+                        request: {
+                            method: 'GET',
+                            url: 'http://example.com',
+                            httpVersion: 'HTTP/1.1',
+                            headers: {},
+                            content: new Uint8Array(),
+                        },
+                        response: {
+                            statusCode: 200,
+                            httpVersion: 'HTTP/1.1',
+                            headers: {},
+                            content: new Uint8Array(),
+                        },
                     },
                 },
-            },
-        },
+            }
+        }
     };
 
     mockedCreateClient.mockReturnValue({
@@ -124,27 +130,30 @@ test('details panel is focusable for keyboard scrolling', async () => {
 
 test('adds flows to the list', async () => {
     const mockFlow = {
-        flow: {
-            flow: {
-                case: 'httpFlow',
-                value: {
-                    id: '1',
-                    request: {
-                        method: 'GET',
-                        url: 'http://example.com',
-                        httpVersion: 'HTTP/1.1',
-                        headers: {},
-                        content: new Uint8Array(),
-                    },
-                    response: {
-                        statusCode: 200,
-                        httpVersion: 'HTTP/1.1',
-                        headers: {},
-                        content: new Uint8Array(),
+        response: {
+            case: 'flow',
+            value: {
+                flow: {
+                    case: 'httpFlow',
+                    value: {
+                        id: '1',
+                        request: {
+                            method: 'GET',
+                            url: 'http://example.com',
+                            httpVersion: 'HTTP/1.1',
+                            headers: {},
+                            content: new Uint8Array(),
+                        },
+                        response: {
+                            statusCode: 200,
+                            httpVersion: 'HTTP/1.1',
+                            headers: {},
+                            content: new Uint8Array(),
+                        },
                     },
                 },
-            },
-        },
+            }
+        }
     };
 
     mockedCreateClient.mockReturnValue({

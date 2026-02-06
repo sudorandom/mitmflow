@@ -10,10 +10,13 @@ import (
 	"log"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
 	"sync"
+	"time"
 
 	"connectrpc.com/connect"
+	"connectrpc.com/validate"
 	"github.com/gabriel-vasile/mimetype"
 	"github.com/google/uuid"
 	"github.com/protocolbuffers/protoscope"
@@ -41,11 +44,11 @@ type MITMFlowServer struct {
 	storage     *FlowStorage
 }
 
-func NewMITMFlowServer(storage *FlowStorage) *MITMFlowServer {
+func NewMITMFlowServer(storage *FlowStorage) (*MITMFlowServer, error) {
 	return &MITMFlowServer{
 		subscribers: make(map[string]chan *mitmflowv1.Flow),
 		storage:     storage,
-	}
+	}, nil
 }
 
 func (s *MITMFlowServer) ExportFlow(
@@ -104,7 +107,8 @@ func (s *MITMFlowServer) StreamFlows(
 	req *connect.Request[mitmflowv1.StreamFlowsRequest],
 	stream *connect.ServerStream[mitmflowv1.StreamFlowsResponse],
 ) error {
-	ch := make(chan *mitmflowv1.Flow, 50)
+	// Increased buffer size to prevent blocking/dropping during heavy load or history iteration
+	ch := make(chan *mitmflowv1.Flow, 500)
 	id := uuid.New().String()
 	s.mu.RLock()
 	s.subscribers[id] = ch
@@ -117,26 +121,367 @@ func (s *MITMFlowServer) StreamFlows(
 		close(ch)
 	}()
 
+	flows := s.storage.GetFlows()
 	sinceNs := req.Msg.GetSinceTimestampNs()
-	for _, flow := range s.storage.GetFlows() {
-		if sinceNs > 0 && GetFlowStartTime(flow) <= sinceNs {
-			continue
+
+	sendFlow := func(flow *mitmflowv1.Flow) error {
+		builder := mitmflowv1.StreamFlowsResponse_builder{
+			Flow: flow,
 		}
-		if err := stream.Send(mitmflowv1.StreamFlowsResponse_builder{Flow: flow}.Build()); err != nil {
-			return err
+		return stream.Send(builder.Build())
+	}
+
+	// Helper to drain the channel of any new flows that arrived while we were processing history
+	drainChannel := func() error {
+		for {
+			select {
+			case flow := <-ch:
+				if !matchFlow(flow, req.Msg) {
+					continue
+				}
+				if err := sendFlow(flow); err != nil {
+					return err
+				}
+			default:
+				return nil
+			}
 		}
 	}
+
+	if req.Msg.GetReverseOrder() {
+		// Iterate backwards
+		for i := len(flows) - 1; i >= 0; i-- {
+			// Periodically check context and drain channel
+			if i%10 == 0 {
+				if ctx.Err() != nil {
+					return nil
+				}
+				if err := drainChannel(); err != nil {
+					return err
+				}
+			}
+
+			flow := flows[i]
+			if sinceNs > 0 && GetFlowStartTime(flow) <= sinceNs {
+				continue
+			}
+			if !matchFlow(flow, req.Msg) {
+				continue
+			}
+			if err := sendFlow(flow); err != nil {
+				return err
+			}
+		}
+	} else {
+		for i, flow := range flows {
+			// Periodically check context and drain channel
+			if i%10 == 0 {
+				if ctx.Err() != nil {
+					return nil
+				}
+				if err := drainChannel(); err != nil {
+					return err
+				}
+			}
+
+			if sinceNs > 0 && GetFlowStartTime(flow) <= sinceNs {
+				continue
+			}
+			if !matchFlow(flow, req.Msg) {
+				continue
+			}
+			if err := sendFlow(flow); err != nil {
+				return err
+			}
+		}
+	}
+
+	// Ensure any remaining flows in channel are sent before sending HISTORY_DONE
+	if err := drainChannel(); err != nil {
+		return err
+	}
+
+	// Send HISTORY_DONE event
+	eventType := mitmflowv1.StreamEvent_TYPE_HISTORY_DONE
+	event := mitmflowv1.StreamEvent_builder{
+		Type: &eventType,
+	}.Build()
+	eventBuilder := mitmflowv1.StreamFlowsResponse_builder{
+		Event: event,
+	}
+	err := stream.Send(eventBuilder.Build())
+	if err != nil {
+		return err
+	}
+
+	// Live streaming loop
+	ticker := time.NewTicker(100 * time.Millisecond)
+	defer ticker.Stop()
 
 	for {
 		select {
 		case <-ctx.Done():
 			return nil
 		case flow := <-ch:
-			if err := stream.Send(mitmflowv1.StreamFlowsResponse_builder{Flow: flow}.Build()); err != nil {
+			if !matchFlow(flow, req.Msg) {
+				continue
+			}
+			if err := sendFlow(flow); err != nil {
 				return err
+			}
+		case <-ticker.C:
+			// Just to ensure we check ctx.Done regularly if channel is empty, though select handles it.
+		}
+	}
+}
+
+func matchFlow(flow *mitmflowv1.Flow, filter *mitmflowv1.StreamFlowsRequest) bool {
+	if filter.GetPinnedOnly() && !flow.GetPinned() {
+		return false
+	}
+	if filter.GetHasNote() && flow.GetNote() == "" {
+		return false
+	}
+
+	// Text Filter
+	filterText := strings.ToLower(filter.GetFilterText())
+	if filterText != "" {
+		isMatch := false
+		var clientIp, serverIp string
+		var note string = flow.GetNote()
+
+		if f := flow.GetHttpFlow(); f != nil {
+			clientIp = f.GetClient().GetPeernameHost()
+			serverIp = f.GetServer().GetAddressHost()
+		} else if f := flow.GetTcpFlow(); f != nil {
+			clientIp = f.GetClient().GetPeernameHost()
+			serverIp = f.GetServer().GetAddressHost()
+		} else if f := flow.GetUdpFlow(); f != nil {
+			clientIp = f.GetClient().GetPeernameHost()
+			serverIp = f.GetServer().GetAddressHost()
+		} else if f := flow.GetDnsFlow(); f != nil {
+			clientIp = f.GetClient().GetPeernameHost()
+			serverIp = f.GetServer().GetAddressHost()
+		}
+
+		commonMatch := strings.Contains(strings.ToLower(clientIp), filterText) ||
+			strings.Contains(strings.ToLower(serverIp), filterText) ||
+			strings.Contains(strings.ToLower(note), filterText)
+
+		if commonMatch {
+			isMatch = true
+		} else {
+			if f := flow.GetHttpFlow(); f != nil {
+				url := f.GetRequest().GetPrettyUrl()
+				if url == "" {
+					url = f.GetRequest().GetUrl()
+				}
+				method := f.GetRequest().GetMethod()
+				statusCode := f.GetResponse().GetStatusCode()
+				sni := f.GetClient().GetSni()
+
+				metaText := strings.ToLower(fmt.Sprintf("%s %s %d %s", url, method, statusCode, sni))
+				if strings.Contains(metaText, filterText) {
+					isMatch = true
+				} else {
+					// Body check
+					// Check textual frames
+					if hasText(flow.GetHttpFlowExtra().GetRequest().GetTextualFrames(), filterText) {
+						isMatch = true
+					} else if hasText(flow.GetHttpFlowExtra().GetResponse().GetTextualFrames(), filterText) {
+						isMatch = true
+					} else {
+						// Content check
+						// Simple check on raw bytes as string
+						if strings.Contains(strings.ToLower(string(f.GetRequest().GetContent())), filterText) {
+							isMatch = true
+						} else if strings.Contains(strings.ToLower(string(f.GetResponse().GetContent())), filterText) {
+							isMatch = true
+						}
+						// Websocket messages
+						for _, msg := range f.GetWebsocketMessages() {
+							if strings.Contains(strings.ToLower(string(msg.GetContent())), filterText) {
+								isMatch = true
+								break
+							}
+						}
+					}
+				}
+			} else if f := flow.GetDnsFlow(); f != nil {
+				if len(f.GetRequest().GetQuestions()) > 0 {
+					name := f.GetRequest().GetQuestions()[0].GetName()
+					if strings.Contains(strings.ToLower(name), filterText) {
+						isMatch = true
+					}
+				}
+			} else if f := flow.GetTcpFlow(); f != nil {
+				server := f.GetServer()
+				text := strings.ToLower(fmt.Sprintf("%s:%d", server.GetAddressHost(), server.GetAddressPort()))
+				if strings.Contains(text, filterText) {
+					isMatch = true
+				}
+			} else if f := flow.GetUdpFlow(); f != nil {
+				server := f.GetServer()
+				text := strings.ToLower(fmt.Sprintf("%s:%d", server.GetAddressHost(), server.GetAddressPort()))
+				if strings.Contains(text, filterText) {
+					isMatch = true
+				}
+			}
+		}
+		if !isMatch {
+			return false
+		}
+	}
+
+	// Client IP Filter
+	if len(filter.GetClientIps()) > 0 {
+		var clientIp string
+		if f := flow.GetHttpFlow(); f != nil {
+			clientIp = f.GetClient().GetPeernameHost()
+		} else if f := flow.GetTcpFlow(); f != nil {
+			clientIp = f.GetClient().GetPeernameHost()
+		} else if f := flow.GetUdpFlow(); f != nil {
+			clientIp = f.GetClient().GetPeernameHost()
+		} else if f := flow.GetDnsFlow(); f != nil {
+			clientIp = f.GetClient().GetPeernameHost()
+		}
+
+		found := false
+		for _, ip := range filter.GetClientIps() {
+			if ip == clientIp {
+				found = true
+				break
+			}
+		}
+		if !found {
+			return false
+		}
+	}
+
+	// Flow Type Filter
+	if len(filter.GetFlowTypes()) > 0 {
+		var flowType string
+		isDnsMessage := false
+
+		if f := flow.GetHttpFlow(); f != nil {
+			reqCt := flow.GetHttpFlowExtra().GetRequest().GetEffectiveContentType()
+			resCt := flow.GetHttpFlowExtra().GetResponse().GetEffectiveContentType()
+			if reqCt == "application/dns-message" || resCt == "application/dns-message" {
+				isDnsMessage = true
+			}
+			flowType = "http"
+		} else if flow.GetTcpFlow() != nil {
+			flowType = "tcp"
+		} else if flow.GetUdpFlow() != nil {
+			flowType = "udp"
+		} else if flow.GetDnsFlow() != nil {
+			flowType = "dns"
+		}
+
+		if isDnsMessage {
+			flowType = "dns"
+		}
+
+		found := false
+		for _, t := range filter.GetFlowTypes() {
+			if t == flowType {
+				found = true
+				break
+			}
+		}
+		if !found {
+			return false
+		}
+	}
+
+	// HTTP Specific Filters
+	if filter.GetHttp() != nil {
+		httpFlow := flow.GetHttpFlow()
+		if httpFlow == nil {
+			// If we have HTTP filters but it's not an HTTP flow, it shouldn't match?
+			// Usually yes, unless we treat filters as OR? But usually it is AND.
+			// But if flowType didn't filter it out, maybe we shouldn't apply http filters to non-http?
+			// However, if I ask for "method=GET", I probably don't want TCP flows.
+			return false
+		}
+		httpFilter := filter.GetHttp()
+
+		// Method
+		if len(httpFilter.GetMethods()) > 0 {
+			found := false
+			method := httpFlow.GetRequest().GetMethod()
+			for _, m := range httpFilter.GetMethods() {
+				if m == method {
+					found = true
+					break
+				}
+			}
+			if !found {
+				return false
+			}
+		}
+
+		// Status Codes
+		if len(httpFilter.GetStatusCodes()) > 0 {
+			statusCode := int(httpFlow.GetResponse().GetStatusCode())
+			found := false
+			for _, sc := range httpFilter.GetStatusCodes() {
+				if strings.HasSuffix(sc, "xx") {
+					prefix := sc[:1]
+					if strings.HasPrefix(strconv.Itoa(statusCode), prefix) {
+						found = true
+						break
+					}
+				} else if strings.Contains(sc, "-") {
+					parts := strings.Split(sc, "-")
+					if len(parts) == 2 {
+						start, _ := strconv.Atoi(parts[0])
+						end, _ := strconv.Atoi(parts[1])
+						if statusCode >= start && statusCode <= end {
+							found = true
+							break
+						}
+					}
+				} else {
+					code, _ := strconv.Atoi(sc)
+					if statusCode == code {
+						found = true
+						break
+					}
+				}
+			}
+			if !found {
+				return false
+			}
+		}
+
+		// Content Types
+		if len(httpFilter.GetContentTypes()) > 0 {
+			reqCt := flow.GetHttpFlowExtra().GetRequest().GetEffectiveContentType()
+			resCt := flow.GetHttpFlowExtra().GetResponse().GetEffectiveContentType()
+			found := false
+			for _, ct := range httpFilter.GetContentTypes() {
+				if strings.Contains(reqCt, ct) || strings.Contains(resCt, ct) {
+					found = true
+					break
+				}
+			}
+			if !found {
+				return false
 			}
 		}
 	}
+
+	return true
+}
+
+func hasText(list []string, sub string) bool {
+	for _, s := range list {
+		if strings.Contains(strings.ToLower(s), sub) {
+			return true
+		}
+	}
+	return false
 }
 
 func (s *MITMFlowServer) UpdateFlow(
@@ -335,10 +680,15 @@ func main() {
 		log.Fatalf("failed to initialize storage: %v", err)
 	}
 
+	server, err := NewMITMFlowServer(storage)
+	if err != nil {
+		log.Fatalf("failed to initialize server: %v", err)
+	}
+
 	mux := http.NewServeMux()
-	server := NewMITMFlowServer(storage)
-	mux.Handle(mitmflowv1.NewServiceHandler(server))
-	mux.Handle(mitmproxygrpcv1.NewServiceHandler(server))
+	interceptors := connect.WithInterceptors(validate.NewInterceptor())
+	mux.Handle(mitmflowv1.NewServiceHandler(server, interceptors))
+	mux.Handle(mitmproxygrpcv1.NewServiceHandler(server, interceptors))
 
 	log.Printf("Starting server on %s", *addr)
 

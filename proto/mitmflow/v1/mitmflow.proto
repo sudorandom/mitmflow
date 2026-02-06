@@ -3,6 +3,7 @@ edition = "2023";
 package mitmflow.v1;
 
 import "mitmproxygrpc/v1/service.proto";
+import "buf/validate/validate.proto";
 
 service Service {
   rpc StreamFlows(StreamFlowsRequest) returns (stream StreamFlowsResponse) {}
@@ -12,10 +13,47 @@ service Service {
 
 message StreamFlowsRequest {
   int64 since_timestamp_ns = 1;
+  string filter_text = 2;
+  bool pinned_only = 3;
+  bool has_note = 4;
+  repeated string flow_types = 5 [
+    (buf.validate.field).repeated.items.string = {
+      in: ["http", "dns", "tcp", "udp"]
+    }
+  ];
+  repeated string client_ips = 6 [
+    (buf.validate.field).repeated.items.string.ip = true
+  ];
+  HttpFilter http = 7;
+  bool reverse_order = 8;
+}
+
+message HttpFilter {
+  repeated string methods = 1 [
+    (buf.validate.field).repeated.items.string = {
+      pattern: "^[A-Z]+$",
+      max_len: 20
+    }
+  ];
+  // e.g. "application/json", "text/html"
+  repeated string content_types = 2;
+  // e.g. "200", "4xx", "200-299"
+  repeated string status_codes = 3;
 }
 
 message StreamFlowsResponse {
-  Flow flow = 1;
+  oneof response {
+    Flow flow = 1;
+    StreamEvent event = 2;
+  }
+}
+
+message StreamEvent {
+  enum Type {
+    TYPE_UNSPECIFIED = 0;
+    TYPE_HISTORY_DONE = 1;
+  }
+  Type type = 1;
 }
 
 message UpdateFlowRequest {

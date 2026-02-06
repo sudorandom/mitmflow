@@ -2,7 +2,7 @@
 // @generated from file mitmflow/v1/mitmflow.proto (package mitmflow.v1, edition 2023)
 /* eslint-disable */
 
-import type { GenFile, GenMessage, GenService } from "@bufbuild/protobuf/codegenv2";
+import type { GenEnum, GenFile, GenMessage, GenService } from "@bufbuild/protobuf/codegenv2";
 import type { Message } from "@bufbuild/protobuf";
 import type { DNSFlow, HTTPFlow, TCPFlow, UDPFlow } from "../../mitmproxygrpc/v1/service_pb";
 
@@ -19,6 +19,41 @@ export declare type StreamFlowsRequest = Message<"mitmflow.v1.StreamFlowsRequest
    * @generated from field: int64 since_timestamp_ns = 1;
    */
   sinceTimestampNs: bigint;
+
+  /**
+   * @generated from field: string filter_text = 2;
+   */
+  filterText: string;
+
+  /**
+   * @generated from field: bool pinned_only = 3;
+   */
+  pinnedOnly: boolean;
+
+  /**
+   * @generated from field: bool has_note = 4;
+   */
+  hasNote: boolean;
+
+  /**
+   * @generated from field: repeated string flow_types = 5;
+   */
+  flowTypes: string[];
+
+  /**
+   * @generated from field: repeated string client_ips = 6;
+   */
+  clientIps: string[];
+
+  /**
+   * @generated from field: mitmflow.v1.HttpFilter http = 7;
+   */
+  http?: HttpFilter;
+
+  /**
+   * @generated from field: bool reverse_order = 8;
+   */
+  reverseOrder: boolean;
 };
 
 /**
@@ -28,13 +63,55 @@ export declare type StreamFlowsRequest = Message<"mitmflow.v1.StreamFlowsRequest
 export declare const StreamFlowsRequestSchema: GenMessage<StreamFlowsRequest>;
 
 /**
+ * @generated from message mitmflow.v1.HttpFilter
+ */
+export declare type HttpFilter = Message<"mitmflow.v1.HttpFilter"> & {
+  /**
+   * @generated from field: repeated string methods = 1;
+   */
+  methods: string[];
+
+  /**
+   * e.g. "application/json", "text/html"
+   *
+   * @generated from field: repeated string content_types = 2;
+   */
+  contentTypes: string[];
+
+  /**
+   * e.g. "200", "4xx", "200-299"
+   *
+   * @generated from field: repeated string status_codes = 3;
+   */
+  statusCodes: string[];
+};
+
+/**
+ * Describes the message mitmflow.v1.HttpFilter.
+ * Use `create(HttpFilterSchema)` to create a new message.
+ */
+export declare const HttpFilterSchema: GenMessage<HttpFilter>;
+
+/**
  * @generated from message mitmflow.v1.StreamFlowsResponse
  */
 export declare type StreamFlowsResponse = Message<"mitmflow.v1.StreamFlowsResponse"> & {
   /**
-   * @generated from field: mitmflow.v1.Flow flow = 1;
+   * @generated from oneof mitmflow.v1.StreamFlowsResponse.response
    */
-  flow?: Flow;
+  response: {
+    /**
+     * @generated from field: mitmflow.v1.Flow flow = 1;
+     */
+    value: Flow;
+    case: "flow";
+  } | {
+    /**
+     * @generated from field: mitmflow.v1.StreamEvent event = 2;
+     */
+    value: StreamEvent;
+    case: "event";
+  } | { case: undefined; value?: undefined };
 };
 
 /**
@@ -42,6 +119,42 @@ export declare type StreamFlowsResponse = Message<"mitmflow.v1.StreamFlowsRespon
  * Use `create(StreamFlowsResponseSchema)` to create a new message.
  */
 export declare const StreamFlowsResponseSchema: GenMessage<StreamFlowsResponse>;
+
+/**
+ * @generated from message mitmflow.v1.StreamEvent
+ */
+export declare type StreamEvent = Message<"mitmflow.v1.StreamEvent"> & {
+  /**
+   * @generated from field: mitmflow.v1.StreamEvent.Type type = 1;
+   */
+  type: StreamEvent_Type;
+};
+
+/**
+ * Describes the message mitmflow.v1.StreamEvent.
+ * Use `create(StreamEventSchema)` to create a new message.
+ */
+export declare const StreamEventSchema: GenMessage<StreamEvent>;
+
+/**
+ * @generated from enum mitmflow.v1.StreamEvent.Type
+ */
+export enum StreamEvent_Type {
+  /**
+   * @generated from enum value: TYPE_UNSPECIFIED = 0;
+   */
+  UNSPECIFIED = 0,
+
+  /**
+   * @generated from enum value: TYPE_HISTORY_DONE = 1;
+   */
+  HISTORY_DONE = 1,
+}
+
+/**
+ * Describes the enum mitmflow.v1.StreamEvent.Type.
+ */
+export declare const StreamEvent_TypeSchema: GenEnum<StreamEvent_Type>;
 
 /**
  * @generated from message mitmflow.v1.UpdateFlowRequest
