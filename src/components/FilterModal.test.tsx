@@ -6,6 +6,7 @@ import FilterModal from './FilterModal';
 const mockSetPinnedOnly = vi.fn();
 const mockSetHasNote = vi.fn();
 const mockSetFlowTypes = vi.fn();
+const mockSetClientIps = vi.fn();
 const mockSetHttpMethods = vi.fn();
 const mockSetHttpStatusCodes = vi.fn();
 const mockSetHttpContentTypes = vi.fn();
@@ -20,6 +21,8 @@ vi.mock('../store', () => ({
     setHasNote: mockSetHasNote,
     flowTypes: [],
     setFlowTypes: mockSetFlowTypes,
+    clientIps: [],
+    setClientIps: mockSetClientIps,
     http: {
         methods: [],
         statusCodes: [],
@@ -38,7 +41,7 @@ describe('FilterModal', () => {
   });
 
   test('does not update pinnedOnly immediately', () => {
-    render(<FilterModal isOpen={true} onClose={() => {}} />);
+    render(<FilterModal isOpen={true} onClose={() => {}} uniqueClientIps={[]} />);
 
     // Select by index or assuming structure.
     // "Pinned Only" is the first checkbox.
@@ -52,7 +55,7 @@ describe('FilterModal', () => {
 
   test('updates pinnedOnly on Apply', () => {
     const handleClose = vi.fn();
-    render(<FilterModal isOpen={true} onClose={handleClose} />);
+    render(<FilterModal isOpen={true} onClose={handleClose} uniqueClientIps={[]} />);
 
     const checkboxes = screen.getAllByRole('checkbox');
     const pinnedCheckbox = checkboxes[0];
@@ -67,7 +70,7 @@ describe('FilterModal', () => {
 
   test('cancels changes on Close (X button)', () => {
       const handleClose = vi.fn();
-      render(<FilterModal isOpen={true} onClose={handleClose} />);
+      render(<FilterModal isOpen={true} onClose={handleClose} uniqueClientIps={[]} />);
 
       const checkboxes = screen.getAllByRole('checkbox');
       const pinnedCheckbox = checkboxes[0];
@@ -93,7 +96,7 @@ describe('FilterModal', () => {
     // Current behavior: Clear All calls clearFilters() immediately and closes.
     // Desired behavior: Clear All resets local state, user must click Apply.
 
-    render(<FilterModal isOpen={true} onClose={() => {}} />);
+    render(<FilterModal isOpen={true} onClose={() => {}} uniqueClientIps={[]} />);
     const clearButton = screen.getByRole('button', { name: /clear all/i });
     fireEvent.click(clearButton);
 

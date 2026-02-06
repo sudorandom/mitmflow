@@ -56,7 +56,7 @@ interface FilterModalProps {
   uniqueClientIps: string[];
 }
 
-const FilterModal: React.FC<FilterModalProps> = ({ isOpen, onClose, uniqueClientIps }) => {
+const FilterModal: React.FC<FilterModalProps> = ({ isOpen, onClose, uniqueClientIps = [] }) => {
   const store = useFilterStore();
 
   // Local state for all filters
