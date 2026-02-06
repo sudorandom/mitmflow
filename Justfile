@@ -38,4 +38,9 @@ fauxrpc: schema-image
         --stubs=stubs/output
 
 fauxrpc-client: schema-image
-    ./send_test_flows.sh 0.1
+    fauxrpc curl \
+        --http2-prior-knowledge \
+        --schema=schema.binpb \
+        --stubs=stubs/input/mixed.yaml \
+        -a http://127.0.0.1:50051 \
+        mitmproxy.v1.Service/ExportFlow

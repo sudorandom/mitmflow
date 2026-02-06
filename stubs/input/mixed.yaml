@@ -1,7 +1,7 @@
 # yaml-language-server: $schema=https://raw.githubusercontent.com/sudorandom/fauxrpc/refs/heads/main/stubs.schema.json
 stubs:
-- id: mixed-stream
-  target: mitmflow.v1.Service/StreamFlows
+- id: mixed-input-stream
+  target: mitmproxy.v1.ExportFlowRequest
   stream:
     repeated: true
     items:
@@ -9,6 +9,7 @@ stubs:
       - delay: 50ms
         cel_content: |
           {
+            "event_type": "EVENT_TYPE_REQUEST",
             "flow": {
               "http_flow": {
                 "id": fake_uuid(),
@@ -36,6 +37,7 @@ stubs:
       - delay: 50ms
         cel_content: |
           {
+            "event_type": "EVENT_TYPE_REQUEST",
             "flow": {
               "http_flow": {
                 "id": fake_uuid(),
@@ -62,6 +64,7 @@ stubs:
       - delay: 50ms
         cel_content: |
           {
+            "event_type": "EVENT_TYPE_REQUEST",
             "flow": {
               "http_flow": {
                 "id": fake_uuid(),
@@ -84,34 +87,11 @@ stubs:
               }
             }
           }
-      # SVG
-      - delay: 50ms
-        cel_content: |
-          {
-            "flow": {
-              "http_flow": {
-                "id": fake_uuid(),
-                "request": {
-                  "method": fake_http_method(),
-                  "url": fake_url()+'.svg',
-                  "headers": { "User-Agent": fake_user_agent() }
-                },
-                "response": {
-                  "status_code": fake_http_status_code(),
-                  "headers": { "Content-Type": "image/svg+xml", "Server": fake_product_name() },
-                  "content": b'<svg height="100" width="100" xmlns="http://www.w3.org/2000/svg"><circle cx="50" cy="50" r="40" stroke="black" stroke-width="3" fill="red" /></svg>'
-                },
-                "timestamp_start": now,
-                "duration_ms": fake_float32(),
-                "client": { "peername_host": fake_i_pv4_address(), "peername_port": fake_int8(), "sockname_host": fake_i_pv4_address(), "sockname_port": fake_int8(), "id": fake_uuid() },
-                "server": { "peername_host": fake_i_pv4_address(), "peername_port": fake_int8(), "sockname_host": fake_i_pv4_address(), "sockname_port": fake_int8(), "id": fake_uuid() }
-              }
-            }
-          }
       # GRPC
       - delay: 50ms
         cel_content: |
           {
+            "event_type": "EVENT_TYPE_REQUEST",
             "flow": {
               "http_flow": {
                 "id": fake_uuid(),
@@ -131,13 +111,6 @@ stubs:
                 "duration_ms": fake_float32(),
                 "client": { "peername_host": fake_i_pv4_address(), "peername_port": fake_int8(), "sockname_host": fake_i_pv4_address(), "sockname_port": fake_int8(), "id": fake_uuid() },
                 "server": { "peername_host": fake_i_pv4_address(), "peername_port": fake_int8(), "sockname_host": fake_i_pv4_address(), "sockname_port": fake_int8(), "id": fake_uuid() }
-              },
-              "http_flow_extra": {
-                "response": {
-                  "textual_frames": [
-                    '1: {\n  1: {"type.googleapis.com/proto3.TestMessage"}\n  2: {`1005420e65787065637465645f76616c756500000000`}\n}'
-                  ]
-                }
               }
             }
           }
@@ -145,12 +118,13 @@ stubs:
       - delay: 50ms
         cel_content: |
           {
+            "event_type": "EVENT_TYPE_REQUEST",
             "flow": {
               "tcp_flow": {
                 "id": fake_uuid(),
                 "messages": [
-                  { "content": base64.encode(b'Hello, server!'), "from_client": true, "timestamp": fake_date() },
-                  { "content": base64.encode(b'Hello, client!'), "from_client": false, "timestamp": fake_date() }
+                  { "content": base64.encode(b'Hello, server!'), "from_client": true, "timestamp": now },
+                  { "content": base64.encode(b'Hello, client!'), "from_client": false, "timestamp": now }
                 ],
                 "timestamp_start": now,
                 "duration_ms": fake_float32(),
@@ -163,6 +137,7 @@ stubs:
       - delay: 50ms
         cel_content: |
           {
+            "event_type": "EVENT_TYPE_REQUEST",
             "flow": {
               "http_flow": {
                 "id": fake_uuid(),
@@ -179,8 +154,8 @@ stubs:
                 },
                 "is_websocket": true,
                 "websocket_messages": [
-                  { "content": base64.encode(b'Hello, server!'), "from_client": true, "timestamp": fake_date() },
-                  { "content": base64.encode(b'Hello, client!'), "from_client": false, "timestamp": fake_date() }
+                  { "content": base64.encode(b'Hello, server!'), "from_client": true, "timestamp": now },
+                  { "content": base64.encode(b'Hello, client!'), "from_client": false, "timestamp": now }
                 ],
                 "timestamp_start": now,
                 "duration_ms": fake_float32(),

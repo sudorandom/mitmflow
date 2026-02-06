@@ -4,4 +4,4 @@ just = "1.42.4"
 node = "20"
 pnpm = "10.15"
 
-"go:github.com/sudorandom/fauxrpc/cmd/fauxrpc" = "v0.18.1"
+"go:github.com/sudorandom/fauxrpc/cmd/fauxrpc" = "v0.19.1"
