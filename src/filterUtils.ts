@@ -13,6 +13,18 @@ export interface FilterConfig {
   };
 }
 
+const textDecoder = new TextDecoder();
+const decodedCache = new WeakMap<Uint8Array, string>();
+
+function getDecodedContent(content: Uint8Array): string {
+    let text = decodedCache.get(content);
+    if (text === undefined) {
+        text = textDecoder.decode(content).toLowerCase();
+        decodedCache.set(content, text);
+    }
+    return text;
+}
+
 export const isFlowMatch = (flow: Flow, filter: FilterConfig): boolean => {
   if (!flow.flow) return false;
 
@@ -61,11 +73,11 @@ export const isFlowMatch = (flow: Flow, filter: FilterConfig): boolean => {
 
                         // Regular body check
                         if (!isMatch && httpFlow.request?.content && httpFlow.request.content.length > 0) {
-                            const reqBody = new TextDecoder().decode(httpFlow.request.content).toLowerCase();
+                            const reqBody = getDecodedContent(httpFlow.request.content);
                             if (reqBody.includes(filterText)) isMatch = true;
                         }
                         if (!isMatch && httpFlow.response?.content && httpFlow.response.content.length > 0) {
-                            const resBody = new TextDecoder().decode(httpFlow.response.content).toLowerCase();
+                            const resBody = getDecodedContent(httpFlow.response.content);
                             if (resBody.includes(filterText)) isMatch = true;
                         }
 
@@ -73,7 +85,7 @@ export const isFlowMatch = (flow: Flow, filter: FilterConfig): boolean => {
                         if (!isMatch && httpFlow.websocketMessages && httpFlow.websocketMessages.length > 0) {
                             for (const msg of httpFlow.websocketMessages) {
                                 if (msg.content && msg.content.length > 0) {
-                                    const msgText = new TextDecoder().decode(msg.content).toLowerCase();
+                                    const msgText = getDecodedContent(msg.content);
                                     if (msgText.includes(filterText)) {
                                         isMatch = true;
                                         break;
