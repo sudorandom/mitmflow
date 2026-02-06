@@ -119,7 +119,7 @@ func (s *MITMFlowServer) StreamFlows(
 
 	sinceNs := req.Msg.GetSinceTimestampNs()
 	for _, flow := range s.storage.GetFlows() {
-		if sinceNs > 0 && getFlowStartTime(flow) <= sinceNs {
+		if sinceNs > 0 && GetFlowStartTime(flow) <= sinceNs {
 			continue
 		}
 		if err := stream.Send(mitmflowv1.StreamFlowsResponse_builder{Flow: flow}.Build()); err != nil {
