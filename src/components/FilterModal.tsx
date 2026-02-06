@@ -78,8 +78,7 @@ const FilterModal: React.FC<FilterModalProps> = ({ isOpen, onClose }) => {
       setStatusCodes(store.http.statusCodes);
       setContentTypes(store.http.contentTypes);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isOpen]);
+  }, [isOpen, store]);
 
   // Only close on Escape if modal is open and focused
   useEffect(() => {
