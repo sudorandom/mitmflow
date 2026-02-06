@@ -131,9 +131,9 @@ func (s *memoryStore) Prune(maxSize int) []string {
 	removedCount := 0
 	var deleted []string
 
-	newSortedFlows := make([]*mitmflowv1.Flow, 0, len(s.sortedFlows))
-
-	for _, f := range s.sortedFlows {
+	// Filter in-place to avoid allocating a new slice
+	newLen := 0
+	for i, f := range s.sortedFlows {
 		if removedCount < toRemove && !f.GetPinned() {
 			id := GetFlowID(f)
 			delete(s.flows, id)
@@ -141,9 +141,19 @@ func (s *memoryStore) Prune(maxSize int) []string {
 			removedCount++
 			continue
 		}
-		newSortedFlows = append(newSortedFlows, f)
+
+		if newLen != i {
+			s.sortedFlows[newLen] = f
+		}
+		newLen++
 	}
-	s.sortedFlows = newSortedFlows
+
+	// Nil out the remaining elements to avoid memory leaks
+	for i := newLen; i < len(s.sortedFlows); i++ {
+		s.sortedFlows[i] = nil
+	}
+
+	s.sortedFlows = s.sortedFlows[:newLen]
 	return deleted
 }
 
