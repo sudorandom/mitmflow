@@ -78,7 +78,7 @@ const FilterModal: React.FC<FilterModalProps> = ({ isOpen, onClose }) => {
       setStatusCodes(store.http.statusCodes);
       setContentTypes(store.http.contentTypes);
     }
-  }, [isOpen, store]);
+  }, [isOpen]);
 
   // Only close on Escape if modal is open and focused
   useEffect(() => {
