@@ -45,9 +45,9 @@ func TestFlowStorage_SortOrder(t *testing.T) {
 
 	flows := s.GetFlows()
 	assert.Equal(t, 3, len(flows))
-	assert.Equal(t, "1", getFlowID(flows[0]))
-	assert.Equal(t, "2", getFlowID(flows[1]))
-	assert.Equal(t, "3", getFlowID(flows[2]))
+	assert.Equal(t, "1", GetFlowID(flows[0]))
+	assert.Equal(t, "2", GetFlowID(flows[1]))
+	assert.Equal(t, "3", GetFlowID(flows[2]))
 }
 
 func TestFlowStorage_Prune(t *testing.T) {
@@ -76,7 +76,7 @@ func TestFlowStorage_Prune(t *testing.T) {
 	// We check timestamp, but simpler is to check IDs.
 	// First 3 IDs were random. Last is "new".
 	// The 0th ID should be gone.
-	assert.Equal(t, "new", getFlowID(flows[2]))
+	assert.Equal(t, "new", GetFlowID(flows[2]))
 }
 
 func TestFlowStorage_PrunePinned(t *testing.T) {
@@ -112,7 +112,7 @@ func TestFlowStorage_PrunePinned(t *testing.T) {
 
 	ids := make([]string, 0)
 	for _, f := range flows {
-		ids = append(ids, getFlowID(f))
+		ids = append(ids, GetFlowID(f))
 	}
 	// 1 is pinned so kept. 2 is removed. 3 is kept. 4 is added.
 	// Expected order: 1, 3, 4
@@ -162,5 +162,5 @@ func TestFlowStorage_DeleteFlows(t *testing.T) {
 
 	flows := s.GetFlows()
 	assert.Equal(t, 1, len(flows))
-	assert.Equal(t, "2", getFlowID(flows[0]))
+	assert.Equal(t, "2", GetFlowID(flows[0]))
 }
