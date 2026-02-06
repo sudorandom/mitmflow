@@ -6,6 +6,7 @@ export interface FilterConfig {
   pinnedOnly: boolean;
   hasNote: boolean;
   flowTypes: FlowType[];
+  clientIps: string[];
   http: {
     methods: string[];
     contentTypes: string[];
@@ -123,6 +124,14 @@ export const isFlowMatch = (flow: Flow, filter: FilterConfig): boolean => {
   }
 
   // --- Advanced Filters ---
+
+  // Client IP Filter
+  if (filter.clientIps && filter.clientIps.length > 0) {
+      const clientIp = flow.flow.value?.client?.peernameHost;
+      if (!clientIp || !filter.clientIps.includes(clientIp)) {
+          return false;
+      }
+  }
 
   // Flow Type Filter
   if (filter.flowTypes.length > 0) {

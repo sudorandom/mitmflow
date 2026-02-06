@@ -24,6 +24,9 @@ interface FilterState {
   flowTypes: FlowType[];
   setFlowTypes: (flowTypes: FlowType[]) => void;
 
+  clientIps: string[];
+  setClientIps: (ips: string[]) => void;
+
   // HTTP Specific Filters
   http: HttpFilterState;
   setHttpMethods: (methods: string[]) => void;
@@ -46,6 +49,8 @@ const useFilterStore = create<FilterState>()(
       setHasNote: (hasNote) => set({ hasNote }),
       flowTypes: [],
       setFlowTypes: (flowTypes) => set({ flowTypes }),
+      clientIps: [],
+      setClientIps: (clientIps) => set({ clientIps }),
       http: {
         methods: [],
         contentTypes: [],
@@ -63,6 +68,7 @@ const useFilterStore = create<FilterState>()(
           pinnedOnly: false,
           hasNote: false,
           flowTypes: [],
+          clientIps: [],
           http: {
             ...state.http,
             methods: [],
@@ -78,6 +84,7 @@ const useFilterStore = create<FilterState>()(
         pinnedOnly: state.pinnedOnly,
         hasNote: state.hasNote,
         flowTypes: state.flowTypes,
+        clientIps: state.clientIps,
         http: state.http,
       }),
     }
