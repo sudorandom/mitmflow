@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
-import { Search, Pause, Play, Download, Braces, HardDriveDownload, Menu, Filter, X, Settings, Trash, ChevronDown, CheckCircle2 } from 'lucide-react';
+import { Search, Pause, Play, Download, Braces, HardDriveDownload, Menu, Filter, X, Settings, Trash, ChevronDown } from 'lucide-react';
 import { createConnectTransport } from "@connectrpc/connect-web";
 import { createClient } from "@connectrpc/connect";
-import { Service, Flow, FlowSchema, StreamFlowsRequestSchema, StreamEvent_Type } from "./gen/mitmflow/v1/mitmflow_pb"
+import { Service, Flow, FlowSchema, StreamFlowsRequestSchema } from "./gen/mitmflow/v1/mitmflow_pb"
 import { toJson, create } from "@bufbuild/protobuf";
 import { DnsFlowDetails } from './components/DnsFlowDetails';
 import { HttpFlowDetails } from './components/HttpFlowDetails';
@@ -160,7 +160,6 @@ const App: React.FC = () => {
   const [isFlowsTruncated, setIsFlowsTruncated] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
   const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>('connecting');
-  const [isSynced, setIsSynced] = useState(false);
   const [retryCount, setRetryCount] = useState(0);
   const latestTimestampNs = useRef<bigint>(BigInt(0));
   const {
@@ -366,7 +365,6 @@ const App: React.FC = () => {
     setSelectedFlowId(null);
     setSelectedFlowIds(new Set());
     setConnectionStatus('connecting');
-    setIsSynced(false);
 
     let abortController = new AbortController();
     let timeoutId: NodeJS.Timeout;
@@ -431,9 +429,6 @@ const App: React.FC = () => {
           if (!response.response.case) continue;
 
           if (response.response.case === 'event') {
-            if (response.response.value.type === StreamEvent_Type.HISTORY_DONE) {
-              setIsSynced(true);
-            }
             continue;
           }
 
@@ -778,12 +773,6 @@ const App: React.FC = () => {
             `} />
             {connectionStatus === 'reconnecting' ? 'Reconnecting' : connectionStatus.charAt(0).toUpperCase() + connectionStatus.slice(1)}
           </div>
-          {isSynced && (
-            <div className="flex items-center gap-1 text-sm text-green-600 dark:text-green-400 px-2 py-1 rounded bg-green-50 dark:bg-green-900/20" title="All history loaded, now streaming live events">
-              <CheckCircle2 size={16} />
-              <span>Synced</span>
-            </div>
-          )}
           <div className="md:hidden relative" ref={menuRef}>
             <button
               onClick={() => setIsMenuOpen(!isMenuOpen)}
