@@ -8,6 +8,7 @@ describe('isFlowMatch', () => {
         pinnedOnly: false,
         hasNote: false,
         flowTypes: [],
+        clientIps: [],
         http: { methods: [], contentTypes: [], statusCodes: [] }
     };
 
@@ -152,5 +153,89 @@ describe('isFlowMatch', () => {
 
         expect(isFlowMatch(pinnedFlow, filter)).toBe(true);
         expect(isFlowMatch(unpinnedFlow, filter)).toBe(false);
+    });
+
+    it('matches flow with specific client IP', () => {
+        const flow = {
+            flow: {
+                case: 'httpFlow',
+                value: {
+                    id: '1',
+                    client: {
+                        peernameHost: '192.168.1.1'
+                    }
+                }
+            }
+        } as unknown as Flow;
+
+        const filter: FilterConfig = {
+            ...emptyFilter,
+            clientIps: ['192.168.1.1']
+        };
+
+        expect(isFlowMatch(flow, filter)).toBe(true);
+    });
+
+    it('does not match flow with different client IP', () => {
+        const flow = {
+            flow: {
+                case: 'httpFlow',
+                value: {
+                    id: '1',
+                    client: {
+                        peernameHost: '192.168.1.2'
+                    }
+                }
+            }
+        } as unknown as Flow;
+
+        const filter: FilterConfig = {
+            ...emptyFilter,
+            clientIps: ['192.168.1.1']
+        };
+
+        expect(isFlowMatch(flow, filter)).toBe(false);
+    });
+
+    it('matches flow with one of multiple client IPs', () => {
+        const flow = {
+            flow: {
+                case: 'httpFlow',
+                value: {
+                    id: '1',
+                    client: {
+                        peernameHost: '192.168.1.1'
+                    }
+                }
+            }
+        } as unknown as Flow;
+
+        const filter: FilterConfig = {
+            ...emptyFilter,
+            clientIps: ['192.168.1.2', '192.168.1.1']
+        };
+
+        expect(isFlowMatch(flow, filter)).toBe(true);
+    });
+
+    it('ignores client IP filter if list is empty', () => {
+        const flow = {
+            flow: {
+                case: 'httpFlow',
+                value: {
+                    id: '1',
+                    client: {
+                        peernameHost: '192.168.1.1'
+                    }
+                }
+            }
+        } as unknown as Flow;
+
+        const filter: FilterConfig = {
+            ...emptyFilter,
+            clientIps: []
+        };
+
+        expect(isFlowMatch(flow, filter)).toBe(true);
     });
 });

@@ -171,6 +171,8 @@ const App: React.FC = () => {
     setHasNote,
     flowTypes,
     setFlowTypes,
+    clientIps,
+    setClientIps,
     http,
     setHttpMethods,
     setHttpContentTypes,
@@ -195,6 +197,9 @@ const App: React.FC = () => {
       const types = params.get('type')?.split(',') as FlowType[];
       setFlowTypes(types || []);
     }
+    if (params.has('client_ip')) {
+      setClientIps(params.get('client_ip')?.split(',') || []);
+    }
     if (params.has('method')) {
       setHttpMethods(params.get('method')?.split(',') || []);
     }
@@ -213,19 +218,20 @@ const App: React.FC = () => {
     if (pinnedOnly) params.set('pinned', 'true');
     if (hasNote) params.set('hasNote', 'true');
     if (flowTypes.length > 0) params.set('type', flowTypes.join(','));
+    if (clientIps.length > 0) params.set('client_ip', clientIps.join(','));
     if (http.methods.length > 0) params.set('method', http.methods.join(','));
     if (http.statusCodes.length > 0) params.set('status', http.statusCodes.join(','));
     if (http.contentTypes.length > 0) params.set('content', http.contentTypes.join(','));
 
     const newUrl = params.toString() ? `?${params.toString()}` : window.location.pathname;
     window.history.replaceState(null, '', newUrl);
-  }, [filterText, pinnedOnly, hasNote, flowTypes, http]);
+  }, [filterText, pinnedOnly, hasNote, flowTypes, clientIps, http]);
 
-  const filterRef = useRef<FilterConfig>({ text: filterText, pinnedOnly, hasNote, flowTypes, http });
+  const filterRef = useRef<FilterConfig>({ text: filterText, pinnedOnly, hasNote, flowTypes, clientIps, http });
 
   useEffect(() => {
-    filterRef.current = { text: filterText, pinnedOnly, hasNote, flowTypes, http };
-  }, [filterText, pinnedOnly, hasNote, flowTypes, http]);
+    filterRef.current = { text: filterText, pinnedOnly, hasNote, flowTypes, clientIps, http };
+  }, [filterText, pinnedOnly, hasNote, flowTypes, clientIps, http]);
 
   // Re-filter when filter settings change
   useEffect(() => {
@@ -233,7 +239,7 @@ const App: React.FC = () => {
       all: prev.all,
       filtered: prev.all.filter(f => isFlowMatch(f, filterRef.current))
     }));
-  }, [filterText, pinnedOnly, hasNote, flowTypes, http]);
+  }, [filterText, pinnedOnly, hasNote, flowTypes, clientIps, http]);
   const [isFilterModalOpen, setIsFilterModalOpen] = useState(false);
   const [isNoteModalOpen, setIsNoteModalOpen] = useState(false);
   const handleCloseFilterModal = useCallback(() => setIsFilterModalOpen(false), []);
@@ -561,12 +567,22 @@ const App: React.FC = () => {
     (pinnedOnly ? 1 : 0) +
     (hasNote ? 1 : 0) +
     (flowTypes.length > 0 ? 1 : 0) +
+    (clientIps.length > 0 ? 1 : 0) +
     (http.methods.length > 0 ? 1 : 0) +
     (http.contentTypes.length > 0 ? 1 : 0) +
     (http.statusCodes.length > 0 ? 1 : 0);
 
   // --- Derived State (Filtering) ---
   const filteredFlows = flowState.filtered;
+
+  const uniqueClientIps = useMemo(() => {
+    const ips = new Set<string>();
+    flowState.all.forEach(flow => {
+        const ip = flow.flow.value?.client?.peernameHost;
+        if (ip) ips.add(ip);
+    });
+    return Array.from(ips).sort();
+  }, [flowState.all]);
 
   const detailsFlow = useMemo(() =>
     selectedFlowId ? flowState.all.find(f => getFlowId(f) === selectedFlowId) || null : null
@@ -968,6 +984,7 @@ const App: React.FC = () => {
       <FilterModal
         isOpen={isFilterModalOpen}
         onClose={handleCloseFilterModal}
+        uniqueClientIps={uniqueClientIps}
       />
 
       <SettingsModal

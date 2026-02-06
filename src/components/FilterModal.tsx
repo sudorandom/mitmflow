@@ -53,15 +53,17 @@ const FilterRow = ({ label, children, isEven }: { label: string, children: React
 interface FilterModalProps {
   isOpen: boolean;
   onClose: () => void;
+  uniqueClientIps: string[];
 }
 
-const FilterModal: React.FC<FilterModalProps> = ({ isOpen, onClose }) => {
+const FilterModal: React.FC<FilterModalProps> = ({ isOpen, onClose, uniqueClientIps = [] }) => {
   const store = useFilterStore();
 
   // Local state for all filters
   const [pinnedOnly, setPinnedOnly] = useState(store.pinnedOnly);
   const [hasNote, setHasNote] = useState(store.hasNote);
   const [flowTypes, setFlowTypes] = useState<FlowType[]>(store.flowTypes);
+  const [clientIps, setClientIps] = useState<string[]>(store.clientIps);
   const [methods, setMethods] = useState<string[]>(store.http.methods);
   const [statusCodes, setStatusCodes] = useState<string[]>(store.http.statusCodes);
   const [contentTypes, setContentTypes] = useState<string[]>(store.http.contentTypes);
@@ -74,6 +76,7 @@ const FilterModal: React.FC<FilterModalProps> = ({ isOpen, onClose }) => {
       setPinnedOnly(store.pinnedOnly);
       setHasNote(store.hasNote);
       setFlowTypes(store.flowTypes);
+      setClientIps(store.clientIps);
       setMethods(store.http.methods);
       setStatusCodes(store.http.statusCodes);
       setContentTypes(store.http.contentTypes);
@@ -102,6 +105,7 @@ const FilterModal: React.FC<FilterModalProps> = ({ isOpen, onClose }) => {
     store.setPinnedOnly(pinnedOnly);
     store.setHasNote(hasNote);
     store.setFlowTypes(flowTypes);
+    store.setClientIps(clientIps);
     store.setHttpMethods(methods);
     store.setHttpStatusCodes(statusCodes);
     store.setHttpContentTypes(contentTypes);
@@ -112,6 +116,7 @@ const FilterModal: React.FC<FilterModalProps> = ({ isOpen, onClose }) => {
     setPinnedOnly(false);
     setHasNote(false);
     setFlowTypes([]);
+    setClientIps([]);
     setMethods([]);
     setStatusCodes([]);
     setContentTypes([]);
@@ -174,6 +179,20 @@ const FilterModal: React.FC<FilterModalProps> = ({ isOpen, onClose }) => {
                     onChange={(selected) => setFlowTypes(selected.map(s => s.value))}
                     className="text-black text-sm"
                     placeholder="Select types..."
+                    menuPortalTarget={document.body}
+                    styles={selectStyles}
+                />
+            </FilterRow>
+
+            {/* Client IP */}
+            <FilterRow label="Client IP" isEven={rowIndex++ % 2 !== 0}>
+                <Select
+                    isMulti
+                    options={uniqueClientIps.map(ip => ({ value: ip, label: ip }))}
+                    value={uniqueClientIps.filter(ip => clientIps.includes(ip)).map(ip => ({ value: ip, label: ip }))}
+                    onChange={(selected) => setClientIps(selected.map(s => s.value))}
+                    className="text-black text-sm"
+                    placeholder="Select IPs..."
                     menuPortalTarget={document.body}
                     styles={selectStyles}
                 />
