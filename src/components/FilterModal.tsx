@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import useFilterStore, { FlowType } from '../store';
 import { X } from 'lucide-react';
 import CreatableSelect from 'react-select/creatable';
@@ -56,24 +56,32 @@ interface FilterModalProps {
 }
 
 const FilterModal: React.FC<FilterModalProps> = ({ isOpen, onClose }) => {
-  const {
-    flowTypes,
-    setFlowTypes,
-    http: { methods, contentTypes, statusCodes },
-    setHttpMethods,
-    setHttpContentTypes,
-    setHttpStatusCodes,
-    clearFilters,
-    pinnedOnly,
-    setPinnedOnly,
-    hasNote,
-    setHasNote,
-  } = useFilterStore();
+  const store = useFilterStore();
 
-  const modalRef = React.useRef<HTMLDivElement>(null);
+  // Local state for all filters
+  const [pinnedOnly, setPinnedOnly] = useState(store.pinnedOnly);
+  const [hasNote, setHasNote] = useState(store.hasNote);
+  const [flowTypes, setFlowTypes] = useState<FlowType[]>(store.flowTypes);
+  const [methods, setMethods] = useState<string[]>(store.http.methods);
+  const [statusCodes, setStatusCodes] = useState<string[]>(store.http.statusCodes);
+  const [contentTypes, setContentTypes] = useState<string[]>(store.http.contentTypes);
+
+  const modalRef = useRef<HTMLDivElement>(null);
+
+  // Sync local state with store when modal opens
+  useEffect(() => {
+    if (isOpen) {
+      setPinnedOnly(store.pinnedOnly);
+      setHasNote(store.hasNote);
+      setFlowTypes(store.flowTypes);
+      setMethods(store.http.methods);
+      setStatusCodes(store.http.statusCodes);
+      setContentTypes(store.http.contentTypes);
+    }
+  }, [isOpen]);
 
   // Only close on Escape if modal is open and focused
-  React.useEffect(() => {
+  useEffect(() => {
     if (!isOpen) return;
     setTimeout(() => { modalRef.current?.focus(); }, 0);
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -89,6 +97,25 @@ const FilterModal: React.FC<FilterModalProps> = ({ isOpen, onClose }) => {
   if (!isOpen) {
     return null;
   }
+
+  const handleApply = () => {
+    store.setPinnedOnly(pinnedOnly);
+    store.setHasNote(hasNote);
+    store.setFlowTypes(flowTypes);
+    store.setHttpMethods(methods);
+    store.setHttpStatusCodes(statusCodes);
+    store.setHttpContentTypes(contentTypes);
+    onClose();
+  };
+
+  const handleClearAll = () => {
+    setPinnedOnly(false);
+    setHasNote(false);
+    setFlowTypes([]);
+    setMethods([]);
+    setStatusCodes([]);
+    setContentTypes([]);
+  };
 
   // Filter out HTTP-specific options if HTTP is not selected (if flowTypes.length > 0)
   const showHttpFilters = flowTypes.length === 0 || flowTypes.includes('http');
@@ -160,7 +187,7 @@ const FilterModal: React.FC<FilterModalProps> = ({ isOpen, onClose }) => {
                             isMulti
                             options={HTTP_METHODS}
                             value={HTTP_METHODS.filter(m => methods.includes(m.value))}
-                            onChange={(selected) => setHttpMethods(selected.map(s => s.value))}
+                            onChange={(selected) => setMethods(selected.map(s => s.value))}
                             className="text-black text-sm"
                             placeholder="Select methods..."
                             menuPortalTarget={document.body}
@@ -174,7 +201,7 @@ const FilterModal: React.FC<FilterModalProps> = ({ isOpen, onClose }) => {
                             isMulti
                             options={STATUS_CODE_OPTIONS}
                             value={statusCodes.map(sc => ({ value: sc, label: sc }))}
-                            onChange={(selected) => setHttpStatusCodes(selected.map(s => s.value))}
+                            onChange={(selected) => setStatusCodes(selected.map(s => s.value))}
                             className="text-black text-sm"
                             placeholder="e.g., 200, 4xx, 500-599"
                             menuPortalTarget={document.body}
@@ -188,7 +215,7 @@ const FilterModal: React.FC<FilterModalProps> = ({ isOpen, onClose }) => {
                             isMulti
                             options={CONTENT_TYPE_OPTIONS}
                             value={contentTypes.map(ct => ({ value: ct, label: ct }))}
-                            onChange={(selected) => setHttpContentTypes(selected.map(s => s.value))}
+                            onChange={(selected) => setContentTypes(selected.map(s => s.value))}
                             className="text-black text-sm"
                             placeholder="e.g., application/json, text/html"
                             menuPortalTarget={document.body}
@@ -202,16 +229,13 @@ const FilterModal: React.FC<FilterModalProps> = ({ isOpen, onClose }) => {
         {/* --- Actions --- */}
         <div className="flex justify-end items-center p-4 border-t border-gray-200 dark:border-zinc-700 bg-gray-50 dark:bg-zinc-900 rounded-b-lg">
           <button
-            onClick={() => {
-              clearFilters();
-              onClose();
-            }}
+            onClick={handleClearAll}
             className="text-gray-500 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-white px-4 py-2 rounded-md transition-colors text-sm"
           >
             Clear All
           </button>
           <button
-            onClick={onClose}
+            onClick={handleApply}
             className="bg-orange-500 hover:bg-orange-600 text-white font-bold py-2 px-4 rounded-md ml-2 transition-colors text-sm"
           >
             Apply

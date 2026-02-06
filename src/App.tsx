@@ -885,6 +885,7 @@ const App: React.FC = () => {
 
             <button
                 onClick={() => setIsSettingsModalOpen(true)}
+                aria-label="Settings"
                 className="bg-gray-100 dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 text-gray-700 dark:text-zinc-200 px-3 py-1 rounded-full text-sm font-medium flex items-center gap-1.5 hover:bg-gray-200 dark:hover:bg-zinc-700"
               >
                 <Settings size={20} />
