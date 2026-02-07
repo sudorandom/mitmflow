@@ -32,6 +32,8 @@ const (
 // reflection-formatted method names, remove the leading slash and convert the remaining slash to a
 // period.
 const (
+	// ServiceGetFlowsProcedure is the fully-qualified name of the Service's GetFlows RPC.
+	ServiceGetFlowsProcedure = "/mitmflow.v1.Service/GetFlows"
 	// ServiceStreamFlowsProcedure is the fully-qualified name of the Service's StreamFlows RPC.
 	ServiceStreamFlowsProcedure = "/mitmflow.v1.Service/StreamFlows"
 	// ServiceUpdateFlowProcedure is the fully-qualified name of the Service's UpdateFlow RPC.
@@ -42,6 +44,7 @@ const (
 
 // ServiceClient is a client for the mitmflow.v1.Service service.
 type ServiceClient interface {
+	GetFlows(context.Context, *connect.Request[GetFlowsRequest]) (*connect.ServerStreamForClient[GetFlowsResponse], error)
 	StreamFlows(context.Context, *connect.Request[StreamFlowsRequest]) (*connect.ServerStreamForClient[StreamFlowsResponse], error)
 	UpdateFlow(context.Context, *connect.Request[UpdateFlowRequest]) (*connect.Response[UpdateFlowResponse], error)
 	DeleteFlows(context.Context, *connect.Request[DeleteFlowsRequest]) (*connect.Response[DeleteFlowsResponse], error)
@@ -58,6 +61,12 @@ func NewServiceClient(httpClient connect.HTTPClient, baseURL string, opts ...con
 	baseURL = strings.TrimRight(baseURL, "/")
 	serviceMethods := File_mitmflow_v1_mitmflow_proto.Services().ByName("Service").Methods()
 	return &serviceClient{
+		getFlows: connect.NewClient[GetFlowsRequest, GetFlowsResponse](
+			httpClient,
+			baseURL+ServiceGetFlowsProcedure,
+			connect.WithSchema(serviceMethods.ByName("GetFlows")),
+			connect.WithClientOptions(opts...),
+		),
 		streamFlows: connect.NewClient[StreamFlowsRequest, StreamFlowsResponse](
 			httpClient,
 			baseURL+ServiceStreamFlowsProcedure,
@@ -81,9 +90,15 @@ func NewServiceClient(httpClient connect.HTTPClient, baseURL string, opts ...con
 
 // serviceClient implements ServiceClient.
 type serviceClient struct {
+	getFlows    *connect.Client[GetFlowsRequest, GetFlowsResponse]
 	streamFlows *connect.Client[StreamFlowsRequest, StreamFlowsResponse]
 	updateFlow  *connect.Client[UpdateFlowRequest, UpdateFlowResponse]
 	deleteFlows *connect.Client[DeleteFlowsRequest, DeleteFlowsResponse]
+}
+
+// GetFlows calls mitmflow.v1.Service.GetFlows.
+func (c *serviceClient) GetFlows(ctx context.Context, req *connect.Request[GetFlowsRequest]) (*connect.ServerStreamForClient[GetFlowsResponse], error) {
+	return c.getFlows.CallServerStream(ctx, req)
 }
 
 // StreamFlows calls mitmflow.v1.Service.StreamFlows.
@@ -103,6 +118,7 @@ func (c *serviceClient) DeleteFlows(ctx context.Context, req *connect.Request[De
 
 // ServiceHandler is an implementation of the mitmflow.v1.Service service.
 type ServiceHandler interface {
+	GetFlows(context.Context, *connect.Request[GetFlowsRequest], *connect.ServerStream[GetFlowsResponse]) error
 	StreamFlows(context.Context, *connect.Request[StreamFlowsRequest], *connect.ServerStream[StreamFlowsResponse]) error
 	UpdateFlow(context.Context, *connect.Request[UpdateFlowRequest]) (*connect.Response[UpdateFlowResponse], error)
 	DeleteFlows(context.Context, *connect.Request[DeleteFlowsRequest]) (*connect.Response[DeleteFlowsResponse], error)
@@ -115,6 +131,12 @@ type ServiceHandler interface {
 // and JSON codecs. They also support gzip compression.
 func NewServiceHandler(svc ServiceHandler, opts ...connect.HandlerOption) (string, http.Handler) {
 	serviceMethods := File_mitmflow_v1_mitmflow_proto.Services().ByName("Service").Methods()
+	serviceGetFlowsHandler := connect.NewServerStreamHandler(
+		ServiceGetFlowsProcedure,
+		svc.GetFlows,
+		connect.WithSchema(serviceMethods.ByName("GetFlows")),
+		connect.WithHandlerOptions(opts...),
+	)
 	serviceStreamFlowsHandler := connect.NewServerStreamHandler(
 		ServiceStreamFlowsProcedure,
 		svc.StreamFlows,
@@ -135,6 +157,8 @@ func NewServiceHandler(svc ServiceHandler, opts ...connect.HandlerOption) (strin
 	)
 	return "/mitmflow.v1.Service/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
+		case ServiceGetFlowsProcedure:
+			serviceGetFlowsHandler.ServeHTTP(w, r)
 		case ServiceStreamFlowsProcedure:
 			serviceStreamFlowsHandler.ServeHTTP(w, r)
 		case ServiceUpdateFlowProcedure:
@@ -149,6 +173,10 @@ func NewServiceHandler(svc ServiceHandler, opts ...connect.HandlerOption) (strin
 
 // UnimplementedServiceHandler returns CodeUnimplemented from all methods.
 type UnimplementedServiceHandler struct{}
+
+func (UnimplementedServiceHandler) GetFlows(context.Context, *connect.Request[GetFlowsRequest], *connect.ServerStream[GetFlowsResponse]) error {
+	return connect.NewError(connect.CodeUnimplemented, errors.New("mitmflow.v1.Service.GetFlows is not implemented"))
+}
 
 func (UnimplementedServiceHandler) StreamFlows(context.Context, *connect.Request[StreamFlowsRequest], *connect.ServerStream[StreamFlowsResponse]) error {
 	return connect.NewError(connect.CodeUnimplemented, errors.New("mitmflow.v1.Service.StreamFlows is not implemented"))

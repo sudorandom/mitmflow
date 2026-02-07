@@ -12,8 +12,10 @@ import (
 	"net/url"
 	"strings"
 	"sync"
+	"time"
 
 	"connectrpc.com/connect"
+	"connectrpc.com/validate"
 	"github.com/gabriel-vasile/mimetype"
 	"github.com/google/uuid"
 	"github.com/protocolbuffers/protoscope"
@@ -41,11 +43,11 @@ type MITMFlowServer struct {
 	storage     *FlowStorage
 }
 
-func NewMITMFlowServer(storage *FlowStorage) *MITMFlowServer {
+func NewMITMFlowServer(storage *FlowStorage) (*MITMFlowServer, error) {
 	return &MITMFlowServer{
 		subscribers: make(map[string]chan *mitmflowv1.Flow),
 		storage:     storage,
-	}
+	}, nil
 }
 
 func (s *MITMFlowServer) ExportFlow(
@@ -99,12 +101,66 @@ func (s *MITMFlowServer) ExportFlow(
 	return res, nil
 }
 
+func (s *MITMFlowServer) GetFlows(
+	ctx context.Context,
+	req *connect.Request[mitmflowv1.GetFlowsRequest],
+	stream *connect.ServerStream[mitmflowv1.GetFlowsResponse],
+) error {
+	flows := s.storage.GetFlows()
+
+	// Reverse iteration (newest first)
+	limit := int(req.Msg.GetLimit())
+	if limit <= 0 {
+		limit = 500
+	}
+
+	count := 0
+	filter := req.Msg.GetFilter()
+
+	sendFlow := func(flow *mitmflowv1.Flow) error {
+		builder := mitmflowv1.GetFlowsResponse_builder{
+			Flow: flow,
+		}
+		return stream.Send(builder.Build())
+	}
+
+	// We collect matching flows first to handle sorting correctly if needed?
+	// Actually, if we want "newest first" (reverse_order=true, which is typical for logs),
+	// we can just iterate backwards and stream.
+	// If we want "oldest first", but only the "last X flows", we still need to find the *last X* first.
+	// Typically logs are "show me the last 500 flows".
+	// If reverse_order=false (oldest first), we usually want the *first* 500 flows?
+	// Or do we want the last 500 flows, but sorted oldest->newest?
+	// The prompt said: "backend can only send the last X number of flows matching the filter".
+	// This usually implies "Limit applied to the set of flows, effectively taking the N most recent".
+	// The sorting order (reverse_order) determines how they are presented.
+
+	// So: Find N most recent matching flows.
+	// Then: Send them in requested order.
+
+	for i := len(flows) - 1; i >= 0; i-- {
+		flow := flows[i]
+		if matchFlow(flow, filter) {
+			if err := sendFlow(flow); err != nil {
+				return err
+			}
+			count++
+			if count >= limit {
+				break
+			}
+		}
+	}
+
+	return nil
+}
+
 func (s *MITMFlowServer) StreamFlows(
 	ctx context.Context,
 	req *connect.Request[mitmflowv1.StreamFlowsRequest],
 	stream *connect.ServerStream[mitmflowv1.StreamFlowsResponse],
 ) error {
-	ch := make(chan *mitmflowv1.Flow, 50)
+	// Increased buffer size to prevent blocking/dropping during heavy load or history iteration
+	ch := make(chan *mitmflowv1.Flow, 500)
 	id := uuid.New().String()
 	s.mu.RLock()
 	s.subscribers[id] = ch
@@ -118,26 +174,92 @@ func (s *MITMFlowServer) StreamFlows(
 	}()
 
 	sinceNs := req.Msg.GetSinceTimestampNs()
-	for _, flow := range s.storage.GetFlows() {
-		if sinceNs > 0 && GetFlowStartTime(flow) <= sinceNs {
-			continue
+	filter := req.Msg.GetFilter()
+
+	sendFlow := func(flow *mitmflowv1.Flow) error {
+		builder := mitmflowv1.StreamFlowsResponse_builder{
+			Flow: flow,
 		}
-		if err := stream.Send(mitmflowv1.StreamFlowsResponse_builder{Flow: flow}.Build()); err != nil {
-			return err
+		return stream.Send(builder.Build())
+	}
+
+	// Helper to drain the channel of any new flows that arrived while we were processing history
+	drainChannel := func() error {
+		for {
+			select {
+			case flow := <-ch:
+				if !matchFlow(flow, filter) {
+					continue
+				}
+				if err := sendFlow(flow); err != nil {
+					return err
+				}
+			default:
+				return nil
+			}
 		}
 	}
+
+	// Only backfill if sinceNs is provided (Resume scenario)
+	// If sinceNs is 0, we assume "start from now" (Live scenario)
+	if sinceNs > 0 {
+		flows := s.storage.GetFlows()
+		// Iterate backwards (newest first) until we hit sinceNs
+		for i := len(flows) - 1; i >= 0; i-- {
+			// Periodically check context and drain channel
+			if i%10 == 0 {
+				if ctx.Err() != nil {
+					return nil
+				}
+				if err := drainChannel(); err != nil {
+					return err
+				}
+			}
+
+			flow := flows[i]
+			if GetFlowStartTime(flow) <= sinceNs {
+				// Since flows are sorted by time (mostly), we can stop early?
+				// Actually storage.sortedFlows implies they are sorted.
+				// If we iterate backwards (newest to oldest), once we hit a flow <= sinceNs,
+				// all subsequent flows (older) will also be <= sinceNs.
+				// So we can break.
+				break
+			}
+			if !matchFlow(flow, filter) {
+				continue
+			}
+			if err := sendFlow(flow); err != nil {
+				return err
+			}
+		}
+	}
+
+	// Ensure any remaining flows in channel are sent
+	if err := drainChannel(); err != nil {
+		return err
+	}
+
+	// Live streaming loop
+	ticker := time.NewTicker(100 * time.Millisecond)
+	defer ticker.Stop()
 
 	for {
 		select {
 		case <-ctx.Done():
 			return nil
 		case flow := <-ch:
-			if err := stream.Send(mitmflowv1.StreamFlowsResponse_builder{Flow: flow}.Build()); err != nil {
+			if !matchFlow(flow, filter) {
+				continue
+			}
+			if err := sendFlow(flow); err != nil {
 				return err
 			}
+		case <-ticker.C:
+			// Just to ensure we check ctx.Done regularly if channel is empty, though select handles it.
 		}
 	}
 }
+
 
 func (s *MITMFlowServer) UpdateFlow(
 	ctx context.Context,
@@ -335,10 +457,15 @@ func main() {
 		log.Fatalf("failed to initialize storage: %v", err)
 	}
 
+	server, err := NewMITMFlowServer(storage)
+	if err != nil {
+		log.Fatalf("failed to initialize server: %v", err)
+	}
+
 	mux := http.NewServeMux()
-	server := NewMITMFlowServer(storage)
-	mux.Handle(mitmflowv1.NewServiceHandler(server))
-	mux.Handle(mitmproxygrpcv1.NewServiceHandler(server))
+	interceptors := connect.WithInterceptors(validate.NewInterceptor())
+	mux.Handle(mitmflowv1.NewServiceHandler(server, interceptors))
+	mux.Handle(mitmproxygrpcv1.NewServiceHandler(server, interceptors))
 
 	log.Printf("Starting server on %s", *addr)
 

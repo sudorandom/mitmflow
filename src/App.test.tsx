@@ -12,8 +12,17 @@ test('renders the main app component', () => {
         streamFlows: async function* () {
             // empty stream by default
         },
+        getFlows: async function* () {
+            // empty stream by default
+        },
         exportFlow: async function () {
             return Promise.resolve({ received: true, message: "ok", flowsProcessed: 0n });
+        },
+        deleteFlows: async function () {
+            return Promise.resolve({ count: 0n });
+        },
+        updateFlow: async function () {
+             return Promise.resolve({});
         }
     } as unknown as ReturnType<typeof createClient>);
     render(<App />);
@@ -23,27 +32,30 @@ test('renders the main app component', () => {
 
 test('renders the details panel when a flow is selected', async () => {
     const mockFlow = {
-        flow: {
-            flow: {
-                case: 'httpFlow',
-                value: {
-                    id: '1',
-                    request: {
-                        method: 'GET',
-                        url: 'http://example.com',
-                        httpVersion: 'HTTP/1.1',
-                        headers: {},
-                        content: new Uint8Array(),
-                    },
-                    response: {
-                        statusCode: 200,
-                        httpVersion: 'HTTP/1.1',
-                        headers: {},
-                        content: new Uint8Array(),
+        response: {
+            case: 'flow',
+            value: {
+                flow: {
+                    case: 'httpFlow',
+                    value: {
+                        id: '1',
+                        request: {
+                            method: 'GET',
+                            url: 'http://example.com',
+                            httpVersion: 'HTTP/1.1',
+                            headers: {},
+                            content: new Uint8Array(),
+                        },
+                        response: {
+                            statusCode: 200,
+                            httpVersion: 'HTTP/1.1',
+                            headers: {},
+                            content: new Uint8Array(),
+                        },
                     },
                 },
-            },
-        },
+            }
+        }
     };
 
     mockedCreateClient.mockReturnValue({
@@ -52,8 +64,17 @@ test('renders the details panel when a flow is selected', async () => {
             // Don't complete the stream
             await new Promise(() => { });
         },
+        getFlows: async function* () {
+             // empty history
+        },
         exportFlow: async function () {
             return Promise.resolve({ received: true, message: "ok", flowsProcessed: 0n });
+        },
+        deleteFlows: async function () {
+            return Promise.resolve({ count: 0n });
+        },
+        updateFlow: async function () {
+             return Promise.resolve({});
         }
     } as unknown as ReturnType<typeof createClient>);
 
@@ -68,27 +89,30 @@ test('renders the details panel when a flow is selected', async () => {
 
 test('details panel is focusable for keyboard scrolling', async () => {
     const mockFlow = {
-        flow: {
-            flow: {
-                case: 'httpFlow',
-                value: {
-                    id: '1',
-                    request: {
-                        method: 'GET',
-                        url: 'http://example.com',
-                        httpVersion: 'HTTP/1.1',
-                        headers: {},
-                        content: new Uint8Array(),
-                    },
-                    response: {
-                        statusCode: 200,
-                        httpVersion: 'HTTP/1.1',
-                        headers: {},
-                        content: new Uint8Array(),
+        response: {
+            case: 'flow',
+            value: {
+                flow: {
+                    case: 'httpFlow',
+                    value: {
+                        id: '1',
+                        request: {
+                            method: 'GET',
+                            url: 'http://example.com',
+                            httpVersion: 'HTTP/1.1',
+                            headers: {},
+                            content: new Uint8Array(),
+                        },
+                        response: {
+                            statusCode: 200,
+                            httpVersion: 'HTTP/1.1',
+                            headers: {},
+                            content: new Uint8Array(),
+                        },
                     },
                 },
-            },
-        },
+            }
+        }
     };
 
     mockedCreateClient.mockReturnValue({
@@ -96,8 +120,17 @@ test('details panel is focusable for keyboard scrolling', async () => {
             yield mockFlow;
             await new Promise(() => { });
         },
+        getFlows: async function* () {
+             // empty history
+        },
         exportFlow: async function () {
             return Promise.resolve({ received: true, message: "ok", flowsProcessed: 0n });
+        },
+        deleteFlows: async function () {
+            return Promise.resolve({ count: 0n });
+        },
+        updateFlow: async function () {
+             return Promise.resolve({});
         }
     } as unknown as ReturnType<typeof createClient>);
 
@@ -124,27 +157,30 @@ test('details panel is focusable for keyboard scrolling', async () => {
 
 test('adds flows to the list', async () => {
     const mockFlow = {
-        flow: {
-            flow: {
-                case: 'httpFlow',
-                value: {
-                    id: '1',
-                    request: {
-                        method: 'GET',
-                        url: 'http://example.com',
-                        httpVersion: 'HTTP/1.1',
-                        headers: {},
-                        content: new Uint8Array(),
-                    },
-                    response: {
-                        statusCode: 200,
-                        httpVersion: 'HTTP/1.1',
-                        headers: {},
-                        content: new Uint8Array(),
+        response: {
+            case: 'flow',
+            value: {
+                flow: {
+                    case: 'httpFlow',
+                    value: {
+                        id: '1',
+                        request: {
+                            method: 'GET',
+                            url: 'http://example.com',
+                            httpVersion: 'HTTP/1.1',
+                            headers: {},
+                            content: new Uint8Array(),
+                        },
+                        response: {
+                            statusCode: 200,
+                            httpVersion: 'HTTP/1.1',
+                            headers: {},
+                            content: new Uint8Array(),
+                        },
                     },
                 },
-            },
-        },
+            }
+        }
     };
 
     mockedCreateClient.mockReturnValue({
@@ -153,8 +189,17 @@ test('adds flows to the list', async () => {
             // Don't complete the stream
             await new Promise(() => { });
         },
+        getFlows: async function* () {
+             // empty history
+        },
         exportFlow: async function () {
             return Promise.resolve({ received: true, message: "ok", flowsProcessed: 0n });
+        },
+        deleteFlows: async function () {
+            return Promise.resolve({ count: 0n });
+        },
+        updateFlow: async function () {
+             return Promise.resolve({});
         }
     } as unknown as ReturnType<typeof createClient>);
 

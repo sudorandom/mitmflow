@@ -1,15 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
-import useFilterStore, { FlowType } from '../store';
+import useFilterStore, { FlowType, FLOW_TYPES } from '../store';
 import { X } from 'lucide-react';
 import CreatableSelect from 'react-select/creatable';
 import Select, { CSSObjectWithLabel } from 'react-select';
-
-const FLOW_TYPES: { value: FlowType; label: string }[] = [
-  { value: 'http', label: 'HTTP' },
-  { value: 'dns', label: 'DNS' },
-  { value: 'tcp', label: 'TCP' },
-  { value: 'udp', label: 'UDP' },
-];
+import SegmentedControl from './SegmentedControl';
+import MultiSelectSegmentedControl from './MultiSelectSegmentedControl';
 
 const HTTP_METHODS = ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'HEAD', 'OPTIONS'].map(m => ({ value: m, label: m }));
 
@@ -43,6 +38,26 @@ const CONTENT_TYPE_OPTIONS = [
     { value: 'application/octet-stream', label: 'application/octet-stream' },
 ];
 
+const YES_NO_OPTIONS: { value: 'true' | 'false'; label: string }[] = [
+  { value: 'true', label: 'Yes' },
+  { value: 'false', label: 'No' },
+];
+
+// Helper to get select value from state
+const getStatusValue = (status: boolean | undefined): 'true' | 'false' | undefined => {
+    if (status === true) return 'true';
+    if (status === false) return 'false';
+    return undefined;
+};
+
+// Helper to set state from select value
+const setStatusFromValue = (value: 'true' | 'false' | undefined): boolean | undefined => {
+    if (value === 'true') return true;
+    if (value === 'false') return false;
+    return undefined;
+};
+
+
 const FilterRow = ({ label, children, isEven }: { label: string, children: React.ReactNode, isEven: boolean }) => (
   <div className={`flex items-center justify-between p-3 px-4 gap-4 ${isEven ? 'bg-gray-100 dark:bg-zinc-900' : 'bg-white dark:bg-zinc-800'}`}>
     <div className="font-medium text-sm text-gray-700 dark:text-zinc-300 w-1/3 flex-shrink-0">{label}</div>
@@ -60,7 +75,7 @@ const FilterModal: React.FC<FilterModalProps> = ({ isOpen, onClose, uniqueClient
   const store = useFilterStore();
 
   // Local state for all filters
-  const [pinnedOnly, setPinnedOnly] = useState(store.pinnedOnly);
+  const [pinned, setPinned] = useState(store.pinned);
   const [hasNote, setHasNote] = useState(store.hasNote);
   const [flowTypes, setFlowTypes] = useState<FlowType[]>(store.flowTypes);
   const [clientIps, setClientIps] = useState<string[]>(store.clientIps);
@@ -73,7 +88,7 @@ const FilterModal: React.FC<FilterModalProps> = ({ isOpen, onClose, uniqueClient
   // Sync local state with store when modal opens
   useEffect(() => {
     if (isOpen) {
-      setPinnedOnly(store.pinnedOnly);
+      setPinned(store.pinned);
       setHasNote(store.hasNote);
       setFlowTypes(store.flowTypes);
       setClientIps(store.clientIps);
@@ -102,7 +117,7 @@ const FilterModal: React.FC<FilterModalProps> = ({ isOpen, onClose, uniqueClient
   }
 
   const handleApply = () => {
-    store.setPinnedOnly(pinnedOnly);
+    store.setPinned(pinned);
     store.setHasNote(hasNote);
     store.setFlowTypes(flowTypes);
     store.setClientIps(clientIps);
@@ -113,8 +128,8 @@ const FilterModal: React.FC<FilterModalProps> = ({ isOpen, onClose, uniqueClient
   };
 
   const handleClearAll = () => {
-    setPinnedOnly(false);
-    setHasNote(false);
+    setPinned(undefined);
+    setHasNote(undefined);
     setFlowTypes([]);
     setClientIps([]);
     setMethods([]);
@@ -146,41 +161,30 @@ const FilterModal: React.FC<FilterModalProps> = ({ isOpen, onClose, uniqueClient
         </div>
 
         <div className="overflow-y-auto">
-            {/* Pinned Only */}
-            <FilterRow label="Pinned Only" isEven={rowIndex++ % 2 !== 0}>
-                <label className="flex items-center space-x-2 cursor-pointer select-none">
-                  <input
-                    type="checkbox"
-                    checked={pinnedOnly}
-                    onChange={(e) => setPinnedOnly(e.target.checked)}
-                    className="form-checkbox h-5 w-5 rounded bg-gray-100 dark:bg-zinc-700 border-gray-300 dark:border-zinc-600 text-orange-500 focus:ring-orange-500"
-                  />
-                </label>
-            </FilterRow>
-
-            {/* Has Note */}
-            <FilterRow label="Has Note" isEven={rowIndex++ % 2 !== 0}>
-                <label className="flex items-center space-x-2 cursor-pointer select-none">
-                  <input
-                    type="checkbox"
-                    checked={hasNote}
-                    onChange={(e) => setHasNote(e.target.checked)}
-                    className="form-checkbox h-5 w-5 rounded bg-gray-100 dark:bg-zinc-700 border-gray-300 dark:border-zinc-600 text-orange-500 focus:ring-orange-500"
-                  />
-                </label>
-            </FilterRow>
-
             {/* Flow Type */}
             <FilterRow label="Flow Type" isEven={rowIndex++ % 2 !== 0}>
-                <Select
-                    isMulti
+                <MultiSelectSegmentedControl
                     options={FLOW_TYPES}
-                    value={FLOW_TYPES.filter(t => flowTypes.includes(t.value))}
-                    onChange={(selected) => setFlowTypes(selected.map(s => s.value))}
-                    className="text-black text-sm"
-                    placeholder="Select types..."
-                    menuPortalTarget={document.body}
-                    styles={selectStyles}
+                    values={flowTypes}
+                    onChange={setFlowTypes}
+                />
+            </FilterRow>
+
+            {/* Pinned Filter */}
+            <FilterRow label="Pinned" isEven={rowIndex++ % 2 !== 0}>
+                <SegmentedControl
+                    options={YES_NO_OPTIONS}
+                    value={getStatusValue(pinned)}
+                    onChange={(selected) => setPinned(setStatusFromValue(selected))}
+                />
+            </FilterRow>
+
+            {/* Note Filter */}
+            <FilterRow label="Note" isEven={rowIndex++ % 2 !== 0}>
+                <SegmentedControl
+                    options={YES_NO_OPTIONS}
+                    value={getStatusValue(hasNote)}
+                    onChange={(selected) => setHasNote(setStatusFromValue(selected))}
                 />
             </FilterRow>
 
@@ -202,7 +206,7 @@ const FilterModal: React.FC<FilterModalProps> = ({ isOpen, onClose, uniqueClient
                 <>
                     {/* HTTP Method */}
                     <FilterRow label="HTTP Method" isEven={rowIndex++ % 2 !== 0}>
-                        <Select
+                        <CreatableSelect
                             isMulti
                             options={HTTP_METHODS}
                             value={HTTP_METHODS.filter(m => methods.includes(m.value))}

@@ -12,6 +12,114 @@ import type { DNSFlow, HTTPFlow, TCPFlow, UDPFlow } from "../../mitmproxygrpc/v1
 export declare const file_mitmflow_v1_mitmflow: GenFile;
 
 /**
+ * @generated from message mitmflow.v1.FlowFilter
+ */
+export declare type FlowFilter = Message<"mitmflow.v1.FlowFilter"> & {
+  /**
+   * @generated from field: string filter_text = 1 [features.field_presence = EXPLICIT];
+   */
+  filterText: string;
+
+  /**
+   * @generated from field: bool pinned = 2 [features.field_presence = EXPLICIT];
+   */
+  pinned: boolean;
+
+  /**
+   * @generated from field: bool has_note = 3 [features.field_presence = EXPLICIT];
+   */
+  hasNote: boolean;
+
+  /**
+   * @generated from field: repeated string flow_types = 4;
+   */
+  flowTypes: string[];
+
+  /**
+   * @generated from field: repeated string client_ips = 5;
+   */
+  clientIps: string[];
+
+  /**
+   * @generated from field: mitmflow.v1.HttpFilter http = 6;
+   */
+  http?: HttpFilter;
+};
+
+/**
+ * Describes the message mitmflow.v1.FlowFilter.
+ * Use `create(FlowFilterSchema)` to create a new message.
+ */
+export declare const FlowFilterSchema: GenMessage<FlowFilter>;
+
+/**
+ * @generated from message mitmflow.v1.HttpFilter
+ */
+export declare type HttpFilter = Message<"mitmflow.v1.HttpFilter"> & {
+  /**
+   * @generated from field: repeated string methods = 1;
+   */
+  methods: string[];
+
+  /**
+   * e.g. "application/json", "text/html"
+   *
+   * @generated from field: repeated string content_types = 2;
+   */
+  contentTypes: string[];
+
+  /**
+   * e.g. "200", "4xx", "200-299"
+   *
+   * @generated from field: repeated string status_codes = 3;
+   */
+  statusCodes: string[];
+};
+
+/**
+ * Describes the message mitmflow.v1.HttpFilter.
+ * Use `create(HttpFilterSchema)` to create a new message.
+ */
+export declare const HttpFilterSchema: GenMessage<HttpFilter>;
+
+/**
+ * @generated from message mitmflow.v1.GetFlowsRequest
+ */
+export declare type GetFlowsRequest = Message<"mitmflow.v1.GetFlowsRequest"> & {
+  /**
+   * @generated from field: mitmflow.v1.FlowFilter filter = 1;
+   */
+  filter?: FlowFilter;
+
+  /**
+   * @generated from field: int32 limit = 2;
+   */
+  limit: number;
+};
+
+/**
+ * Describes the message mitmflow.v1.GetFlowsRequest.
+ * Use `create(GetFlowsRequestSchema)` to create a new message.
+ */
+export declare const GetFlowsRequestSchema: GenMessage<GetFlowsRequest>;
+
+/**
+ * @generated from message mitmflow.v1.GetFlowsResponse
+ */
+export declare type GetFlowsResponse = Message<"mitmflow.v1.GetFlowsResponse"> & {
+  /**
+   * @generated from field: mitmflow.v1.Flow flow = 1;
+   */
+  flow?: Flow;
+};
+
+/**
+ * Describes the message mitmflow.v1.GetFlowsResponse.
+ * Use `create(GetFlowsResponseSchema)` to create a new message.
+ */
+export declare const GetFlowsResponseSchema: GenMessage<GetFlowsResponse>;
+
+/**
  * @generated from message mitmflow.v1.StreamFlowsRequest
  */
 export declare type StreamFlowsRequest = Message<"mitmflow.v1.StreamFlowsRequest"> & {
@@ -19,6 +127,11 @@ export declare type StreamFlowsRequest = Message<"mitmflow.v1.StreamFlowsRequest
    * @generated from field: int64 since_timestamp_ns = 1;
    */
   sinceTimestampNs: bigint;
+
+  /**
+   * @generated from field: mitmflow.v1.FlowFilter filter = 2;
+   */
+  filter?: FlowFilter;
 };
 
 /**
@@ -32,9 +145,15 @@ export declare const StreamFlowsRequestSchema: GenMessage<StreamFlowsRequest>;
  */
 export declare type StreamFlowsResponse = Message<"mitmflow.v1.StreamFlowsResponse"> & {
   /**
-   * @generated from field: mitmflow.v1.Flow flow = 1;
+   * @generated from oneof mitmflow.v1.StreamFlowsResponse.response
    */
-  flow?: Flow;
+  response: {
+    /**
+     * @generated from field: mitmflow.v1.Flow flow = 1;
+     */
+    value: Flow;
+    case: "flow";
+  } | { case: undefined; value?: undefined };
 };
 
 /**
@@ -223,6 +342,14 @@ export declare const MessageDetailsSchema: GenMessage<MessageDetails>;
  * @generated from service mitmflow.v1.Service
  */
 export declare const Service: GenService<{
+  /**
+   * @generated from rpc mitmflow.v1.Service.GetFlows
+   */
+  getFlows: {
+    methodKind: "server_streaming";
+    input: typeof GetFlowsRequestSchema;
+    output: typeof GetFlowsResponseSchema;
+  },
   /**
    * @generated from rpc mitmflow.v1.Service.StreamFlows
    */

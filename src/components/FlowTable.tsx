@@ -17,7 +17,7 @@ interface FlowTableProps {
     onRowSelected: (flow: Flow, options: { event?: React.MouseEvent | React.KeyboardEvent }) => void;
     onToggleRowSelection: (flowId: string) => void;
     onTogglePin: (flow: Flow) => void;
-    pinnedOnly: boolean;
+    pinned: boolean | undefined;
     onTogglePinnedFilter: () => void;
 }
 
@@ -26,7 +26,7 @@ type CustomColDef = ColDef<Flow> & {
 };
 
 const FlowTable = forwardRef<AgGridReact, FlowTableProps>(
-    function FlowTable({ flows, focusedFlowId, selectedFlowIds, onRowSelected, onToggleRowSelection, onTogglePin, pinnedOnly, onTogglePinnedFilter }, ref) {
+    function FlowTable({ flows, focusedFlowId, selectedFlowIds, onRowSelected, onToggleRowSelection, onTogglePin, pinned, onTogglePinnedFilter }, ref) {
         // Sort config: track column index (in columnDefs) and direction
         const [sortConfig, setSortConfig] = useState<{ colIndex: number | null; direction: 'asc' | 'desc' }>({ colIndex: 2, direction: 'desc' }); // default sort by Timestamp desc
 
@@ -41,10 +41,10 @@ const FlowTable = forwardRef<AgGridReact, FlowTableProps>(
                 headerComponent: () => (
                     <button
                         onClick={onTogglePinnedFilter}
-                        className={`p-1 rounded hover:bg-gray-200 dark:hover:bg-zinc-700 ${pinnedOnly ? 'text-orange-500' : 'text-gray-500 dark:text-zinc-500'}`}
-                        title={pinnedOnly ? "Show all flows" : "Show only pinned flows"}
+                        className={`p-1 rounded hover:bg-gray-200 dark:hover:bg-zinc-700 ${pinned === true ? 'text-orange-500' : 'text-gray-500 dark:text-zinc-500'}`}
+                        title={pinned === true ? "Show not pinned flows" : (pinned === false ? "Show all flows" : "Show only pinned flows")}
                     >
-                        <Pin size={14} className={pinnedOnly ? "fill-current" : ""} />
+                        <Pin size={14} className={pinned === true ? "fill-current" : ""} />
                     </button>
                 ),
                 cellRenderer: (params: { data: Flow }) => (

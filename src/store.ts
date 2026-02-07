@@ -3,6 +3,13 @@ import { persist } from 'zustand/middleware';
 
 export type FlowType = 'http' | 'dns' | 'tcp' | 'udp';
 
+export const FLOW_TYPES: { value: FlowType; label: string }[] = [
+  { value: 'http', label: 'HTTP' },
+  { value: 'dns', label: 'DNS' },
+  { value: 'tcp', label: 'TCP' },
+  { value: 'udp', label: 'UDP' },
+];
+
 interface HttpFilterState {
   methods: string[];
   contentTypes: string[];
@@ -14,11 +21,11 @@ interface FilterState {
   text: string;
   setText: (text: string) => void;
 
-  pinnedOnly: boolean;
-  setPinnedOnly: (pinnedOnly: boolean) => void;
+  pinned: boolean | undefined;
+  setPinned: (pinned: boolean | undefined) => void;
 
-  hasNote: boolean;
-  setHasNote: (hasNote: boolean) => void;
+  hasNote: boolean | undefined;
+  setHasNote: (hasNote: boolean | undefined) => void;
 
   // Advanced Filters
   flowTypes: FlowType[];
@@ -43,9 +50,9 @@ const useFilterStore = create<FilterState>()(
     (set) => ({
       text: '',
       setText: (text) => set({ text }),
-      pinnedOnly: false,
-      setPinnedOnly: (pinnedOnly) => set({ pinnedOnly }),
-      hasNote: false,
+      pinned: undefined,
+      setPinned: (pinned) => set({ pinned }),
+      hasNote: undefined,
       setHasNote: (hasNote) => set({ hasNote }),
       flowTypes: [],
       setFlowTypes: (flowTypes) => set({ flowTypes }),
@@ -65,8 +72,8 @@ const useFilterStore = create<FilterState>()(
       clearFilters: () =>
         set((state) => ({
           text: '',
-          pinnedOnly: false,
-          hasNote: false,
+          pinned: undefined,
+          hasNote: undefined,
           flowTypes: [],
           clientIps: [],
           http: {
@@ -79,9 +86,17 @@ const useFilterStore = create<FilterState>()(
     }),
     {
       name: 'filter-storage', // name of the item in the storage (must be unique)
+      version: 1, // bump version to migrate old state
+      migrate: (persistedState: unknown, version: number) => {
+        if (version < 1 && persistedState && typeof persistedState === 'object') {
+          // If old version, clear flowTypes to default to none selected
+          (persistedState as FilterState).flowTypes = [];
+        }
+        return persistedState as FilterState;
+      },
       partialize: (state) => ({
         text: state.text,
-        pinnedOnly: state.pinnedOnly,
+        pinned: state.pinned,
         hasNote: state.hasNote,
         flowTypes: state.flowTypes,
         clientIps: state.clientIps,

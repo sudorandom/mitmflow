@@ -2,8 +2,8 @@ import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react'
 import { Search, Pause, Play, Download, Braces, HardDriveDownload, Menu, Filter, X, Settings, Trash, ChevronDown } from 'lucide-react';
 import { createConnectTransport } from "@connectrpc/connect-web";
 import { createClient } from "@connectrpc/connect";
-import { Service, Flow, FlowSchema } from "./gen/mitmflow/v1/mitmflow_pb"
-import { toJson } from "@bufbuild/protobuf";
+import { Service, Flow, FlowSchema, StreamFlowsRequestSchema, GetFlowsRequestSchema, FlowFilterSchema } from "./gen/mitmflow/v1/mitmflow_pb"
+import { toJson, create } from "@bufbuild/protobuf";
 import { DnsFlowDetails } from './components/DnsFlowDetails';
 import { HttpFlowDetails } from './components/HttpFlowDetails';
 import { TcpFlowDetails } from './components/TcpFlowDetails';
@@ -17,8 +17,8 @@ import SettingsModal from './components/SettingsModal';
 import useFilterStore, { FlowType } from './store';
 import useSettingsStore from './settingsStore';
 import FlowTable from './components/FlowTable';
-import { isFlowMatch, FilterConfig } from './filterUtils';
 import { Toast } from './components/Toast';
+import { useDebounce } from './hooks/useDebounce';
 
 
 // --- MAIN APP COMPONENT ---
@@ -39,13 +39,12 @@ const App: React.FC = () => {
   const [isFlowsTruncated, setIsFlowsTruncated] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
   const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>('connecting');
-  const [retryCount, setRetryCount] = useState(0);
   const latestTimestampNs = useRef<bigint>(BigInt(0));
   const {
     text: filterText,
     setText: setFilterText,
-    pinnedOnly,
-    setPinnedOnly,
+    pinned,
+    setPinned,
     hasNote,
     setHasNote,
     flowTypes,
@@ -59,6 +58,13 @@ const App: React.FC = () => {
     clearFilters
   } = useFilterStore();
 
+  const debouncedFilterText = useDebounce(filterText, 300);
+
+  // Settings from store
+  const { theme, maxFlows: storedMaxFlows, maxBodySize } = useSettingsStore();
+  // Ensure maxFlows is a valid number, defaulting to 500 if undefined or invalid (e.g. NaN from old local storage)
+  const maxFlows = Number.isFinite(storedMaxFlows) ? storedMaxFlows : 500;
+
   // Load from URL
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -67,10 +73,20 @@ const App: React.FC = () => {
       setFilterText(params.get('q') || '');
     }
     if (params.has('pinned')) {
-      setPinnedOnly(params.get('pinned') === 'true');
+      const pinnedVal = params.get('pinned');
+      if (pinnedVal === 'true') {
+        setPinned(true);
+      } else if (pinnedVal === 'false') {
+        setPinned(false);
+      }
     }
     if (params.has('hasNote')) {
-      setHasNote(params.get('hasNote') === 'true');
+        const hasNoteVal = params.get('hasNote');
+        if (hasNoteVal === 'true') {
+            setHasNote(true);
+        } else if (hasNoteVal === 'false') {
+            setHasNote(false);
+        }
     }
     if (params.has('type')) {
       const types = params.get('type')?.split(',') as FlowType[];
@@ -94,8 +110,16 @@ const App: React.FC = () => {
   useEffect(() => {
     const params = new URLSearchParams();
     if (filterText) params.set('q', filterText);
-    if (pinnedOnly) params.set('pinned', 'true');
-    if (hasNote) params.set('hasNote', 'true');
+    if (pinned === true) {
+      params.set('pinned', 'true');
+    } else if (pinned === false) {
+      params.set('pinned', 'false');
+    }
+    if (hasNote === true) {
+      params.set('hasNote', 'true');
+    } else if (hasNote === false) {
+      params.set('hasNote', 'false');
+    }
     if (flowTypes.length > 0) params.set('type', flowTypes.join(','));
     if (clientIps.length > 0) params.set('client_ip', clientIps.join(','));
     if (http.methods.length > 0) params.set('method', http.methods.join(','));
@@ -104,21 +128,8 @@ const App: React.FC = () => {
 
     const newUrl = params.toString() ? `?${params.toString()}` : window.location.pathname;
     window.history.replaceState(null, '', newUrl);
-  }, [filterText, pinnedOnly, hasNote, flowTypes, clientIps, http]);
+  }, [filterText, pinned, hasNote, flowTypes, clientIps, http]);
 
-  const filterRef = useRef<FilterConfig>({ text: filterText, pinnedOnly, hasNote, flowTypes, clientIps, http });
-
-  useEffect(() => {
-    filterRef.current = { text: filterText, pinnedOnly, hasNote, flowTypes, clientIps, http };
-  }, [filterText, pinnedOnly, hasNote, flowTypes, clientIps, http]);
-
-  // Re-filter when filter settings change
-  useEffect(() => {
-    setFlowState(prev => ({
-      all: prev.all,
-      filtered: prev.all.filter(f => isFlowMatch(f, filterRef.current))
-    }));
-  }, [filterText, pinnedOnly, hasNote, flowTypes, clientIps, http]);
   const [isFilterModalOpen, setIsFilterModalOpen] = useState(false);
   const [isNoteModalOpen, setIsNoteModalOpen] = useState(false);
   const handleCloseFilterModal = useCallback(() => setIsFilterModalOpen(false), []);
@@ -144,10 +155,6 @@ const App: React.FC = () => {
     setToast(prev => prev ? { ...prev, visible: false } : null);
   }, []);
 
-  // Settings from store
-  const { theme, maxFlows: storedMaxFlows, maxBodySize } = useSettingsStore();
-  // Ensure maxFlows is a valid number, defaulting to 500 if undefined or invalid (e.g. NaN from old local storage)
-  const maxFlows = Number.isFinite(storedMaxFlows) ? storedMaxFlows : 500;
 
   // Theme application
   useEffect(() => {
@@ -273,218 +280,178 @@ const App: React.FC = () => {
     URL.revokeObjectURL(url);
   }, [generateHarWithWorker]);
 
-  // --- Data Fetching ---
-  useEffect(() => {
-    if (isPaused) {
-      setConnectionStatus('paused');
-      return;
-    }
+  const processIncomingFlow = useCallback((incomingFlow: Flow, isHistory: boolean = false) => {
+    setFlowState(prevState => {
+      const flowTs = getFlowTimestampNs(incomingFlow);
+      if (flowTs > latestTimestampNs.current) {
+        latestTimestampNs.current = flowTs;
+      }
 
-    let abortController = new AbortController();
-    let timeoutId: NodeJS.Timeout;
-    let stabilityTimer: NodeJS.Timeout;
+      if (incomingFlow.flow.case === 'httpFlow') {
+        const httpFlow = incomingFlow.flow.value;
+        const maxBodySizeBytes = maxBodySize * 1024;
+        if (httpFlow.request && httpFlow.request.content.length > maxBodySizeBytes) {
+          httpFlow.request.content = httpFlow.request.content.slice(0, maxBodySizeBytes);
+          httpFlow.request.contentTruncated = true;
+        }
+        if (httpFlow.response && httpFlow.response.content.length > maxBodySizeBytes) {
+          httpFlow.response.content = httpFlow.response.content.slice(0, maxBodySizeBytes);
+          httpFlow.response.contentTruncated = true;
+        }
+      }
 
-    // We use a ref to track if we have "spent" our one-time instant retry.
-    // This persists across the recursive calls without being reset by closures.
-    // Default is false (we haven't used it yet).
-    const retryState = { used: false };
+      const incomingFlowId = getFlowId(incomingFlow);
+      const existingIndex = prevState.all.findIndex(r => {
+        const rFlowId = getFlowId(r);
+        return rFlowId && incomingFlowId && rFlowId === incomingFlowId;
+      });
 
-    const attemptConnection = async () => {
-      abortController = new AbortController();
-      const signal = abortController.signal;
+      const newAll = [...prevState.all];
 
-      // 1. Determine Status based on if we are using our "Free Retry"
-      if (retryState.used) {
-        setConnectionStatus('reconnecting');
+      if (existingIndex !== -1) {
+        newAll[existingIndex] = incomingFlow;
       } else {
-        setConnectionStatus('connecting');
-      }
-
-      try {
-        const streamPromise = client.streamFlows({ sinceTimestampNs: latestTimestampNs.current }, { signal });
-        
-        // 2. UX DELAY: If we are "Reconnecting" (Yellow), force a 1s wait.
-        // This prevents the UI from flickering Yellow->Red too fast if the server is truly down,
-        // giving the user a moment to realize "Oh, it's trying to reconnect".
-        const delayPromise = retryState.used 
-          ? new Promise(resolve => setTimeout(resolve, 1000)) 
-          : Promise.resolve();
-
-        const [response] = await Promise.all([streamPromise, delayPromise]);
-        const stream = response;
-
-        // 3. SUCCESS STATE
-        setConnectionStatus('live');
-        setRetryCount(0);
-
-        // 4. STABILITY LOGIC: If we stay connected for 5 seconds, we "refund" the retry token.
-        // This allows us to handle a load balancer timeout every hour, not just once per page load.
-        clearTimeout(stabilityTimer);
-        stabilityTimer = setTimeout(() => {
-            retryState.used = false; // Reset! We can retry instantly again if needed.
-        }, 5000);
-
-        for await (const response of stream) {
-          if (!response.flow || !response.flow.flow) continue;
-          
-          // ... (Your existing setFlowState logic remains exactly the same) ...
-           setFlowState(prevState => {
-             if (!response.flow) return prevState;
-            const incomingFlow = response.flow;
-            const flowTs = getFlowTimestampNs(incomingFlow);
-            if (flowTs > latestTimestampNs.current) {
-              latestTimestampNs.current = flowTs;
-            }
-
-            if (incomingFlow.flow.case === 'httpFlow') {
-              const httpFlow = incomingFlow.flow.value;
-              const maxBodySizeBytes = maxBodySize * 1024;
-              if (httpFlow.request && httpFlow.request.content.length > maxBodySizeBytes) {
-                httpFlow.request.content = httpFlow.request.content.slice(0, maxBodySizeBytes);
-                httpFlow.request.contentTruncated = true;
-              }
-              if (httpFlow.response && httpFlow.response.content.length > maxBodySizeBytes) {
-                httpFlow.response.content = httpFlow.response.content.slice(0, maxBodySizeBytes);
-                httpFlow.response.contentTruncated = true;
-              }
-            }
-
-            const incomingFlowId = getFlowId(incomingFlow);
-            const existingIndex = prevState.all.findIndex(r => {
-              const rFlowId = getFlowId(r);
-              return rFlowId && incomingFlowId && rFlowId === incomingFlowId;
-            });
-
-            let newAll = [...prevState.all];
-            let newFiltered = [...prevState.filtered];
-
-            if (existingIndex !== -1) {
-              newAll[existingIndex] = incomingFlow;
-              const filteredIndex = newFiltered.findIndex(r => getFlowId(r) === incomingFlowId);
-              const matches = isFlowMatch(incomingFlow, filterRef.current);
-
-              if (filteredIndex !== -1) {
-                if (matches) {
-                  newFiltered[filteredIndex] = incomingFlow;
-                } else {
-                  newFiltered.splice(filteredIndex, 1);
-                }
-              } else if (matches) {
-                newFiltered = [incomingFlow, ...newFiltered];
-              }
-            } else {
-              newAll = [incomingFlow, ...newAll];
-
-              if (isFlowMatch(incomingFlow, filterRef.current)) {
-                newFiltered = [incomingFlow, ...newFiltered];
-              }
-
-              if (newAll.length > maxFlows) {
-                // Batch prune all excess flows
-                const excessCount = newAll.length - maxFlows;
-                const droppedFlows = newAll.splice(newAll.length - excessCount, excessCount);
-                setIsFlowsTruncated(true);
-
-                // Collect IDs of dropped flows
-                const droppedIds = new Set(droppedFlows.map(f => getFlowId(f)).filter((id): id is string => !!id));
-
-                // Remove dropped flows from filtered list
-                newFiltered = newFiltered.filter(f => !droppedIds.has(getFlowId(f)!));
-
-                // Update selected flows if any dropped flow was selected
-                // Note: We use functional update unconditionally because 'selectedFlowIds' in this closure might be stale
-                if (droppedIds.size > 0) {
-                    setSelectedFlowIds(prev => {
-                        let hasChanges = false;
-                        const newSet = new Set(prev);
-                        for (const id of droppedIds) {
-                            if (newSet.has(id)) {
-                                newSet.delete(id);
-                                hasChanges = true;
-                            }
-                        }
-                        return hasChanges ? newSet : prev;
-                    });
-                }
-              }
-            }
-            return { all: newAll, filtered: newFiltered };
-          });
-        }
-        
-        // Stream finished normally
-        if (!isPaused) {
-          timeoutId = setTimeout(attemptConnection, 2000);
-        }
-
-      } catch (err) {
-        if (signal.aborted) return;
-        console.error("Connection stream error:", err);
-
-        // 5. FAILURE LOGIC
-        // If we haven't used our retry token yet, use it now!
-        if (!retryState.used) {
-            console.log("Attempting silent immediate retry...");
-            retryState.used = true; // Mark as used
-            
-            // Retry immediately (recursive call)
-            attemptConnection(); 
+        if (isHistory) {
+           newAll.push(incomingFlow);
         } else {
-            // We already tried to recover instantly and failed again.
-            // Now we must show the error state.
-            setConnectionStatus('failed');
-            const delay = Math.min(30000, 2000 * (2 ** retryCount));
-            setRetryCount(prev => prev + 1);
-            if (!isPaused) {
-                timeoutId = setTimeout(attemptConnection, delay);
-            }
+           newAll.unshift(incomingFlow);
+        }
+
+        if (newAll.length > maxFlows) {
+          // Batch prune all excess flows
+          const excessCount = newAll.length - maxFlows;
+          // Prune from end (oldest)
+          const droppedFlows = newAll.splice(newAll.length - excessCount, excessCount);
+          setIsFlowsTruncated(true);
+
+          // Collect IDs of dropped flows
+          const droppedIds = new Set(droppedFlows.map(f => getFlowId(f)).filter((id): id is string => !!id));
+
+          // Update selected flows if any dropped flow was selected
+          if (droppedIds.size > 0) {
+              setSelectedFlowIds(prev => {
+                  let hasChanges = false;
+                  const newSet = new Set(prev);
+                  for (const id of droppedIds) {
+                      if (newSet.has(id)) {
+                          newSet.delete(id);
+                          hasChanges = true;
+                      }
+                  }
+                  return hasChanges ? newSet : prev;
+              });
+          }
         }
       }
+      return { all: newAll, filtered: newAll };
+    });
+  }, [maxFlows, maxBodySize]);
+
+  // --- Data Fetching ---
+  const filter = useMemo(() => create(FlowFilterSchema, {
+      filterText: debouncedFilterText,
+      pinned,
+      hasNote,
+      flowTypes,
+      clientIps,
+      http: {
+        methods: http.methods,
+        contentTypes: http.contentTypes,
+        statusCodes: http.statusCodes,
+      },
+  }), [debouncedFilterText, pinned, hasNote, flowTypes, clientIps, http]);
+
+  useEffect(() => {
+    // Reset state on filter change
+    latestTimestampNs.current = BigInt(0);
+    setFlowState({ all: [], filtered: [] });
+    setIsFlowsTruncated(false);
+    setSelectedFlowId(null);
+    setSelectedFlowIds(new Set());
+    setConnectionStatus('connecting');
+
+    const abortController = new AbortController();
+    const signal = abortController.signal;
+
+    const fetchHistory = async () => {
+       try {
+         const req = create(GetFlowsRequestSchema, {
+           filter,
+           limit: maxFlows,
+         });
+         const stream = client.getFlows(req, { signal });
+         for await (const res of stream) {
+             if (res.flow) {
+                 processIncomingFlow(res.flow, true); // History
+             }
+         }
+       } catch (err) {
+         if (!signal.aborted) console.error("History fetch error:", err);
+       }
     };
 
-    attemptConnection();
+    fetchHistory();
 
     return () => {
-      clearTimeout(timeoutId);
-      clearTimeout(stabilityTimer); // Clean up the stability timer
-      abortController.abort();
+        abortController.abort();
     };
-  }, [isPaused, maxFlows, maxBodySize]);
+  }, [filter, maxFlows, client, processIncomingFlow]);
 
   useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
-        setIsMenuOpen(false);
+      if (isPaused) {
+          setConnectionStatus('paused');
+          return;
       }
-      if (deleteMenuRef.current && !deleteMenuRef.current.contains(event.target as Node)) {
-        setIsDeleteMenuOpen(false);
-      }
-      if (bulkDownloadRef.current && !bulkDownloadRef.current.contains(event.target as Node)) {
-        setIsBulkDownloadOpen(false);
-      }
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
 
-  useEffect(() => {
-    if (detailsPanelHeight === null) {
-      setDetailsPanelHeight(window.innerHeight * 0.5);
-    }
-  }, [detailsPanelHeight]);
+      const abortController = new AbortController();
+      const signal = abortController.signal;
+      let retryTimeout: NodeJS.Timeout;
 
+      const subscribeLive = async () => {
+          if (signal.aborted) return;
+          try {
+              const req = create(StreamFlowsRequestSchema, {
+                  sinceTimestampNs: latestTimestampNs.current,
+                  filter,
+              });
+              const stream = client.streamFlows(req, { signal });
+              setConnectionStatus('live');
+
+              for await (const res of stream) {
+                  if (res.response.case === 'flow') {
+                      processIncomingFlow(res.response.value, false); // Live
+                  }
+              }
+              if (!signal.aborted) {
+                  retryTimeout = setTimeout(subscribeLive, 2000);
+              }
+          } catch (err) {
+              if (signal.aborted) return;
+              console.error("Live stream error:", err);
+              setConnectionStatus('reconnecting');
+              retryTimeout = setTimeout(subscribeLive, 2000);
+          }
+      };
+
+      subscribeLive();
+
+      return () => {
+          abortController.abort();
+          clearTimeout(retryTimeout);
+      };
+  }, [filter, isPaused, client, processIncomingFlow]);
+
+  // --- Derived State (Filtering) ---
+  const filteredFlows = flowState.filtered;
 
   const activeFilterCount =
-    (pinnedOnly ? 1 : 0) +
-    (hasNote ? 1 : 0) +
+    (pinned !== undefined ? 1 : 0) +
+    (hasNote !== undefined ? 1 : 0) +
     (flowTypes.length > 0 ? 1 : 0) +
     (clientIps.length > 0 ? 1 : 0) +
     (http.methods.length > 0 ? 1 : 0) +
     (http.contentTypes.length > 0 ? 1 : 0) +
     (http.statusCodes.length > 0 ? 1 : 0);
-
-  // --- Derived State (Filtering) ---
-  const filteredFlows = flowState.filtered;
 
   const uniqueClientIps = useMemo(() => {
     const ips = new Set<string>();
@@ -576,7 +543,7 @@ const App: React.FC = () => {
       if (pinnedFlows.length > 0) {
         setFlowState({
           all: pinnedFlows,
-          filtered: pinnedFlows.filter(f => isFlowMatch(f, filterRef.current))
+          filtered: pinnedFlows // .filter(f => isFlowMatch(f, filterRef.current))
         });
         showToast("Pinned flows were not deleted. Select and delete them explicitly to remove.");
       } else {
@@ -662,9 +629,6 @@ const App: React.FC = () => {
   }, []); // Memoize with useCallback
 
 
-
-
-
   return (
     <div className="bg-white dark:bg-zinc-900 text-gray-900 dark:text-zinc-300 font-sans h-screen flex flex-col">
       {/* --- Header --- */}
@@ -672,7 +636,7 @@ const App: React.FC = () => {
         <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">Flows</h1>
         <div className="flex items-center gap-2 ml-2">
           {/* Connection Status Indicator */}
-          <div className={`flex items-center justify-center w-32 gap-2 px-3 py-1 rounded-full text-sm font-medium
+          <div className={`flex items-center justify-center gap-2 px-3 py-1 rounded-full text-sm font-medium
             ${connectionStatus === 'live' ? 'text-green-600 dark:text-green-400 bg-green-100 dark:bg-green-900/50' : ''}
             ${connectionStatus === 'paused' ? 'text-yellow-600 dark:text-yellow-400 bg-yellow-100 dark:bg-yellow-900/50' : ''}
             ${connectionStatus === 'connecting' ? 'text-blue-600 dark:text-blue-400 bg-blue-100 dark:bg-blue-900/50' : ''}
@@ -926,8 +890,8 @@ const App: React.FC = () => {
             selectedFlowIds={selectedFlowIds}
             onRowSelected={handleFlowSelection}
             onTogglePin={handleTogglePin}
-            pinnedOnly={pinnedOnly}
-            onTogglePinnedFilter={() => setPinnedOnly(!pinnedOnly)}
+            pinned={pinned}
+            onTogglePinnedFilter={() => setPinned(pinned === true ? false : (pinned === false ? undefined : true))}
             onToggleRowSelection={flowId => {
               setSelectedFlowIds(prev => {
                 const newSet = new Set(prev);
