@@ -14,6 +14,7 @@ interface FlowTableProps {
     flows: Flow[];
     focusedFlowId: string | null;
     selectedFlowIds: Set<string>;
+    newFlowIds?: Set<string>;
     onRowSelected: (flow: Flow, options: { event?: React.MouseEvent | React.KeyboardEvent }) => void;
     onToggleRowSelection: (flowId: string) => void;
     onTogglePin: (flow: Flow) => void;
@@ -26,7 +27,7 @@ type CustomColDef = ColDef<Flow> & {
 };
 
 const FlowTable = forwardRef<AgGridReact, FlowTableProps>(
-    function FlowTable({ flows, focusedFlowId, selectedFlowIds, onRowSelected, onToggleRowSelection, onTogglePin, pinned, onTogglePinnedFilter }, ref) {
+    function FlowTable({ flows, focusedFlowId, selectedFlowIds, newFlowIds, onRowSelected, onToggleRowSelection, onTogglePin, pinned, onTogglePinnedFilter }, ref) {
         // Sort config: track column index (in columnDefs) and direction
         const [sortConfig, setSortConfig] = useState<{ colIndex: number | null; direction: 'asc' | 'desc' }>({ colIndex: 2, direction: 'desc' }); // default sort by Timestamp desc
 
@@ -358,6 +359,7 @@ const FlowTable = forwardRef<AgGridReact, FlowTableProps>(
                             const flowId = getFlowId(flow);
                             const isFocused = flowId && focusedFlowId === flowId;
                             const isSelected = flowId && selectedFlowIds.has(flowId);
+                            const isNew = flowId && newFlowIds?.has(flowId);
                             // Alternating row color: even rows darker
                             const baseRow = idx % 2 === 0 ? 'bg-white dark:bg-zinc-900' : 'bg-gray-50 dark:bg-zinc-800';
 
@@ -367,6 +369,10 @@ const FlowTable = forwardRef<AgGridReact, FlowTableProps>(
                             // Combined: Both
 
                             let rowClass = `cursor-pointer border-b border-gray-200 dark:border-zinc-700 ${baseRow}`;
+
+                            if (isNew) {
+                                rowClass += ' new-flow-highlight';
+                            }
 
                             if (isFocused) {
                                 // Add border and override background with tint

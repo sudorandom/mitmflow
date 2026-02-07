@@ -1,4 +1,4 @@
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { vi, test, expect } from 'vitest';
 import App from './App';
 import { createClient } from '@connectrpc/connect';
@@ -207,4 +207,65 @@ test('adds flows to the list', async () => {
 
     const flowCell = await screen.findByRole('gridcell', { name: /http:\/\/example.com/i });
     expect(flowCell).toBeInTheDocument();
+});
+
+test('newly streamed flows are highlighted and then unhighlighted', async () => {
+    const mockFlow = {
+        response: {
+            case: 'flow',
+            value: {
+                flow: {
+                    case: 'httpFlow',
+                    value: {
+                        id: 'test-flow-highlight',
+                        request: {
+                            method: 'GET',
+                            url: 'http://example.com/highlight',
+                            httpVersion: 'HTTP/1.1',
+                            headers: {},
+                            content: new Uint8Array(),
+                        },
+                        response: {
+                            statusCode: 200,
+                            httpVersion: 'HTTP/1.1',
+                            headers: {},
+                            content: new Uint8Array(),
+                        },
+                        timestampStart: {
+                            seconds: BigInt(Math.floor(Date.now() / 1000)),
+                            nanos: (Date.now() % 1000) * 1000000
+                        },
+                    },
+                },
+            }
+        }
+    };
+
+    mockedCreateClient.mockReturnValue({
+        streamFlows: async function* () {
+            yield mockFlow;
+            await new Promise(() => {});
+        },
+        getFlows: async function* () {},
+        exportFlow: async () => ({}),
+        deleteFlows: async () => ({}),
+        updateFlow: async () => ({}),
+    } as unknown as ReturnType<typeof createClient>);
+
+    render(<App />);
+
+    let row: HTMLElement | null = null;
+
+    // Wait for highlight
+    await waitFor(async () => {
+        const cell = screen.getByText(/http:\/\/example.com\/highlight/i);
+        row = cell.closest('tr');
+        expect(row).toBeInTheDocument();
+        expect(row).toHaveClass('new-flow-highlight');
+    }, { timeout: 2000 });
+
+    // Wait for unhighlight
+    await waitFor(async () => {
+        expect(row).not.toHaveClass('new-flow-highlight');
+    }, { timeout: 3000 });
 });
