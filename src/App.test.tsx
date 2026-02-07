@@ -12,8 +12,17 @@ test('renders the main app component', () => {
         streamFlows: async function* () {
             // empty stream by default
         },
+        getFlows: async function* () {
+            // empty stream by default
+        },
         exportFlow: async function () {
             return Promise.resolve({ received: true, message: "ok", flowsProcessed: 0n });
+        },
+        deleteFlows: async function () {
+            return Promise.resolve({ count: 0n });
+        },
+        updateFlow: async function () {
+             return Promise.resolve({});
         }
     } as unknown as ReturnType<typeof createClient>);
     render(<App />);
@@ -55,8 +64,17 @@ test('renders the details panel when a flow is selected', async () => {
             // Don't complete the stream
             await new Promise(() => { });
         },
+        getFlows: async function* () {
+             // empty history
+        },
         exportFlow: async function () {
             return Promise.resolve({ received: true, message: "ok", flowsProcessed: 0n });
+        },
+        deleteFlows: async function () {
+            return Promise.resolve({ count: 0n });
+        },
+        updateFlow: async function () {
+             return Promise.resolve({});
         }
     } as unknown as ReturnType<typeof createClient>);
 
@@ -102,8 +120,17 @@ test('details panel is focusable for keyboard scrolling', async () => {
             yield mockFlow;
             await new Promise(() => { });
         },
+        getFlows: async function* () {
+             // empty history
+        },
         exportFlow: async function () {
             return Promise.resolve({ received: true, message: "ok", flowsProcessed: 0n });
+        },
+        deleteFlows: async function () {
+            return Promise.resolve({ count: 0n });
+        },
+        updateFlow: async function () {
+             return Promise.resolve({});
         }
     } as unknown as ReturnType<typeof createClient>);
 
@@ -162,8 +189,17 @@ test('adds flows to the list', async () => {
             // Don't complete the stream
             await new Promise(() => { });
         },
+        getFlows: async function* () {
+             // empty history
+        },
         exportFlow: async function () {
             return Promise.resolve({ received: true, message: "ok", flowsProcessed: 0n });
+        },
+        deleteFlows: async function () {
+            return Promise.resolve({ count: 0n });
+        },
+        updateFlow: async function () {
+             return Promise.resolve({});
         }
     } as unknown as ReturnType<typeof createClient>);
 

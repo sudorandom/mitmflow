@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react'
 import { Search, Pause, Play, Download, Braces, HardDriveDownload, Menu, Filter, X, Settings, Trash, ChevronDown } from 'lucide-react';
 import { createConnectTransport } from "@connectrpc/connect-web";
 import { createClient } from "@connectrpc/connect";
-import { Service, Flow, FlowSchema, StreamFlowsRequestSchema } from "./gen/mitmflow/v1/mitmflow_pb"
+import { Service, Flow, FlowSchema, StreamFlowsRequestSchema, GetFlowsRequestSchema, FlowFilterSchema } from "./gen/mitmflow/v1/mitmflow_pb"
 import { toJson, create } from "@bufbuild/protobuf";
 import { DnsFlowDetails } from './components/DnsFlowDetails';
 import { HttpFlowDetails } from './components/HttpFlowDetails';
@@ -160,7 +160,6 @@ const App: React.FC = () => {
   const [isFlowsTruncated, setIsFlowsTruncated] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
   const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>('connecting');
-  const [retryCount, setRetryCount] = useState(0);
   const latestTimestampNs = useRef<bigint>(BigInt(0));
   const {
     text: filterText,
@@ -181,6 +180,11 @@ const App: React.FC = () => {
   } = useFilterStore();
 
   const debouncedFilterText = useDebounce(filterText, 300);
+
+  // Settings from store
+  const { theme, maxFlows: storedMaxFlows, maxBodySize } = useSettingsStore();
+  // Ensure maxFlows is a valid number, defaulting to 500 if undefined or invalid (e.g. NaN from old local storage)
+  const maxFlows = Number.isFinite(storedMaxFlows) ? storedMaxFlows : 500;
 
   // Load from URL
   useEffect(() => {
@@ -254,10 +258,6 @@ const App: React.FC = () => {
     setToast(prev => prev ? { ...prev, visible: false } : null);
   }, []);
 
-  // Settings from store
-  const { theme, maxFlows: storedMaxFlows, maxBodySize } = useSettingsStore();
-  // Ensure maxFlows is a valid number, defaulting to 500 if undefined or invalid (e.g. NaN from old local storage)
-  const maxFlows = Number.isFinite(storedMaxFlows) ? storedMaxFlows : 500;
 
   // Theme application
   useEffect(() => {
@@ -351,13 +351,89 @@ const App: React.FC = () => {
     URL.revokeObjectURL(url);
   }, []);
 
-  // --- Data Fetching ---
-  useEffect(() => {
-    if (isPaused) {
-      setConnectionStatus('paused');
-      return;
-    }
+  const processIncomingFlow = useCallback((incomingFlow: Flow, isHistory: boolean = false) => {
+    setFlowState(prevState => {
+      const flowTs = getFlowTimestampNs(incomingFlow);
+      if (flowTs > latestTimestampNs.current) {
+        latestTimestampNs.current = flowTs;
+      }
 
+      if (incomingFlow.flow.case === 'httpFlow') {
+        const httpFlow = incomingFlow.flow.value;
+        const maxBodySizeBytes = maxBodySize * 1024;
+        if (httpFlow.request && httpFlow.request.content.length > maxBodySizeBytes) {
+          httpFlow.request.content = httpFlow.request.content.slice(0, maxBodySizeBytes);
+          httpFlow.request.contentTruncated = true;
+        }
+        if (httpFlow.response && httpFlow.response.content.length > maxBodySizeBytes) {
+          httpFlow.response.content = httpFlow.response.content.slice(0, maxBodySizeBytes);
+          httpFlow.response.contentTruncated = true;
+        }
+      }
+
+      const incomingFlowId = getFlowId(incomingFlow);
+      const existingIndex = prevState.all.findIndex(r => {
+        const rFlowId = getFlowId(r);
+        return rFlowId && incomingFlowId && rFlowId === incomingFlowId;
+      });
+
+      const newAll = [...prevState.all];
+
+      if (existingIndex !== -1) {
+        newAll[existingIndex] = incomingFlow;
+      } else {
+        if (isHistory) {
+           newAll.push(incomingFlow);
+        } else {
+           newAll.unshift(incomingFlow);
+        }
+
+        if (newAll.length > maxFlows) {
+          // Batch prune all excess flows
+          const excessCount = newAll.length - maxFlows;
+          // Prune from end (oldest)
+          const droppedFlows = newAll.splice(newAll.length - excessCount, excessCount);
+          setIsFlowsTruncated(true);
+
+          // Collect IDs of dropped flows
+          const droppedIds = new Set(droppedFlows.map(f => getFlowId(f)).filter((id): id is string => !!id));
+
+          // Update selected flows if any dropped flow was selected
+          if (droppedIds.size > 0) {
+              setSelectedFlowIds(prev => {
+                  let hasChanges = false;
+                  const newSet = new Set(prev);
+                  for (const id of droppedIds) {
+                      if (newSet.has(id)) {
+                          newSet.delete(id);
+                          hasChanges = true;
+                      }
+                  }
+                  return hasChanges ? newSet : prev;
+              });
+          }
+        }
+      }
+      return { all: newAll, filtered: newAll };
+    });
+  }, [maxFlows, maxBodySize]);
+
+  // --- Data Fetching ---
+  const filter = useMemo(() => create(FlowFilterSchema, {
+      filterText: debouncedFilterText,
+      pinnedOnly,
+      hasNote,
+      flowTypes,
+      clientIps,
+      http: {
+        methods: http.methods,
+        contentTypes: http.contentTypes,
+        statusCodes: http.statusCodes,
+      },
+      reverseOrder: true,
+  }), [debouncedFilterText, pinnedOnly, hasNote, flowTypes, clientIps, http]);
+
+  useEffect(() => {
     // Reset state on filter change
     latestTimestampNs.current = BigInt(0);
     setFlowState({ all: [], filtered: [] });
@@ -366,198 +442,79 @@ const App: React.FC = () => {
     setSelectedFlowIds(new Set());
     setConnectionStatus('connecting');
 
-    let abortController = new AbortController();
-    let timeoutId: NodeJS.Timeout;
-    let stabilityTimer: NodeJS.Timeout;
+    const abortController = new AbortController();
+    const signal = abortController.signal;
 
-    // We use a ref to track if we have "spent" our one-time instant retry.
-    // This persists across the recursive calls without being reset by closures.
-    // Default is false (we haven't used it yet).
-    const retryState = { used: false };
-
-    const attemptConnection = async () => {
-      abortController = new AbortController();
-      const signal = abortController.signal;
-
-      // 1. Determine Status based on if we are using our "Free Retry"
-      if (retryState.used) {
-        setConnectionStatus('reconnecting');
-      } else {
-        setConnectionStatus('connecting');
-      }
-
-      try {
-        const req = create(StreamFlowsRequestSchema, {
-          sinceTimestampNs: latestTimestampNs.current,
-          filterText: debouncedFilterText,
-          pinnedOnly,
-          hasNote,
-          flowTypes,
-          clientIps,
-          http: {
-            methods: http.methods,
-            contentTypes: http.contentTypes,
-            statusCodes: http.statusCodes,
-          },
-          reverseOrder: true,
-        });
-
-        const streamPromise = client.streamFlows(req, { signal });
-        
-        // 2. UX DELAY: If we are "Reconnecting" (Yellow), force a 1s wait.
-        // This prevents the UI from flickering Yellow->Red too fast if the server is truly down,
-        // giving the user a moment to realize "Oh, it's trying to reconnect".
-        const delayPromise = retryState.used 
-          ? new Promise(resolve => setTimeout(resolve, 1000)) 
-          : Promise.resolve();
-
-        const [response] = await Promise.all([streamPromise, delayPromise]);
-        const stream = response;
-
-        // 3. SUCCESS STATE
-        setConnectionStatus('live');
-        setRetryCount(0);
-
-        // 4. STABILITY LOGIC: If we stay connected for 5 seconds, we "refund" the retry token.
-        // This allows us to handle a load balancer timeout every hour, not just once per page load.
-        clearTimeout(stabilityTimer);
-        stabilityTimer = setTimeout(() => {
-            retryState.used = false; // Reset! We can retry instantly again if needed.
-        }, 5000);
-
-        for await (const response of stream) {
-          if (!response.response.case) continue;
-
-          if (response.response.case === 'event') {
-            continue;
-          }
-
-          if (response.response.case === 'flow') {
-            const incomingFlow = response.response.value;
-            setFlowState(prevState => {
-              const flowTs = getFlowTimestampNs(incomingFlow);
-              if (flowTs > latestTimestampNs.current) {
-                latestTimestampNs.current = flowTs;
-              }
-
-              if (incomingFlow.flow.case === 'httpFlow') {
-                const httpFlow = incomingFlow.flow.value;
-                const maxBodySizeBytes = maxBodySize * 1024;
-                if (httpFlow.request && httpFlow.request.content.length > maxBodySizeBytes) {
-                  httpFlow.request.content = httpFlow.request.content.slice(0, maxBodySizeBytes);
-                  httpFlow.request.contentTruncated = true;
-                }
-                if (httpFlow.response && httpFlow.response.content.length > maxBodySizeBytes) {
-                  httpFlow.response.content = httpFlow.response.content.slice(0, maxBodySizeBytes);
-                  httpFlow.response.contentTruncated = true;
-                }
-              }
-
-              const incomingFlowId = getFlowId(incomingFlow);
-              const existingIndex = prevState.all.findIndex(r => {
-                const rFlowId = getFlowId(r);
-                return rFlowId && incomingFlowId && rFlowId === incomingFlowId;
-              });
-
-              let newAll = [...prevState.all];
-
-              if (existingIndex !== -1) {
-                newAll[existingIndex] = incomingFlow;
-              } else {
-                newAll = [incomingFlow, ...newAll];
-
-                if (newAll.length > maxFlows) {
-                  // Batch prune all excess flows
-                  const excessCount = newAll.length - maxFlows;
-                  const droppedFlows = newAll.splice(newAll.length - excessCount, excessCount);
-                  setIsFlowsTruncated(true);
-
-                  // Collect IDs of dropped flows
-                  const droppedIds = new Set(droppedFlows.map(f => getFlowId(f)).filter((id): id is string => !!id));
-
-                  // Update selected flows if any dropped flow was selected
-                  if (droppedIds.size > 0) {
-                      setSelectedFlowIds(prev => {
-                          let hasChanges = false;
-                          const newSet = new Set(prev);
-                          for (const id of droppedIds) {
-                              if (newSet.has(id)) {
-                                  newSet.delete(id);
-                                  hasChanges = true;
-                              }
-                          }
-                          return hasChanges ? newSet : prev;
-                      });
-                  }
-                }
-              }
-              // filtered is now same as all since we filter on server
-              return { all: newAll, filtered: newAll };
-            });
-          }
-        }
-        
-        // Stream finished normally
-        if (!isPaused) {
-          timeoutId = setTimeout(attemptConnection, 2000);
-        }
-
-      } catch (err) {
-        if (signal.aborted) return;
-        console.error("Connection stream error:", err);
-
-        // 5. FAILURE LOGIC
-        // If we haven't used our retry token yet, use it now!
-        if (!retryState.used) {
-            console.log("Attempting silent immediate retry...");
-            retryState.used = true; // Mark as used
-            
-            // Retry immediately (recursive call)
-            attemptConnection(); 
-        } else {
-            // We already tried to recover instantly and failed again.
-            // Now we must show the error state.
-            setConnectionStatus('failed');
-            const delay = Math.min(30000, 2000 * (2 ** retryCount));
-            setRetryCount(prev => prev + 1);
-            if (!isPaused) {
-                timeoutId = setTimeout(attemptConnection, delay);
-            }
-        }
-      }
+    const fetchHistory = async () => {
+       try {
+         const req = create(GetFlowsRequestSchema, {
+           filter,
+           limit: maxFlows,
+         });
+         const stream = client.getFlows(req, { signal });
+         for await (const res of stream) {
+             if (res.flow) {
+                 processIncomingFlow(res.flow, true); // History
+             }
+         }
+       } catch (err) {
+         if (!signal.aborted) console.error("History fetch error:", err);
+       }
     };
 
-    attemptConnection();
+    fetchHistory();
 
     return () => {
-      clearTimeout(timeoutId);
-      clearTimeout(stabilityTimer); // Clean up the stability timer
-      abortController.abort();
+        abortController.abort();
     };
-  }, [isPaused, maxFlows, maxBodySize, debouncedFilterText, pinnedOnly, hasNote, flowTypes, clientIps, http]);
+  }, [filter, maxFlows, client, processIncomingFlow]);
 
   useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
-        setIsMenuOpen(false);
+      if (isPaused) {
+          setConnectionStatus('paused');
+          return;
       }
-      if (deleteMenuRef.current && !deleteMenuRef.current.contains(event.target as Node)) {
-        setIsDeleteMenuOpen(false);
-      }
-      if (bulkDownloadRef.current && !bulkDownloadRef.current.contains(event.target as Node)) {
-        setIsBulkDownloadOpen(false);
-      }
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
 
-  useEffect(() => {
-    if (detailsPanelHeight === null) {
-      setDetailsPanelHeight(window.innerHeight * 0.5);
-    }
-  }, [detailsPanelHeight]);
+      const abortController = new AbortController();
+      const signal = abortController.signal;
+      let retryTimeout: NodeJS.Timeout;
 
+      const subscribeLive = async () => {
+          if (signal.aborted) return;
+          try {
+              const req = create(StreamFlowsRequestSchema, {
+                  sinceTimestampNs: latestTimestampNs.current,
+                  filter,
+              });
+              const stream = client.streamFlows(req, { signal });
+              setConnectionStatus('live');
+
+              for await (const res of stream) {
+                  if (res.response.case === 'flow') {
+                      processIncomingFlow(res.response.value, false); // Live
+                  }
+              }
+              if (!signal.aborted) {
+                  retryTimeout = setTimeout(subscribeLive, 2000);
+              }
+          } catch (err) {
+              if (signal.aborted) return;
+              console.error("Live stream error:", err);
+              setConnectionStatus('reconnecting');
+              retryTimeout = setTimeout(subscribeLive, 2000);
+          }
+      };
+
+      subscribeLive();
+
+      return () => {
+          abortController.abort();
+          clearTimeout(retryTimeout);
+      };
+  }, [filter, isPaused, client, processIncomingFlow]);
+
+  // --- Derived State (Filtering) ---
+  const filteredFlows = flowState.filtered;
 
   const activeFilterCount =
     (pinnedOnly ? 1 : 0) +
@@ -567,9 +524,6 @@ const App: React.FC = () => {
     (http.methods.length > 0 ? 1 : 0) +
     (http.contentTypes.length > 0 ? 1 : 0) +
     (http.statusCodes.length > 0 ? 1 : 0);
-
-  // --- Derived State (Filtering) ---
-  const filteredFlows = flowState.filtered;
 
   const uniqueClientIps = useMemo(() => {
     const ips = new Set<string>();
@@ -745,9 +699,6 @@ const App: React.FC = () => {
     setSelectedFlowId(null);
     setDetailsPanelHeight(null); // Reset height when panel is closed
   }, []); // Memoize with useCallback
-
-
-
 
 
   return (

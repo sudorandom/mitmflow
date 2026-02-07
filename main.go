@@ -102,6 +102,75 @@ func (s *MITMFlowServer) ExportFlow(
 	return res, nil
 }
 
+func (s *MITMFlowServer) GetFlows(
+	ctx context.Context,
+	req *connect.Request[mitmflowv1.GetFlowsRequest],
+	stream *connect.ServerStream[mitmflowv1.GetFlowsResponse],
+) error {
+	flows := s.storage.GetFlows()
+
+	// Reverse iteration (newest first)
+	limit := int(req.Msg.GetLimit())
+	if limit <= 0 {
+		limit = 500
+	}
+
+	count := 0
+	filter := req.Msg.GetFilter()
+
+	sendFlow := func(flow *mitmflowv1.Flow) error {
+		builder := mitmflowv1.GetFlowsResponse_builder{
+			Flow: flow,
+		}
+		return stream.Send(builder.Build())
+	}
+
+	// We collect matching flows first to handle sorting correctly if needed?
+	// Actually, if we want "newest first" (reverse_order=true, which is typical for logs),
+	// we can just iterate backwards and stream.
+	// If we want "oldest first", but only the "last X flows", we still need to find the *last X* first.
+	// Typically logs are "show me the last 500 flows".
+	// If reverse_order=false (oldest first), we usually want the *first* 500 flows?
+	// Or do we want the last 500 flows, but sorted oldest->newest?
+	// The prompt said: "backend can only send the last X number of flows matching the filter".
+	// This usually implies "Limit applied to the set of flows, effectively taking the N most recent".
+	// The sorting order (reverse_order) determines how they are presented.
+
+	// So: Find N most recent matching flows.
+	// Then: Send them in requested order.
+
+	var matchingFlows []*mitmflowv1.Flow
+	for i := len(flows) - 1; i >= 0; i-- {
+		flow := flows[i]
+		if matchFlow(flow, filter) {
+			matchingFlows = append(matchingFlows, flow)
+			count++
+			if count >= limit {
+				break
+			}
+		}
+	}
+
+	if filter.GetReverseOrder() {
+		// We collected them new->old.
+		// If reverse_order is true (newest first), we stream them as is.
+		for _, flow := range matchingFlows {
+			if err := sendFlow(flow); err != nil {
+				return err
+			}
+		}
+	} else {
+		// If reverse_order is false (oldest first), we need to reverse our collection (which is new->old).
+		for i := len(matchingFlows) - 1; i >= 0; i-- {
+			if err := sendFlow(matchingFlows[i]); err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
+}
+
 func (s *MITMFlowServer) StreamFlows(
 	ctx context.Context,
 	req *connect.Request[mitmflowv1.StreamFlowsRequest],
@@ -121,8 +190,8 @@ func (s *MITMFlowServer) StreamFlows(
 		close(ch)
 	}()
 
-	flows := s.storage.GetFlows()
 	sinceNs := req.Msg.GetSinceTimestampNs()
+	filter := req.Msg.GetFilter()
 
 	sendFlow := func(flow *mitmflowv1.Flow) error {
 		builder := mitmflowv1.StreamFlowsResponse_builder{
@@ -136,7 +205,7 @@ func (s *MITMFlowServer) StreamFlows(
 		for {
 			select {
 			case flow := <-ch:
-				if !matchFlow(flow, req.Msg) {
+				if !matchFlow(flow, filter) {
 					continue
 				}
 				if err := sendFlow(flow); err != nil {
@@ -148,69 +217,62 @@ func (s *MITMFlowServer) StreamFlows(
 		}
 	}
 
-	if req.Msg.GetReverseOrder() {
-		// Iterate backwards
-		for i := len(flows) - 1; i >= 0; i-- {
-			// Periodically check context and drain channel
-			if i%10 == 0 {
-				if ctx.Err() != nil {
-					return nil
+	// Only backfill if sinceNs is provided (Resume scenario)
+	// If sinceNs is 0, we assume "start from now" (Live scenario)
+	if sinceNs > 0 {
+		flows := s.storage.GetFlows()
+
+		if filter.GetReverseOrder() {
+			// Iterate backwards
+			for i := len(flows) - 1; i >= 0; i-- {
+				// Periodically check context and drain channel
+				if i%10 == 0 {
+					if ctx.Err() != nil {
+						return nil
+					}
+					if err := drainChannel(); err != nil {
+						return err
+					}
 				}
-				if err := drainChannel(); err != nil {
+
+				flow := flows[i]
+				if GetFlowStartTime(flow) <= sinceNs {
+					continue
+				}
+				if !matchFlow(flow, filter) {
+					continue
+				}
+				if err := sendFlow(flow); err != nil {
 					return err
 				}
 			}
-
-			flow := flows[i]
-			if sinceNs > 0 && GetFlowStartTime(flow) <= sinceNs {
-				continue
-			}
-			if !matchFlow(flow, req.Msg) {
-				continue
-			}
-			if err := sendFlow(flow); err != nil {
-				return err
-			}
-		}
-	} else {
-		for i, flow := range flows {
-			// Periodically check context and drain channel
-			if i%10 == 0 {
-				if ctx.Err() != nil {
-					return nil
+		} else {
+			for i, flow := range flows {
+				// Periodically check context and drain channel
+				if i%10 == 0 {
+					if ctx.Err() != nil {
+						return nil
+					}
+					if err := drainChannel(); err != nil {
+						return err
+					}
 				}
-				if err := drainChannel(); err != nil {
+
+				if GetFlowStartTime(flow) <= sinceNs {
+					continue
+				}
+				if !matchFlow(flow, filter) {
+					continue
+				}
+				if err := sendFlow(flow); err != nil {
 					return err
 				}
-			}
-
-			if sinceNs > 0 && GetFlowStartTime(flow) <= sinceNs {
-				continue
-			}
-			if !matchFlow(flow, req.Msg) {
-				continue
-			}
-			if err := sendFlow(flow); err != nil {
-				return err
 			}
 		}
 	}
 
-	// Ensure any remaining flows in channel are sent before sending HISTORY_DONE
+	// Ensure any remaining flows in channel are sent
 	if err := drainChannel(); err != nil {
-		return err
-	}
-
-	// Send HISTORY_DONE event
-	eventType := mitmflowv1.StreamEvent_TYPE_HISTORY_DONE
-	event := mitmflowv1.StreamEvent_builder{
-		Type: &eventType,
-	}.Build()
-	eventBuilder := mitmflowv1.StreamFlowsResponse_builder{
-		Event: event,
-	}
-	err := stream.Send(eventBuilder.Build())
-	if err != nil {
 		return err
 	}
 
@@ -223,7 +285,7 @@ func (s *MITMFlowServer) StreamFlows(
 		case <-ctx.Done():
 			return nil
 		case flow := <-ch:
-			if !matchFlow(flow, req.Msg) {
+			if !matchFlow(flow, filter) {
 				continue
 			}
 			if err := sendFlow(flow); err != nil {
@@ -235,7 +297,7 @@ func (s *MITMFlowServer) StreamFlows(
 	}
 }
 
-func matchFlow(flow *mitmflowv1.Flow, filter *mitmflowv1.StreamFlowsRequest) bool {
+func matchFlow(flow *mitmflowv1.Flow, filter *mitmflowv1.FlowFilter) bool {
 	if filter.GetPinnedOnly() && !flow.GetPinned() {
 		return false
 	}

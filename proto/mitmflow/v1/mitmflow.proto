@@ -6,26 +6,40 @@ import "mitmproxygrpc/v1/service.proto";
 import "buf/validate/validate.proto";
 
 service Service {
+  rpc GetFlows(GetFlowsRequest) returns (stream GetFlowsResponse) {}
   rpc StreamFlows(StreamFlowsRequest) returns (stream StreamFlowsResponse) {}
   rpc UpdateFlow(UpdateFlowRequest) returns (UpdateFlowResponse) {}
   rpc DeleteFlows(DeleteFlowsRequest) returns (DeleteFlowsResponse) {}
 }
 
-message StreamFlowsRequest {
-  int64 since_timestamp_ns = 1;
-  string filter_text = 2;
-  bool pinned_only = 3;
-  bool has_note = 4;
-  repeated string flow_types = 5 [
+message FlowFilter {
+  string filter_text = 1;
+  bool pinned_only = 2;
+  bool has_note = 3;
+  repeated string flow_types = 4 [
     (buf.validate.field).repeated.items.string = {
       in: ["http", "dns", "tcp", "udp"]
     }
   ];
-  repeated string client_ips = 6 [
+  repeated string client_ips = 5 [
     (buf.validate.field).repeated.items.string.ip = true
   ];
-  HttpFilter http = 7;
-  bool reverse_order = 8;
+  HttpFilter http = 6;
+  bool reverse_order = 7;
+}
+
+message GetFlowsRequest {
+  FlowFilter filter = 1;
+  int32 limit = 2;
+}
+
+message GetFlowsResponse {
+  Flow flow = 1;
+}
+
+message StreamFlowsRequest {
+  int64 since_timestamp_ns = 1;
+  FlowFilter filter = 2;
 }
 
 message HttpFilter {
@@ -44,16 +58,7 @@ message HttpFilter {
 message StreamFlowsResponse {
   oneof response {
     Flow flow = 1;
-    StreamEvent event = 2;
   }
-}
-
-message StreamEvent {
-  enum Type {
-    TYPE_UNSPECIFIED = 0;
-    TYPE_HISTORY_DONE = 1;
-  }
-  Type type = 1;
 }
 
 message UpdateFlowRequest {
