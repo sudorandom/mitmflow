@@ -140,7 +140,7 @@ const App: React.FC = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isDeleteMenuOpen, setIsDeleteMenuOpen] = useState(false); // New state for delete menu
   const [isBulkDownloadOpen, setIsBulkDownloadOpen] = useState(false); // New state for bulk download menu
-  const [detailsPanelHeight, setDetailsPanelHeight] = useState<number | null>(null);
+  const [detailsPanelHeight, setDetailsPanelHeight] = useState<number | null>(400);
   const [requestFormats, setRequestFormats] = useState<Map<string, ContentFormat>>(new Map());
   const [responseFormats, setResponseFormats] = useState<Map<string, ContentFormat>>(new Map());
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
@@ -280,71 +280,95 @@ const App: React.FC = () => {
     URL.revokeObjectURL(url);
   }, [generateHarWithWorker]);
 
-  const processIncomingFlow = useCallback((incomingFlow: Flow, isHistory: boolean = false) => {
-    setFlowState(prevState => {
-      const flowTs = getFlowTimestampNs(incomingFlow);
-      if (flowTs > latestTimestampNs.current) {
-        latestTimestampNs.current = flowTs;
+  const flowBuffer = useRef<Flow[]>([]);
+
+  const processIncomingFlow = useCallback((incomingFlow: Flow) => {
+    flowBuffer.current.push(incomingFlow);
+  }, []);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (flowBuffer.current.length === 0) {
+        return;
       }
 
-      if (incomingFlow.flow.case === 'httpFlow') {
-        const httpFlow = incomingFlow.flow.value;
-        const maxBodySizeBytes = maxBodySize * 1024;
-        if (httpFlow.request && httpFlow.request.content.length > maxBodySizeBytes) {
-          httpFlow.request.content = httpFlow.request.content.slice(0, maxBodySizeBytes);
-          httpFlow.request.contentTruncated = true;
-        }
-        if (httpFlow.response && httpFlow.response.content.length > maxBodySizeBytes) {
-          httpFlow.response.content = httpFlow.response.content.slice(0, maxBodySizeBytes);
-          httpFlow.response.contentTruncated = true;
-        }
-      }
+      const flowsToProcess = flowBuffer.current;
+      flowBuffer.current = [];
 
-      const incomingFlowId = getFlowId(incomingFlow);
-      const existingIndex = prevState.all.findIndex(r => {
-        const rFlowId = getFlowId(r);
-        return rFlowId && incomingFlowId && rFlowId === incomingFlowId;
-      });
+      const newIds = new Set<string>();
 
-      const newAll = [...prevState.all];
+      setFlowState(prevState => {
+        let newAll = [...prevState.all];
+        let hasChanges = false;
 
-      if (existingIndex !== -1) {
-        newAll[existingIndex] = incomingFlow;
-      } else {
-        if (isHistory) {
-           newAll.push(incomingFlow);
-        } else {
-           newAll.unshift(incomingFlow);
+        for (const incomingFlow of flowsToProcess) {
+          const incomingFlowId = getFlowId(incomingFlow);
+          if (incomingFlowId) {
+            newIds.add(incomingFlowId);
+          }
+
+          const flowTs = getFlowTimestampNs(incomingFlow);
+          if (flowTs > latestTimestampNs.current) {
+            latestTimestampNs.current = flowTs;
+          }
+
+          if (incomingFlow.flow.case === 'httpFlow') {
+            const httpFlow = incomingFlow.flow.value;
+            const maxBodySizeBytes = maxBodySize * 1024;
+            if (httpFlow.request && httpFlow.request.content.length > maxBodySizeBytes) {
+              httpFlow.request.content = httpFlow.request.content.slice(0, maxBodySizeBytes);
+              httpFlow.request.contentTruncated = true;
+            }
+            if (httpFlow.response && httpFlow.response.content.length > maxBodySizeBytes) {
+              httpFlow.response.content = httpFlow.response.content.slice(0, maxBodySizeBytes);
+              httpFlow.response.contentTruncated = true;
+            }
+          }
+
+          const existingIndex = newAll.findIndex(r => {
+            const rFlowId = getFlowId(r);
+            return rFlowId && incomingFlowId && rFlowId === incomingFlowId;
+          });
+
+          if (existingIndex !== -1) {
+            newAll[existingIndex] = incomingFlow;
+          } else {
+            newAll.unshift(incomingFlow);
+          }
+          hasChanges = true;
         }
 
         if (newAll.length > maxFlows) {
-          // Batch prune all excess flows
           const excessCount = newAll.length - maxFlows;
-          // Prune from end (oldest)
           const droppedFlows = newAll.splice(newAll.length - excessCount, excessCount);
           setIsFlowsTruncated(true);
 
-          // Collect IDs of dropped flows
           const droppedIds = new Set(droppedFlows.map(f => getFlowId(f)).filter((id): id is string => !!id));
 
-          // Update selected flows if any dropped flow was selected
           if (droppedIds.size > 0) {
-              setSelectedFlowIds(prev => {
-                  let hasChanges = false;
-                  const newSet = new Set(prev);
-                  for (const id of droppedIds) {
-                      if (newSet.has(id)) {
-                          newSet.delete(id);
-                          hasChanges = true;
-                      }
-                  }
-                  return hasChanges ? newSet : prev;
-              });
+            setSelectedFlowIds(prev => {
+              let changed = false;
+              const newSet = new Set(prev);
+              for (const id of droppedIds) {
+                if (newSet.has(id)) {
+                  newSet.delete(id);
+                  changed = true;
+                }
+              }
+              return changed ? newSet : prev;
+            });
           }
         }
-      }
-      return { all: newAll, filtered: newAll };
-    });
+        
+        if (hasChanges) {
+          return { all: newAll, filtered: newAll };
+        } else {
+          return prevState;
+        }
+      });
+    }, 500);
+
+    return () => clearInterval(interval);
   }, [maxFlows, maxBodySize]);
 
   // --- Data Fetching ---
@@ -360,6 +384,28 @@ const App: React.FC = () => {
         statusCodes: http.statusCodes,
       },
   }), [debouncedFilterText, pinned, hasNote, flowTypes, clientIps, http]);
+
+  const processHistoryFlow = useCallback((incomingFlow: Flow) => {
+    setFlowState(prevState => {
+      const flowTs = getFlowTimestampNs(incomingFlow);
+      if (flowTs > latestTimestampNs.current) {
+        latestTimestampNs.current = flowTs;
+      }
+
+      // Similar logic to the batched processing, but applied synchronously
+      const incomingFlowId = getFlowId(incomingFlow);
+      const existingIndex = prevState.all.findIndex(r => getFlowId(r) === incomingFlowId);
+      
+      const newAll = [...prevState.all];
+      if (existingIndex !== -1) {
+        newAll[existingIndex] = incomingFlow;
+      } else {
+        newAll.push(incomingFlow); // History flows are pushed to the end
+      }
+
+      return { all: newAll, filtered: newAll };
+    });
+  }, []);
 
   useEffect(() => {
     // Reset state on filter change
@@ -382,7 +428,7 @@ const App: React.FC = () => {
          const stream = client.getFlows(req, { signal });
          for await (const res of stream) {
              if (res.flow) {
-                 processIncomingFlow(res.flow, true); // History
+                 processHistoryFlow(res.flow); // Use synchronous processor
              }
          }
        } catch (err) {
@@ -403,7 +449,7 @@ const App: React.FC = () => {
     return () => {
         abortController.abort();
     };
-  }, [filter, maxFlows, client, processIncomingFlow]);
+  }, [filter, maxFlows, client, processHistoryFlow]);
 
   useEffect(() => {
       if (isPaused) {
@@ -427,7 +473,7 @@ const App: React.FC = () => {
 
               for await (const res of stream) {
                   if (res.response.case === 'flow') {
-                      processIncomingFlow(res.response.value, false); // Live
+                      processIncomingFlow(res.response.value); // Use batched processor
                   }
               }
               if (!signal.aborted) {
