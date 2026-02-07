@@ -373,7 +373,7 @@ const App: React.FC = () => {
     const abortController = new AbortController();
     const signal = abortController.signal;
 
-    const fetchHistory = async () => {
+    const fetchHistory = async (retryCount = 0) => {
        try {
          const req = create(GetFlowsRequestSchema, {
            filter,
@@ -386,7 +386,15 @@ const App: React.FC = () => {
              }
          }
        } catch (err) {
-         if (!signal.aborted) console.error("History fetch error:", err);
+         if (!signal.aborted) {
+            console.error("History fetch error:", err);
+            if (retryCount < 5) {
+                setConnectionStatus('reconnecting');
+                setTimeout(() => fetchHistory(retryCount + 1), 2000);
+            } else {
+                setConnectionStatus('failed');
+            }
+         }
        }
     };
 

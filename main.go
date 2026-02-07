@@ -260,7 +260,6 @@ func (s *MITMFlowServer) StreamFlows(
 	}
 }
 
-
 func (s *MITMFlowServer) UpdateFlow(
 	ctx context.Context,
 	req *connect.Request[mitmflowv1.UpdateFlowRequest],
@@ -463,9 +462,12 @@ func main() {
 	}
 
 	mux := http.NewServeMux()
-	interceptors := connect.WithInterceptors(validate.NewInterceptor())
-	mux.Handle(mitmflowv1.NewServiceHandler(server, interceptors))
-	mux.Handle(mitmproxygrpcv1.NewServiceHandler(server, interceptors))
+	opts := []connect.HandlerOption{
+		connect.WithInterceptors(validate.NewInterceptor()),
+		connect.WithCompressMinBytes(1024), // Compress response messages larger than 1KB
+	}
+	mux.Handle(mitmflowv1.NewServiceHandler(server, opts...))
+	mux.Handle(mitmproxygrpcv1.NewServiceHandler(server, opts...))
 
 	log.Printf("Starting server on %s", *addr)
 
