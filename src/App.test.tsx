@@ -250,7 +250,7 @@ test('newly streamed flows are highlighted and then unhighlighted', async () => 
         exportFlow: async () => ({}),
         deleteFlows: async () => ({}),
         updateFlow: async () => ({}),
-    } as any);
+    } as unknown as ReturnType<typeof createClient>);
 
     render(<App />);
 
