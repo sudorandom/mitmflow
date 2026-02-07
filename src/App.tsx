@@ -430,7 +430,6 @@ const App: React.FC = () => {
         contentTypes: http.contentTypes,
         statusCodes: http.statusCodes,
       },
-      reverseOrder: true,
   }), [debouncedFilterText, pinnedOnly, hasNote, flowTypes, clientIps, http]);
 
   useEffect(() => {

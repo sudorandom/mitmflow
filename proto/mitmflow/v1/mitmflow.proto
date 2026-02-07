@@ -25,7 +25,6 @@ message FlowFilter {
     (buf.validate.field).repeated.items.string.ip = true
   ];
   HttpFilter http = 6;
-  bool reverse_order = 7;
 }
 
 message GetFlowsRequest {

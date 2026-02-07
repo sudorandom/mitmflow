@@ -139,31 +139,15 @@ func (s *MITMFlowServer) GetFlows(
 	// So: Find N most recent matching flows.
 	// Then: Send them in requested order.
 
-	var matchingFlows []*mitmflowv1.Flow
 	for i := len(flows) - 1; i >= 0; i-- {
 		flow := flows[i]
 		if matchFlow(flow, filter) {
-			matchingFlows = append(matchingFlows, flow)
-			count++
-			if count >= limit {
-				break
-			}
-		}
-	}
-
-	if filter.GetReverseOrder() {
-		// We collected them new->old.
-		// If reverse_order is true (newest first), we stream them as is.
-		for _, flow := range matchingFlows {
 			if err := sendFlow(flow); err != nil {
 				return err
 			}
-		}
-	} else {
-		// If reverse_order is false (oldest first), we need to reverse our collection (which is new->old).
-		for i := len(matchingFlows) - 1; i >= 0; i-- {
-			if err := sendFlow(matchingFlows[i]); err != nil {
-				return err
+			count++
+			if count >= limit {
+				break
 			}
 		}
 	}
@@ -221,52 +205,32 @@ func (s *MITMFlowServer) StreamFlows(
 	// If sinceNs is 0, we assume "start from now" (Live scenario)
 	if sinceNs > 0 {
 		flows := s.storage.GetFlows()
-
-		if filter.GetReverseOrder() {
-			// Iterate backwards
-			for i := len(flows) - 1; i >= 0; i-- {
-				// Periodically check context and drain channel
-				if i%10 == 0 {
-					if ctx.Err() != nil {
-						return nil
-					}
-					if err := drainChannel(); err != nil {
-						return err
-					}
+		// Iterate backwards (newest first) until we hit sinceNs
+		for i := len(flows) - 1; i >= 0; i-- {
+			// Periodically check context and drain channel
+			if i%10 == 0 {
+				if ctx.Err() != nil {
+					return nil
 				}
-
-				flow := flows[i]
-				if GetFlowStartTime(flow) <= sinceNs {
-					continue
-				}
-				if !matchFlow(flow, filter) {
-					continue
-				}
-				if err := sendFlow(flow); err != nil {
+				if err := drainChannel(); err != nil {
 					return err
 				}
 			}
-		} else {
-			for i, flow := range flows {
-				// Periodically check context and drain channel
-				if i%10 == 0 {
-					if ctx.Err() != nil {
-						return nil
-					}
-					if err := drainChannel(); err != nil {
-						return err
-					}
-				}
 
-				if GetFlowStartTime(flow) <= sinceNs {
-					continue
-				}
-				if !matchFlow(flow, filter) {
-					continue
-				}
-				if err := sendFlow(flow); err != nil {
-					return err
-				}
+			flow := flows[i]
+			if GetFlowStartTime(flow) <= sinceNs {
+				// Since flows are sorted by time (mostly), we can stop early?
+				// Actually storage.sortedFlows implies they are sorted.
+				// If we iterate backwards (newest to oldest), once we hit a flow <= sinceNs,
+				// all subsequent flows (older) will also be <= sinceNs.
+				// So we can break.
+				break
+			}
+			if !matchFlow(flow, filter) {
+				continue
+			}
+			if err := sendFlow(flow); err != nil {
+				return err
 			}
 		}
 	}
