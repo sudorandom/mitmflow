@@ -35,7 +35,8 @@ const App: React.FC = () => {
   // Use relative URL - in dev mode Vite proxies to backend, in production both are served from same origin
   const client = useMemo(() => createClient(Service, createConnectTransport({ baseUrl: window.MITMFLOW_GRPC_ADDR || "." })), []);
   // --- State ---
-  const [flowState, setFlowState] = useState<{ all: Flow[]; filtered: Flow[] }>({ all: [], filtered: [] });
+  const [flowState, setFlowState] = useState<{ all: Flow[]; filtered: Flow[]; newIds: Set<string> }>({ all: [], filtered: [], newIds: new Set() });
+  const newFlowsMap = useRef<Map<string, number>>(new Map());
   const [isFlowsTruncated, setIsFlowsTruncated] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
   const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>('connecting');
@@ -288,54 +289,74 @@ const App: React.FC = () => {
 
   useEffect(() => {
     const interval = setInterval(() => {
-      if (flowBuffer.current.length === 0) {
+      const now = Date.now();
+      let hasExpired = false;
+
+      // Check for expired highlights
+      for (const [id, ts] of newFlowsMap.current) {
+        if (now - ts > 2000) {
+          newFlowsMap.current.delete(id);
+          hasExpired = true;
+        }
+      }
+
+      if (flowBuffer.current.length === 0 && !hasExpired) {
         return;
       }
 
       const flowsToProcess = flowBuffer.current;
       flowBuffer.current = [];
 
-      const newIds = new Set<string>();
-
       setFlowState(prevState => {
         let newAll = [...prevState.all];
-        let hasChanges = false;
 
-        for (const incomingFlow of flowsToProcess) {
-          const incomingFlowId = getFlowId(incomingFlow);
-          if (incomingFlowId) {
-            newIds.add(incomingFlowId);
-          }
+        if (flowsToProcess.length > 0) {
+           const flowIdMap = new Map<string, number>();
+           newAll.forEach((f, i) => {
+             const id = getFlowId(f);
+             if (id) flowIdMap.set(id, i);
+           });
 
-          const flowTs = getFlowTimestampNs(incomingFlow);
-          if (flowTs > latestTimestampNs.current) {
-            latestTimestampNs.current = flowTs;
-          }
+           const addedFlowsMap = new Map<string, Flow>();
 
-          if (incomingFlow.flow.case === 'httpFlow') {
-            const httpFlow = incomingFlow.flow.value;
-            const maxBodySizeBytes = maxBodySize * 1024;
-            if (httpFlow.request && httpFlow.request.content.length > maxBodySizeBytes) {
-              httpFlow.request.content = httpFlow.request.content.slice(0, maxBodySizeBytes);
-              httpFlow.request.contentTruncated = true;
-            }
-            if (httpFlow.response && httpFlow.response.content.length > maxBodySizeBytes) {
-              httpFlow.response.content = httpFlow.response.content.slice(0, maxBodySizeBytes);
-              httpFlow.response.contentTruncated = true;
-            }
-          }
+           for (const incomingFlow of flowsToProcess) {
+             const incomingFlowId = getFlowId(incomingFlow);
 
-          const existingIndex = newAll.findIndex(r => {
-            const rFlowId = getFlowId(r);
-            return rFlowId && incomingFlowId && rFlowId === incomingFlowId;
-          });
+             const flowTs = getFlowTimestampNs(incomingFlow);
+             if (flowTs > latestTimestampNs.current) {
+               latestTimestampNs.current = flowTs;
+             }
 
-          if (existingIndex !== -1) {
-            newAll[existingIndex] = incomingFlow;
-          } else {
-            newAll.unshift(incomingFlow);
-          }
-          hasChanges = true;
+             if (incomingFlow.flow.case === 'httpFlow') {
+               const httpFlow = incomingFlow.flow.value;
+               const maxBodySizeBytes = maxBodySize * 1024;
+               if (httpFlow.request && httpFlow.request.content.length > maxBodySizeBytes) {
+                 httpFlow.request.content = httpFlow.request.content.slice(0, maxBodySizeBytes);
+                 httpFlow.request.contentTruncated = true;
+               }
+               if (httpFlow.response && httpFlow.response.content.length > maxBodySizeBytes) {
+                 httpFlow.response.content = httpFlow.response.content.slice(0, maxBodySizeBytes);
+                 httpFlow.response.contentTruncated = true;
+               }
+             }
+
+             if (incomingFlowId && flowIdMap.has(incomingFlowId)) {
+               const idx = flowIdMap.get(incomingFlowId)!;
+               newAll[idx] = incomingFlow;
+             } else if (incomingFlowId && addedFlowsMap.has(incomingFlowId)) {
+               addedFlowsMap.set(incomingFlowId, incomingFlow);
+             } else {
+               if (incomingFlowId) {
+                  addedFlowsMap.set(incomingFlowId, incomingFlow);
+                  newFlowsMap.current.set(incomingFlowId, now);
+               }
+             }
+           }
+
+           if (addedFlowsMap.size > 0) {
+              const addedFlows = Array.from(addedFlowsMap.values()).reverse();
+              newAll = [...addedFlows, ...newAll];
+           }
         }
 
         if (newAll.length > maxFlows) {
@@ -346,6 +367,11 @@ const App: React.FC = () => {
           const droppedIds = new Set(droppedFlows.map(f => getFlowId(f)).filter((id): id is string => !!id));
 
           if (droppedIds.size > 0) {
+            // Remove dropped IDs from newFlowsMap
+            for (const id of droppedIds) {
+                newFlowsMap.current.delete(id);
+            }
+
             setSelectedFlowIds(prev => {
               let changed = false;
               const newSet = new Set(prev);
@@ -360,11 +386,11 @@ const App: React.FC = () => {
           }
         }
         
-        if (hasChanges) {
-          return { all: newAll, filtered: newAll };
-        } else {
-          return prevState;
-        }
+        return {
+            all: newAll,
+            filtered: newAll,
+            newIds: new Set(newFlowsMap.current.keys())
+        };
       });
     }, 500);
 
@@ -403,14 +429,15 @@ const App: React.FC = () => {
         newAll.push(incomingFlow); // History flows are pushed to the end
       }
 
-      return { all: newAll, filtered: newAll };
+      return { all: newAll, filtered: newAll, newIds: prevState.newIds };
     });
   }, []);
 
   useEffect(() => {
     // Reset state on filter change
     latestTimestampNs.current = BigInt(0);
-    setFlowState({ all: [], filtered: [] });
+    setFlowState({ all: [], filtered: [], newIds: new Set() });
+    newFlowsMap.current.clear();
     setIsFlowsTruncated(false);
     setSelectedFlowId(null);
     setSelectedFlowIds(new Set());
@@ -560,7 +587,8 @@ const App: React.FC = () => {
   const togglePause = () => setIsPaused(prev => !prev);
   
   const handleClearFlows = () => {
-    setFlowState({ all: [], filtered: [] }); // Clear the main flows array
+    setFlowState({ all: [], filtered: [], newIds: new Set() }); // Clear the main flows array
+    newFlowsMap.current.clear();
     setIsFlowsTruncated(false);
     setSelectedFlowId(null);
     setSelectedFlowIds(new Set());
@@ -576,7 +604,8 @@ const App: React.FC = () => {
       await client.deleteFlows({ flowIds: ids });
       setFlowState(prev => ({
         all: prev.all.filter(f => !ids.includes(getFlowId(f) || '')),
-        filtered: prev.filtered.filter(f => !ids.includes(getFlowId(f) || ''))
+        filtered: prev.filtered.filter(f => !ids.includes(getFlowId(f) || '')),
+        newIds: prev.newIds
       }));
       setSelectedFlowId(null);
       setSelectedFlowIds(new Set());
@@ -597,7 +626,8 @@ const App: React.FC = () => {
       if (pinnedFlows.length > 0) {
         setFlowState({
           all: pinnedFlows,
-          filtered: pinnedFlows // .filter(f => isFlowMatch(f, filterRef.current))
+          filtered: pinnedFlows, // .filter(f => isFlowMatch(f, filterRef.current))
+          newIds: new Set()
         });
         showToast("Pinned flows were not deleted. Select and delete them explicitly to remove.");
       } else {
@@ -616,7 +646,8 @@ const App: React.FC = () => {
       await client.deleteFlows({ flowIds: [flowId] });
       setFlowState(prev => ({
         all: prev.all.filter(f => getFlowId(f) !== flowId),
-        filtered: prev.filtered.filter(f => getFlowId(f) !== flowId)
+        filtered: prev.filtered.filter(f => getFlowId(f) !== flowId),
+        newIds: prev.newIds
       }));
       if (selectedFlowId === flowId) {
         setSelectedFlowId(null);
@@ -942,6 +973,7 @@ const App: React.FC = () => {
             flows={filteredFlows}
             focusedFlowId={selectedFlowId}
             selectedFlowIds={selectedFlowIds}
+            newFlowIds={flowState.newIds}
             onRowSelected={handleFlowSelection}
             onTogglePin={handleTogglePin}
             pinned={pinned}
