@@ -164,8 +164,8 @@ const App: React.FC = () => {
   const {
     text: filterText,
     setText: setFilterText,
-    pinnedOnly,
-    setPinnedOnly,
+    pinned,
+    setPinned,
     hasNote,
     setHasNote,
     flowTypes,
@@ -194,10 +194,20 @@ const App: React.FC = () => {
       setFilterText(params.get('q') || '');
     }
     if (params.has('pinned')) {
-      setPinnedOnly(params.get('pinned') === 'true');
+      const pinnedVal = params.get('pinned');
+      if (pinnedVal === 'true') {
+        setPinned(true);
+      } else if (pinnedVal === 'false') {
+        setPinned(false);
+      }
     }
     if (params.has('hasNote')) {
-      setHasNote(params.get('hasNote') === 'true');
+        const hasNoteVal = params.get('hasNote');
+        if (hasNoteVal === 'true') {
+            setHasNote(true);
+        } else if (hasNoteVal === 'false') {
+            setHasNote(false);
+        }
     }
     if (params.has('type')) {
       const types = params.get('type')?.split(',') as FlowType[];
@@ -221,8 +231,16 @@ const App: React.FC = () => {
   useEffect(() => {
     const params = new URLSearchParams();
     if (filterText) params.set('q', filterText);
-    if (pinnedOnly) params.set('pinned', 'true');
-    if (hasNote) params.set('hasNote', 'true');
+    if (pinned === true) {
+      params.set('pinned', 'true');
+    } else if (pinned === false) {
+      params.set('pinned', 'false');
+    }
+    if (hasNote === true) {
+      params.set('hasNote', 'true');
+    } else if (hasNote === false) {
+      params.set('hasNote', 'false');
+    }
     if (flowTypes.length > 0) params.set('type', flowTypes.join(','));
     if (clientIps.length > 0) params.set('client_ip', clientIps.join(','));
     if (http.methods.length > 0) params.set('method', http.methods.join(','));
@@ -231,7 +249,7 @@ const App: React.FC = () => {
 
     const newUrl = params.toString() ? `?${params.toString()}` : window.location.pathname;
     window.history.replaceState(null, '', newUrl);
-  }, [filterText, pinnedOnly, hasNote, flowTypes, clientIps, http]);
+  }, [filterText, pinned, hasNote, flowTypes, clientIps, http]);
 
   const [isFilterModalOpen, setIsFilterModalOpen] = useState(false);
   const [isNoteModalOpen, setIsNoteModalOpen] = useState(false);
@@ -421,7 +439,7 @@ const App: React.FC = () => {
   // --- Data Fetching ---
   const filter = useMemo(() => create(FlowFilterSchema, {
       filterText: debouncedFilterText,
-      pinnedOnly,
+      pinned,
       hasNote,
       flowTypes,
       clientIps,
@@ -430,7 +448,7 @@ const App: React.FC = () => {
         contentTypes: http.contentTypes,
         statusCodes: http.statusCodes,
       },
-  }), [debouncedFilterText, pinnedOnly, hasNote, flowTypes, clientIps, http]);
+  }), [debouncedFilterText, pinned, hasNote, flowTypes, clientIps, http]);
 
   useEffect(() => {
     // Reset state on filter change
@@ -516,8 +534,8 @@ const App: React.FC = () => {
   const filteredFlows = flowState.filtered;
 
   const activeFilterCount =
-    (pinnedOnly ? 1 : 0) +
-    (hasNote ? 1 : 0) +
+    (pinned !== undefined ? 1 : 0) +
+    (hasNote !== undefined ? 1 : 0) +
     (flowTypes.length > 0 ? 1 : 0) +
     (clientIps.length > 0 ? 1 : 0) +
     (http.methods.length > 0 ? 1 : 0) +
@@ -961,8 +979,8 @@ const App: React.FC = () => {
             selectedFlowIds={selectedFlowIds}
             onRowSelected={handleFlowSelection}
             onTogglePin={handleTogglePin}
-            pinnedOnly={pinnedOnly}
-            onTogglePinnedFilter={() => setPinnedOnly(!pinnedOnly)}
+            pinned={pinned}
+            onTogglePinnedFilter={() => setPinned(pinned === true ? false : (pinned === false ? undefined : true))}
             onToggleRowSelection={flowId => {
               setSelectedFlowIds(prev => {
                 const newSet = new Set(prev);

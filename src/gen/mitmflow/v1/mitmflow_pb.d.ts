@@ -16,17 +16,17 @@ export declare const file_mitmflow_v1_mitmflow: GenFile;
  */
 export declare type FlowFilter = Message<"mitmflow.v1.FlowFilter"> & {
   /**
-   * @generated from field: string filter_text = 1;
+   * @generated from field: string filter_text = 1 [features.field_presence = EXPLICIT];
    */
   filterText: string;
 
   /**
-   * @generated from field: bool pinned_only = 2;
+   * @generated from field: bool pinned = 2 [features.field_presence = EXPLICIT];
    */
-  pinnedOnly: boolean;
+  pinned: boolean;
 
   /**
-   * @generated from field: bool has_note = 3;
+   * @generated from field: bool has_note = 3 [features.field_presence = EXPLICIT];
    */
   hasNote: boolean;
 
@@ -51,6 +51,36 @@ export declare type FlowFilter = Message<"mitmflow.v1.FlowFilter"> & {
  * Use `create(FlowFilterSchema)` to create a new message.
  */
 export declare const FlowFilterSchema: GenMessage<FlowFilter>;
+
+/**
+ * @generated from message mitmflow.v1.HttpFilter
+ */
+export declare type HttpFilter = Message<"mitmflow.v1.HttpFilter"> & {
+  /**
+   * @generated from field: repeated string methods = 1;
+   */
+  methods: string[];
+
+  /**
+   * e.g. "application/json", "text/html"
+   *
+   * @generated from field: repeated string content_types = 2;
+   */
+  contentTypes: string[];
+
+  /**
+   * e.g. "200", "4xx", "200-299"
+   *
+   * @generated from field: repeated string status_codes = 3;
+   */
+  statusCodes: string[];
+};
+
+/**
+ * Describes the message mitmflow.v1.HttpFilter.
+ * Use `create(HttpFilterSchema)` to create a new message.
+ */
+export declare const HttpFilterSchema: GenMessage<HttpFilter>;
 
 /**
  * @generated from message mitmflow.v1.GetFlowsRequest
@@ -109,36 +139,6 @@ export declare type StreamFlowsRequest = Message<"mitmflow.v1.StreamFlowsRequest
  * Use `create(StreamFlowsRequestSchema)` to create a new message.
  */
 export declare const StreamFlowsRequestSchema: GenMessage<StreamFlowsRequest>;
-
-/**
- * @generated from message mitmflow.v1.HttpFilter
- */
-export declare type HttpFilter = Message<"mitmflow.v1.HttpFilter"> & {
-  /**
-   * @generated from field: repeated string methods = 1;
-   */
-  methods: string[];
-
-  /**
-   * e.g. "application/json", "text/html"
-   *
-   * @generated from field: repeated string content_types = 2;
-   */
-  contentTypes: string[];
-
-  /**
-   * e.g. "200", "4xx", "200-299"
-   *
-   * @generated from field: repeated string status_codes = 3;
-   */
-  statusCodes: string[];
-};
-
-/**
- * Describes the message mitmflow.v1.HttpFilter.
- * Use `create(HttpFilterSchema)` to create a new message.
- */
-export declare const HttpFilterSchema: GenMessage<HttpFilter>;
 
 /**
  * @generated from message mitmflow.v1.StreamFlowsResponse

@@ -10,11 +10,15 @@ import (
 )
 
 func matchFlow(flow *mitmflowv1.Flow, filter *mitmflowv1.FlowFilter) bool {
-	if filter.GetPinnedOnly() && !flow.GetPinned() {
-		return false
+	if filter.HasPinned() {
+		if filter.GetPinned() != flow.GetPinned() {
+			return false
+		}
 	}
-	if filter.GetHasNote() && flow.GetNote() == "" {
-		return false
+	if filter.HasHasNote() {
+		if filter.GetHasNote() != (flow.GetNote() != "") {
+			return false
+		}
 	}
 
 	// Client IP Filter
@@ -36,21 +40,30 @@ func matchFlow(flow *mitmflowv1.Flow, filter *mitmflowv1.FlowFilter) bool {
 
 	// Specific Flow Filters
 	// Dispatch based on flow type
-	if f := flow.GetHttpFlow(); f != nil {
-		if !matchHttpFlow(flow, f, filter) {
-			return false
+	switch flow.WhichFlow() {
+	case mitmflowv1.Flow_HttpFlow_case:
+		if f := flow.GetHttpFlow(); f != nil {
+			if !matchHttpFlow(flow, f, filter) {
+				return false
+			}
 		}
-	} else if f := flow.GetTcpFlow(); f != nil {
-		if !matchTcpFlow(flow, f, filter) {
-			return false
+	case mitmflowv1.Flow_TcpFlow_case:
+		if f := flow.GetTcpFlow(); f != nil {
+			if !matchTcpFlow(flow, f, filter) {
+				return false
+			}
 		}
-	} else if f := flow.GetUdpFlow(); f != nil {
-		if !matchUdpFlow(flow, f, filter) {
-			return false
+	case mitmflowv1.Flow_UdpFlow_case:
+		if f := flow.GetUdpFlow(); f != nil {
+			if !matchUdpFlow(flow, f, filter) {
+				return false
+			}
 		}
-	} else if f := flow.GetDnsFlow(); f != nil {
-		if !matchDnsFlow(flow, f, filter) {
-			return false
+	case mitmflowv1.Flow_DnsFlow_case:
+		if f := flow.GetDnsFlow(); f != nil {
+			if !matchDnsFlow(flow, f, filter) {
+				return false
+			}
 		}
 	}
 

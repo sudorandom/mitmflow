@@ -2,8 +2,8 @@ edition = "2023";
 
 package mitmflow.v1;
 
-import "mitmproxygrpc/v1/service.proto";
 import "buf/validate/validate.proto";
+import "mitmproxygrpc/v1/service.proto";
 
 service Service {
   rpc GetFlows(GetFlowsRequest) returns (stream GetFlowsResponse) {}
@@ -13,18 +13,30 @@ service Service {
 }
 
 message FlowFilter {
-  string filter_text = 1;
-  bool pinned_only = 2;
-  bool has_note = 3;
-  repeated string flow_types = 4 [
-    (buf.validate.field).repeated.items.string = {
-      in: ["http", "dns", "tcp", "udp"]
-    }
-  ];
-  repeated string client_ips = 5 [
-    (buf.validate.field).repeated.items.string.ip = true
-  ];
+  string filter_text = 1 [features.field_presence = EXPLICIT];
+  bool pinned = 2 [features.field_presence = EXPLICIT];
+  bool has_note = 3 [features.field_presence = EXPLICIT];
+  repeated string flow_types = 4 [(buf.validate.field).repeated.items.string = {
+    in: [
+      "http",
+      "dns",
+      "tcp",
+      "udp"
+    ]
+  }];
+  repeated string client_ips = 5 [(buf.validate.field).repeated.items.string.ip = true];
   HttpFilter http = 6;
+}
+
+message HttpFilter {
+  repeated string methods = 1 [(buf.validate.field).repeated.items.string = {
+    pattern: "^[A-Z]+$"
+    max_len: 20
+  }];
+  // e.g. "application/json", "text/html"
+  repeated string content_types = 2;
+  // e.g. "200", "4xx", "200-299"
+  repeated string status_codes = 3;
 }
 
 message GetFlowsRequest {
@@ -39,19 +51,6 @@ message GetFlowsResponse {
 message StreamFlowsRequest {
   int64 since_timestamp_ns = 1;
   FlowFilter filter = 2;
-}
-
-message HttpFilter {
-  repeated string methods = 1 [
-    (buf.validate.field).repeated.items.string = {
-      pattern: "^[A-Z]+$",
-      max_len: 20
-    }
-  ];
-  // e.g. "application/json", "text/html"
-  repeated string content_types = 2;
-  // e.g. "200", "4xx", "200-299"
-  repeated string status_codes = 3;
 }
 
 message StreamFlowsResponse {
