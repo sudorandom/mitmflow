@@ -1,3 +1,3 @@
-from mitmproxy_addon_grpc import MitmFlowAddon
+from grpc_addon import MitmFlowAddon
 
 addons = [ MitmFlowAddon() ]

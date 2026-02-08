@@ -1,0 +1,20 @@
+services:
+  mitmflow:
+    image: ghcr.io/sudorandom/mitmflow:latest
+    ports:
+      - "50051:50051"
+    environment:
+      - MAX_FLOWS=1000
+
+  mitmproxy:
+    image: mitmproxy/mitmproxy:latest
+    user: root
+    command: >
+      bash -c "pip install mitmproxy-addon-grpc && mitmdump --set grpc_addr=http://mitmflow:50051 --set grpc_events=all -s extra_addons.py"
+    volumes:
+      - ./extra_addons.py:/app/extra_addons.py:ro
+    working_dir: /app
+    ports:
+      - "8080:8080"
+    depends_on:
+      - mitmflow
