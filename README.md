@@ -69,7 +69,6 @@ You can also run the full stack (mitmflow + mitmproxy) using Docker Compose.
         image: ghcr.io/sudorandom/mitmflow:latest
         ports:
           - "50051:50051"
-          - "80:50051"
         environment:
           - MAX_FLOWS=1000
 
@@ -94,7 +93,7 @@ You can also run the full stack (mitmflow + mitmproxy) using Docker Compose.
     ```
 
 3.  **Access the web interface:**
-    Open [http://localhost](http://localhost) or [http://localhost:50051](http://localhost:50051) in your browser.
+    Open [http://localhost:50051](http://localhost:50051) in your browser.
 
 4.  **Configure your proxy:**
     Configure your browser or device to use the proxy at `http://localhost:8080`.
