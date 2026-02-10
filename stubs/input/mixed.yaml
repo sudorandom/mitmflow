@@ -87,7 +87,7 @@ stubs:
               }
             }
           }
-      # GRPC
+      # gRPC Unary
       - delay: 50ms
         cel_content: |
           {
@@ -96,15 +96,156 @@ stubs:
               "http_flow": {
                 "id": fake_uuid(),
                 "request": {
-                  "method": fake_http_method(),
-                  "url": fake_url()+'/someservice.SomeService/SomeMethod',
-                  "headers": { "User-Agent": fake_user_agent() },
+                  "method": "POST",
+                  "url": "https://example.com/connectrpc.eliza.v1.ElizaService/Say",
+                  "headers": { "Content-Type": "application/grpc", "User-Agent": "grpc-go/1.48.0" },
+                  "content": "AAAAAAcKBUhlbGxv",
                   "http_version": "HTTP/2"
                 },
                 "response": {
-                  "status_code": fake_http_status_code(),
-                  "headers": { "Content-Type": "application/protobuf", "Server": fake_product_name() },
-                  "content": b'',
+                  "status_code": 200,
+                  "headers": { "Content-Type": "application/grpc", "grpc-status": "0" },
+                  "content": "AAAAAAoKCEhpIHRoZXJl",
+                  "http_version": "HTTP/2"
+                },
+                "timestamp_start": now,
+                "duration_ms": fake_float32(),
+                "client": { "peername_host": fake_i_pv4_address(), "peername_port": fake_int8(), "sockname_host": fake_i_pv4_address(), "sockname_port": fake_int8(), "id": fake_uuid() },
+                "server": { "peername_host": fake_i_pv4_address(), "peername_port": fake_int8(), "sockname_host": fake_i_pv4_address(), "sockname_port": fake_int8(), "id": fake_uuid() }
+              }
+            }
+          }
+      # gRPC Bidirectional Stream
+      - delay: 50ms
+        cel_content: |
+          {
+            "event_type": "EVENT_TYPE_REQUEST",
+            "flow": {
+              "http_flow": {
+                "id": fake_uuid(),
+                "request": {
+                  "method": "POST",
+                  "url": "https://example.com/connectrpc.eliza.v1.ElizaService/Converse",
+                  "headers": { "Content-Type": "application/grpc", "User-Agent": "grpc-go/1.48.0" },
+                  "content": "AAAAAAcKBUhlbGxvAAAAAAcKBUhlbGxv",
+                  "http_version": "HTTP/2"
+                },
+                "response": {
+                  "status_code": 200,
+                  "headers": { "Content-Type": "application/grpc", "grpc-status": "0" },
+                  "content": "AAAAAAoKCEhpIHRoZXJlAAAAAAoKCEhpIHRoZXJl",
+                  "http_version": "HTTP/2"
+                },
+                "timestamp_start": now,
+                "duration_ms": fake_float32(),
+                "client": { "peername_host": fake_i_pv4_address(), "peername_port": fake_int8(), "sockname_host": fake_i_pv4_address(), "sockname_port": fake_int8(), "id": fake_uuid() },
+                "server": { "peername_host": fake_i_pv4_address(), "peername_port": fake_int8(), "sockname_host": fake_i_pv4_address(), "sockname_port": fake_int8(), "id": fake_uuid() }
+              }
+            }
+          }
+      # gRPC-Web Unary
+      - delay: 50ms
+        cel_content: |
+          {
+            "event_type": "EVENT_TYPE_REQUEST",
+            "flow": {
+              "http_flow": {
+                "id": fake_uuid(),
+                "request": {
+                  "method": "POST",
+                  "url": "https://example.com/connectrpc.eliza.v1.ElizaService/Say",
+                  "headers": { "Content-Type": "application/grpc-web", "User-Agent": "grpc-web-javascript/0.1" },
+                  "content": "AAAAAAcKBUhlbGxv",
+                  "http_version": "HTTP/1.1"
+                },
+                "response": {
+                  "status_code": 200,
+                  "headers": { "Content-Type": "application/grpc-web", "grpc-status": "0" },
+                  "content": "AAAAAAoKCEhpIHRoZXJl",
+                  "http_version": "HTTP/1.1"
+                },
+                "timestamp_start": now,
+                "duration_ms": fake_float32(),
+                "client": { "peername_host": fake_i_pv4_address(), "peername_port": fake_int8(), "sockname_host": fake_i_pv4_address(), "sockname_port": fake_int8(), "id": fake_uuid() },
+                "server": { "peername_host": fake_i_pv4_address(), "peername_port": fake_int8(), "sockname_host": fake_i_pv4_address(), "sockname_port": fake_int8(), "id": fake_uuid() }
+              }
+            }
+          }
+      # gRPC-Web Bidirectional Stream
+      - delay: 50ms
+        cel_content: |
+          {
+            "event_type": "EVENT_TYPE_REQUEST",
+            "flow": {
+              "http_flow": {
+                "id": fake_uuid(),
+                "request": {
+                  "method": "POST",
+                  "url": "https://example.com/connectrpc.eliza.v1.ElizaService/Converse",
+                  "headers": { "Content-Type": "application/grpc-web", "User-Agent": "grpc-web-javascript/0.1" },
+                  "content": "AAAAAAcKBUhlbGxvAAAAAAcKBUhlbGxv",
+                  "http_version": "HTTP/1.1"
+                },
+                "response": {
+                  "status_code": 200,
+                  "headers": { "Content-Type": "application/grpc-web", "grpc-status": "0" },
+                  "content": "AAAAAAoKCEhpIHRoZXJlAAAAAAoKCEhpIHRoZXJl",
+                  "http_version": "HTTP/1.1"
+                },
+                "timestamp_start": now,
+                "duration_ms": fake_float32(),
+                "client": { "peername_host": fake_i_pv4_address(), "peername_port": fake_int8(), "sockname_host": fake_i_pv4_address(), "sockname_port": fake_int8(), "id": fake_uuid() },
+                "server": { "peername_host": fake_i_pv4_address(), "peername_port": fake_int8(), "sockname_host": fake_i_pv4_address(), "sockname_port": fake_int8(), "id": fake_uuid() }
+              }
+            }
+          }
+      # Connect Unary (POST)
+      - delay: 50ms
+        cel_content: |
+          {
+            "event_type": "EVENT_TYPE_REQUEST",
+            "flow": {
+              "http_flow": {
+                "id": fake_uuid(),
+                "request": {
+                  "method": "POST",
+                  "url": "https://example.com/connectrpc.eliza.v1.ElizaService/Say",
+                  "headers": { "Content-Type": "application/proto", "Connect-Protocol-Version": "1" },
+                  "content": "CgVIZWxsbw==",
+                  "http_version": "HTTP/1.1"
+                },
+                "response": {
+                  "status_code": 200,
+                  "headers": { "Content-Type": "application/proto" },
+                  "content": "CghIaSB0aGVyZQ==",
+                  "http_version": "HTTP/1.1"
+                },
+                "timestamp_start": now,
+                "duration_ms": fake_float32(),
+                "client": { "peername_host": fake_i_pv4_address(), "peername_port": fake_int8(), "sockname_host": fake_i_pv4_address(), "sockname_port": fake_int8(), "id": fake_uuid() },
+                "server": { "peername_host": fake_i_pv4_address(), "peername_port": fake_int8(), "sockname_host": fake_i_pv4_address(), "sockname_port": fake_int8(), "id": fake_uuid() }
+              }
+            }
+          }
+      # Connect Bidirectional Stream
+      - delay: 50ms
+        cel_content: |
+          {
+            "event_type": "EVENT_TYPE_REQUEST",
+            "flow": {
+              "http_flow": {
+                "id": fake_uuid(),
+                "request": {
+                  "method": "POST",
+                  "url": "https://example.com/connectrpc.eliza.v1.ElizaService/Converse",
+                  "headers": { "Content-Type": "application/connect+proto", "Connect-Protocol-Version": "1" },
+                  "content": "AAAAAAcKBUhlbGxvAAAAAAcKBUhlbGxv",
+                  "http_version": "HTTP/2"
+                },
+                "response": {
+                  "status_code": 200,
+                  "headers": { "Content-Type": "application/connect+proto" },
+                  "content": "AAAAAAoKCEhpIHRoZXJlAgAAAAJ7fQ==",
                   "http_version": "HTTP/2"
                 },
                 "timestamp_start": now,

@@ -18,11 +18,11 @@ import (
 	"connectrpc.com/validate"
 	"github.com/gabriel-vasile/mimetype"
 	"github.com/google/uuid"
-	"github.com/protocolbuffers/protoscope"
 	"github.com/rs/cors"
 	"golang.org/x/net/http2"
 	"golang.org/x/net/http2/h2c"
 	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/reflect/protoreflect"
 
 	mitmflowv1 "github.com/sudorandom/mitmflow/gen/go/mitmflow/v1"
 	mitmproxygrpcv1 "github.com/sudorandom/mitmflow/gen/go/mitmproxygrpc/v1"
@@ -31,22 +31,40 @@ import (
 //go:embed all:dist
 var dist embed.FS
 
+type stringArrayFlags []string
+
+func (i *stringArrayFlags) String() string {
+	return strings.Join(*i, ",")
+}
+
+func (i *stringArrayFlags) Set(value string) error {
+	*i = append(*i, value)
+	return nil
+}
+
 var (
-	addr     = flag.String("addr", "127.0.0.1:50051", "Address to listen on")
-	dataDir  = flag.String("data-dir", "mitmflow_data", "Directory to store flow data")
-	maxFlows = flag.Int("max-flows", 500, "Maximum number of unpinned flows to keep")
+	addr            = flag.String("addr", "127.0.0.1:50051", "Address to listen on")
+	dataDir         = flag.String("data-dir", "mitmflow_data", "Directory to store flow data")
+	maxFlows        = flag.Int("max-flows", 500, "Maximum number of unpinned flows to keep")
+	descriptorFiles stringArrayFlags
 )
+
+func init() {
+	flag.Var(&descriptorFiles, "descriptor-set", "Path to a protobuf descriptor set file (can be repeated)")
+}
 
 type MITMFlowServer struct {
 	subscribers map[string]chan *mitmflowv1.Flow
 	mu          sync.RWMutex
 	storage     *FlowStorage
+	registry    *Registry
 }
 
-func NewMITMFlowServer(storage *FlowStorage) (*MITMFlowServer, error) {
+func NewMITMFlowServer(storage *FlowStorage, registry *Registry) (*MITMFlowServer, error) {
 	return &MITMFlowServer{
 		subscribers: make(map[string]chan *mitmflowv1.Flow),
 		storage:     storage,
+		registry:    registry,
 	}, nil
 }
 
@@ -321,20 +339,28 @@ func (s *MITMFlowServer) preprocessFlow(flow *mitmflowv1.Flow) {
 		return
 	}
 	extra := &mitmflowv1.HTTPFlowExtra{}
+
+	var reqDesc, respDesc protoreflect.MessageDescriptor
+	if s.registry != nil && httpFlow.HasRequest() {
+		if u, err := url.Parse(httpFlow.GetRequest().GetUrl()); err == nil {
+			reqDesc, respDesc, _ = s.registry.LookupMethod(u.Path)
+		}
+	}
+
 	if httpFlow.HasRequest() {
 		details := &mitmflowv1.MessageDetails{}
-		s.preprocessRequest(httpFlow.GetRequest(), details)
+		s.preprocessRequest(httpFlow.GetRequest(), details, reqDesc)
 		extra.SetRequest(details)
 	}
 	if httpFlow.HasResponse() {
 		details := &mitmflowv1.MessageDetails{}
-		s.preprocessResponse(httpFlow.GetResponse(), details)
+		s.preprocessResponse(httpFlow.GetResponse(), details, respDesc)
 		extra.SetResponse(details)
 	}
 	flow.SetHttpFlowExtra(extra)
 }
 
-func (s *MITMFlowServer) preprocessRequest(req *mitmproxygrpcv1.Request, details *mitmflowv1.MessageDetails) {
+func (s *MITMFlowServer) preprocessRequest(req *mitmproxygrpcv1.Request, details *mitmflowv1.MessageDetails, msgDesc protoreflect.MessageDescriptor) {
 	contentType, ok := getContentType(req.GetHeaders())
 	if ok {
 		details.SetEffectiveContentType(contentType)
@@ -360,9 +386,16 @@ func (s *MITMFlowServer) preprocessRequest(req *mitmproxygrpcv1.Request, details
 	case strings.Contains(contentType, "application/proto"),
 		strings.Contains(contentType, "application/protobuf"),
 		strings.Contains(contentType, "application/x-protobuf"):
-		opts := protoscope.WriterOptions{}
-		protoscopeOutput := protoscope.Write(req.GetContent(), opts)
-		details.SetTextualFrames([]string{protoscopeOutput})
+		// Use processProtobufMessage to attempt parsing with descriptor (if available) and fallback to protoscope
+		frames := processProtobufMessage(req.GetContent(), msgDesc)
+		details.SetTextualFrames(frames)
+	case strings.Contains(contentType, "application/connect+proto"):
+		frames, err := parseConnectStreamingFrames(req.GetContent(), msgDesc)
+		if err == nil {
+			details.SetTextualFrames(frames)
+		} else {
+			log.Printf("failed to parse connect+proto frames: %v", err)
+		}
 	case dnsQuery != "":
 		// For DoH GET requests, the dns parameter is base64url-encoded.
 		packet, err := base64.RawURLEncoding.DecodeString(dnsQuery)
@@ -379,14 +412,14 @@ func (s *MITMFlowServer) preprocessRequest(req *mitmproxygrpcv1.Request, details
 			details.SetTextualFrames([]string{frame})
 		}
 	case strings.Contains(contentType, "application/grpc-web"):
-		frames, err := parseGrpcWebFrames(req.GetContent(), nil, nil)
+		frames, err := parseGrpcWebFrames(req.GetContent(), nil, nil, msgDesc)
 		if err == nil {
 			details.SetTextualFrames(frames)
 		} else {
 			log.Printf("failed to parse grpc-web frames: %v", err)
 		}
 	case strings.Contains(contentType, "application/grpc"):
-		frames, err := parseGrpcFrames(req.GetContent(), nil)
+		frames, err := parseGrpcFrames(req.GetContent(), nil, msgDesc)
 		if err == nil {
 			details.SetTextualFrames(frames)
 		} else {
@@ -404,7 +437,7 @@ func getContentType(headers map[string]string) (string, bool) {
 	return "", false
 }
 
-func (s *MITMFlowServer) preprocessResponse(resp *mitmproxygrpcv1.Response, details *mitmflowv1.MessageDetails) {
+func (s *MITMFlowServer) preprocessResponse(resp *mitmproxygrpcv1.Response, details *mitmflowv1.MessageDetails, msgDesc protoreflect.MessageDescriptor) {
 	contentType, ok := getContentType(resp.GetHeaders())
 	if ok {
 		details.SetEffectiveContentType(contentType)
@@ -423,23 +456,29 @@ func (s *MITMFlowServer) preprocessResponse(resp *mitmproxygrpcv1.Response, deta
 	case strings.Contains(contentType, "application/proto"),
 		strings.Contains(contentType, "application/protobuf"),
 		strings.Contains(contentType, "application/x-protobuf"):
-		opts := protoscope.WriterOptions{}
-		protoscopeOutput := protoscope.Write(resp.GetContent(), opts)
-		details.SetTextualFrames([]string{protoscopeOutput})
+		frames := processProtobufMessage(resp.GetContent(), msgDesc)
+		details.SetTextualFrames(frames)
+	case strings.Contains(contentType, "application/connect+proto"):
+		frames, err := parseConnectStreamingFrames(resp.GetContent(), msgDesc)
+		if err == nil {
+			details.SetTextualFrames(frames)
+		} else {
+			log.Printf("failed to parse connect+proto frames: %v", err)
+		}
 	case strings.Contains(contentType, "application/dns-message"):
 		frame, err := parseDnsPacket(resp.GetContent())
 		if err == nil {
 			details.SetTextualFrames([]string{frame})
 		}
 	case strings.Contains(contentType, "application/grpc-web"):
-		frames, err := parseGrpcWebFrames(resp.GetContent(), resp.GetHeaders(), resp.GetTrailers())
+		frames, err := parseGrpcWebFrames(resp.GetContent(), resp.GetHeaders(), resp.GetTrailers(), msgDesc)
 		if err == nil {
 			details.SetTextualFrames(frames)
 		} else {
 			log.Printf("failed to parse grpc-web frames: %v", err)
 		}
 	case strings.Contains(contentType, "application/grpc"):
-		frames, err := parseGrpcFrames(resp.GetContent(), resp.GetTrailers())
+		frames, err := parseGrpcFrames(resp.GetContent(), resp.GetTrailers(), msgDesc)
 		if err == nil {
 			details.SetTextualFrames(frames)
 		} else {
@@ -456,7 +495,14 @@ func main() {
 		log.Fatalf("failed to initialize storage: %v", err)
 	}
 
-	server, err := NewMITMFlowServer(storage)
+	registry := NewRegistry()
+	if len(descriptorFiles) > 0 {
+		if err := registry.LoadFromFiles(descriptorFiles); err != nil {
+			log.Fatalf("failed to load descriptor files: %v", err)
+		}
+	}
+
+	server, err := NewMITMFlowServer(storage, registry)
 	if err != nil {
 		log.Fatalf("failed to initialize server: %v", err)
 	}

@@ -2,7 +2,7 @@ import { Flow } from "./gen/mitmflow/v1/mitmflow_pb";
 import { Timestamp } from "@bufbuild/protobuf/wkt";
 
 
-export type ContentFormat = 'auto' | 'text' | 'json' | 'protobuf' | 'grpc' | 'grpc-web' | 'xml' | 'binary' | 'image' | 'dns' | 'javascript' | 'html';
+export type ContentFormat = 'auto' | 'text' | 'json' | 'protobuf' | 'grpc' | 'xml' | 'binary' | 'image' | 'dns' | 'javascript' | 'html';
 
 export const formatTimestamp = (ts: number): string => {
   const d = new Date(ts);
@@ -49,9 +49,7 @@ export const formatContent = (content: Uint8Array | string | undefined, format: 
     // Auto-detect based on content type header
     if (typeToCheck.startsWith('application/json') || typeToCheck.startsWith('application/manifest+json')) {
       effectiveFormat = 'json';
-    } else if (typeToCheck.includes('application/grpc-web')) {
-      effectiveFormat = 'grpc-web';
-    } else if (typeToCheck.includes('application/grpc')) {
+    } else if (typeToCheck.includes('application/grpc') || typeToCheck.includes('application/grpc-web') || typeToCheck.includes('application/connect')) {
       effectiveFormat = 'grpc';
     } else if (typeToCheck.includes('application/proto') || typeToCheck.includes('application/x-protobuf')) {
       effectiveFormat = 'protobuf';
@@ -89,7 +87,6 @@ export const formatContent = (content: Uint8Array | string | undefined, format: 
       case 'binary':
       case 'protobuf':
       case 'grpc':
-      case 'grpc-web':
         return { data: new Uint8Array(), encoding: 'binary', effectiveFormat: effectiveFormat };
       default:
         return { data: '', encoding: 'text', effectiveFormat: 'text' };
@@ -126,7 +123,6 @@ export const formatContent = (content: Uint8Array | string | undefined, format: 
     case 'binary':
     case 'protobuf':
     case 'grpc':
-    case 'grpc-web':
       return { data: contentAsUint8Array, encoding: 'binary', effectiveFormat: effectiveFormat };
     default:
       // This default should ideally not be reached if effectiveFormat is always set.

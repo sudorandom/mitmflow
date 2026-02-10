@@ -8,7 +8,7 @@ frontend-dev:
     pnpm dev
 
 backend-dev:
-    go run .
+    go run . -descriptor-set testdata/eliza.binpb
 
 dev:
     bash scripts/dev.sh

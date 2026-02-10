@@ -182,6 +182,14 @@ func matchHttpFlowText(flow *mitmflowv1.Flow, f *mitmproxygrpcv1.HTTPFlow, filte
 		return true
 	}
 
+	// Header check
+	if matchHeaders(f.GetRequest().GetHeaders(), filterText) {
+		return true
+	}
+	if matchHeaders(f.GetResponse().GetHeaders(), filterText) {
+		return true
+	}
+
 	// Body check
 	// Check textual frames
 	if hasText(flow.GetHttpFlowExtra().GetRequest().GetTextualFrames(), filterText) {
@@ -201,6 +209,18 @@ func matchHttpFlowText(flow *mitmflowv1.Flow, f *mitmproxygrpcv1.HTTPFlow, filte
 			if strings.Contains(strings.ToLower(string(msg.GetContent())), filterText) {
 				return true
 			}
+		}
+	}
+	return false
+}
+
+func matchHeaders(headers map[string]string, filterText string) bool {
+	for k, v := range headers {
+		if strings.Contains(strings.ToLower(k), filterText) {
+			return true
+		}
+		if strings.Contains(strings.ToLower(v), filterText) {
+			return true
 		}
 	}
 	return false

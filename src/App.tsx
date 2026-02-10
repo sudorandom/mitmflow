@@ -626,7 +626,7 @@ const App: React.FC = () => {
       if (pinnedFlows.length > 0) {
         setFlowState({
           all: pinnedFlows,
-          filtered: pinnedFlows, // .filter(f => isFlowMatch(f, filterRef.current))
+          filtered: pinnedFlows,
           newIds: new Set()
         });
         showToast("Pinned flows were not deleted. Select and delete them explicitly to remove.");

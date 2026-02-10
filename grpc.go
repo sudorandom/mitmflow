@@ -13,9 +13,32 @@ import (
 	statuspb "google.golang.org/genproto/googleapis/rpc/status"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/reflect/protoreflect"
+	"google.golang.org/protobuf/types/dynamicpb"
 )
 
-func parseGrpcFrames(content []byte, trailers map[string]string) ([]string, error) {
+func processProtobufMessage(message []byte, msgDesc protoreflect.MessageDescriptor) []string {
+	var frames []string
+	if msgDesc != nil {
+		msg := dynamicpb.NewMessage(msgDesc)
+		if err := proto.Unmarshal(message, msg); err == nil {
+			opts := protojson.MarshalOptions{
+				Indent:          "  ",
+				EmitUnpopulated: true,
+			}
+			if jsonBytes, err := opts.Marshal(msg); err == nil {
+				frames = append(frames, string(jsonBytes))
+				return frames
+			}
+		}
+	}
+	opts := protoscope.WriterOptions{}
+	protoscopeOutput := protoscope.Write(message, opts)
+	frames = append(frames, protoscopeOutput)
+	return frames
+}
+
+func parseGrpcFrames(content []byte, trailers map[string]string, msgDesc protoreflect.MessageDescriptor) ([]string, error) {
 	// For grpc messages, if there is not enough content for a full frame, we should
 	// emit a ContentProtoscopeFrames with an empty string.
 	if len(content) < 5 {
@@ -52,9 +75,7 @@ func parseGrpcFrames(content []byte, trailers map[string]string) ([]string, erro
 			}
 		}
 
-		opts := protoscope.WriterOptions{}
-		protoscopeOutput := protoscope.Write(message, opts)
-		frames = append(frames, protoscopeOutput)
+		frames = append(frames, processProtobufMessage(message, msgDesc)...)
 	}
 
 	if statusBin, ok := trailers["grpc-status-details-bin"]; ok {
@@ -75,7 +96,7 @@ func parseGrpcFrames(content []byte, trailers map[string]string) ([]string, erro
 }
 
 // parseGrpcWebFrames parses gRPC-Web frames from the content, utilizing headers and trailers for status details.
-func parseGrpcWebFrames(content []byte, headers map[string]string, trailers map[string]string) ([]string, error) {
+func parseGrpcWebFrames(content []byte, headers map[string]string, trailers map[string]string, msgDesc protoreflect.MessageDescriptor) ([]string, error) {
 	if len(content) < 5 {
 		return []string{""}, nil
 	}
@@ -104,9 +125,7 @@ func parseGrpcWebFrames(content []byte, headers map[string]string, trailers map[
 				return nil, err
 			}
 
-			opts := protoscope.WriterOptions{}
-			protoscopeOutput := protoscope.Write(message, opts)
-			frames = append(frames, protoscopeOutput)
+			frames = append(frames, processProtobufMessage(message, msgDesc)...)
 		} else if prefix[0] == 0x80 { // Trailer frame
 			// We just need to read the length and the content to advance the buffer.
 			lengthPrefix := make([]byte, 4)
@@ -134,6 +153,58 @@ func parseGrpcWebFrames(content []byte, headers map[string]string, trailers map[
 	}
 	if statusFrame := parseErrorDetails(headers["grpc-status-details-bin"]); statusFrame != nil {
 		frames = append(frames, *statusFrame)
+	}
+
+	return frames, nil
+}
+
+func parseConnectStreamingFrames(content []byte, msgDesc protoreflect.MessageDescriptor) ([]string, error) {
+	if len(content) < 5 {
+		return []string{""}, nil
+	}
+	var frames []string
+	buf := bytes.NewBuffer(content)
+	for buf.Len() >= 5 {
+		prefix := make([]byte, 5)
+		if _, err := io.ReadFull(buf, prefix); err != nil {
+			return nil, err
+		}
+
+		flags := prefix[0]
+		compressed := (flags & 0x01) == 0x01
+		isTrailer := (flags & 0x02) == 0x02
+
+		length := binary.BigEndian.Uint32(prefix[1:])
+
+		if buf.Len() < int(length) {
+			return nil, fmt.Errorf("incomplete connect stream frame")
+		}
+
+		message := make([]byte, length)
+		if _, err := io.ReadFull(buf, message); err != nil {
+			return nil, err
+		}
+
+		if isTrailer {
+			// Trailer is a JSON object in Connect.
+			// We append it directly as it provides metadata.
+			frames = append(frames, string(message))
+			continue
+		}
+
+		if compressed {
+			gr, err := gzip.NewReader(bytes.NewBuffer(message))
+			if err != nil {
+				return nil, fmt.Errorf("failed to create gzip reader: %w", err)
+			}
+			defer gr.Close()
+			message, err = io.ReadAll(gr)
+			if err != nil {
+				return nil, fmt.Errorf("failed to decompress message: %w", err)
+			}
+		}
+
+		frames = append(frames, processProtobufMessage(message, msgDesc)...)
 	}
 
 	return frames, nil

@@ -5,6 +5,7 @@ go 1.25.0
 require (
 	buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go v1.36.10-20251209175733-2a1774d88802.1
 	connectrpc.com/connect v1.19.1
+	connectrpc.com/validate v0.6.0
 	github.com/gabriel-vasile/mimetype v1.4.11
 	github.com/google/gopacket v1.1.19
 	github.com/google/uuid v1.6.0
@@ -20,9 +21,7 @@ require (
 require (
 	buf.build/go/protovalidate v1.1.0 // indirect
 	cel.dev/expr v0.24.0 // indirect
-	connectrpc.com/validate v0.6.0 // indirect
 	github.com/antlr4-go/antlr/v4 v4.13.1 // indirect
-	github.com/bufbuild/protovalidate-go v0.8.0 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/google/cel-go v0.26.1 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
