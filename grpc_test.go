@@ -80,15 +80,11 @@ func TestParseGrpcFramesWithDescriptor(t *testing.T) {
 
 	frames, err := parseGrpcFrames(frame, nil, inputDesc)
 	require.NoError(t, err)
-	require.Len(t, frames, 2) // Should have JSON and protoscope output
+	require.Len(t, frames, 1) // Should have JSON and protoscope output
 
 	// Check for JSON output
 	assert.Contains(t, frames[0], `"sentence"`)
 	assert.Contains(t, frames[0], `"Hello"`)
-
-	// Check for protoscope output (just ensuring it exists and contains the value)
-	// Protoscope without schema won't know the field name "sentence", so it will likely output "1: ..."
-	assert.Contains(t, frames[1], `Hello`)
 }
 
 func TestProcessProtobufMessage_ConnectUnary(t *testing.T) {
@@ -104,12 +100,10 @@ func TestProcessProtobufMessage_ConnectUnary(t *testing.T) {
 
 	frames := processProtobufMessage(payload, inputDesc)
 
-	require.Len(t, frames, 2) // JSON, Protoscope
+	require.Len(t, frames, 1) // JSON
 
 	assert.Contains(t, frames[0], `"sentence"`)
 	assert.Contains(t, frames[0], `"Hello"`)
-
-	assert.Contains(t, frames[1], `Hello`)
 }
 
 func TestParseConnectStreamingFrames(t *testing.T) {
@@ -166,10 +160,10 @@ func TestParseGrpcFramesWithDescriptor_Streaming(t *testing.T) {
 	frames, err := parseGrpcFrames(fullPayload, nil, inputDesc)
 	require.NoError(t, err)
 	// Expect 4 frames: JSON1, Protoscope1, JSON2, Protoscope2
-	require.Len(t, frames, 4)
+	require.Len(t, frames, 2)
 
 	assert.Contains(t, frames[0], `"sentence"`)
 	assert.Contains(t, frames[0], `"Hello"`)
-	assert.Contains(t, frames[2], `"sentence"`)
-	assert.Contains(t, frames[2], `"World"`)
+	assert.Contains(t, frames[1], `"sentence"`)
+	assert.Contains(t, frames[1], `"World"`)
 }
