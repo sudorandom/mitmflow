@@ -212,6 +212,7 @@ const App: React.FC = () => {
           format: ExportFormat.HAR,
         });
         if (response.data) {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           blob = new Blob([response.data as any], { type: 'application/json' });
           filename = response.filename || `${flowId}.har`;
         } else {
@@ -544,6 +545,7 @@ const App: React.FC = () => {
       });
 
       if (response.data) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const blob = new Blob([response.data as any], { type: format === 'har' ? 'application/json' : 'application/json' });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
