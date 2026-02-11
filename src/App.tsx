@@ -212,7 +212,7 @@ const App: React.FC = () => {
           format: ExportFormat.HAR,
         });
         if (response.data) {
-          blob = new Blob([response.data], { type: 'application/json' });
+          blob = new Blob([response.data as any], { type: 'application/json' });
           filename = response.filename || `${flowId}.har`;
         } else {
           return;
@@ -544,7 +544,7 @@ const App: React.FC = () => {
       });
 
       if (response.data) {
-        const blob = new Blob([response.data], { type: format === 'har' ? 'application/json' : 'application/json' });
+        const blob = new Blob([response.data as any], { type: format === 'har' ? 'application/json' : 'application/json' });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
