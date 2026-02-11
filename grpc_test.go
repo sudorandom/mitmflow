@@ -129,7 +129,9 @@ func TestParseConnectStreamingFrames(t *testing.T) {
 	// Expect 2 frames: Protoscope (no desc) for data, and JSON string for trailer
 	require.Len(t, frames, 2)
 	assert.Contains(t, frames[0], `Hello`)       // Protoscope output
-	assert.Equal(t, `{"error":null}`, frames[1]) // Trailer
+	assert.Equal(t, `{
+  "error": null
+}`, frames[1]) // Trailer
 }
 
 func TestParseGrpcFramesWithDescriptor_Streaming(t *testing.T) {
