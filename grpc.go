@@ -17,24 +17,36 @@ import (
 	"google.golang.org/protobuf/types/dynamicpb"
 )
 
+const (
+	MaxTextualFrames    = 50
+	MaxTextualFrameSize = 50 * 1024 // 50KB
+)
+
 func processProtobufMessage(message []byte, msgDesc protoreflect.MessageDescriptor) []string {
 	var frames []string
 	if msgDesc != nil {
 		msg := dynamicpb.NewMessage(msgDesc)
 		if err := proto.Unmarshal(message, msg); err == nil {
 			opts := protojson.MarshalOptions{
-				Indent:          "  ",
 				EmitUnpopulated: true,
 			}
 			if jsonBytes, err := opts.Marshal(msg); err == nil {
-				frames = append(frames, string(jsonBytes))
+				if len(jsonBytes) > MaxTextualFrameSize {
+					frames = append(frames, fmt.Sprintf("Message too large to display (%d bytes)", len(jsonBytes)))
+				} else {
+					frames = append(frames, string(jsonBytes))
+				}
 				return frames
 			}
 		}
 	}
 	opts := protoscope.WriterOptions{}
 	protoscopeOutput := protoscope.Write(message, opts)
-	frames = append(frames, protoscopeOutput)
+	if len(protoscopeOutput) > MaxTextualFrameSize {
+		frames = append(frames, fmt.Sprintf("Message too large to display (%d bytes)", len(protoscopeOutput)))
+	} else {
+		frames = append(frames, protoscopeOutput)
+	}
 	return frames
 }
 

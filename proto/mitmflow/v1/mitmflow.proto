@@ -3,6 +3,7 @@ edition = "2023";
 package mitmflow.v1;
 
 import "buf/validate/validate.proto";
+import "google/protobuf/timestamp.proto";
 import "mitmproxygrpc/v1/service.proto";
 
 service Service {
@@ -10,6 +11,8 @@ service Service {
   rpc StreamFlows(StreamFlowsRequest) returns (stream StreamFlowsResponse) {}
   rpc UpdateFlow(UpdateFlowRequest) returns (UpdateFlowResponse) {}
   rpc DeleteFlows(DeleteFlowsRequest) returns (DeleteFlowsResponse) {}
+  rpc ExportFlows(ExportFlowsRequest) returns (ExportFlowsResponse) {}
+  rpc GetFlow(GetFlowRequest) returns (GetFlowResponse) {}
 }
 
 message FlowFilter {
@@ -26,6 +29,7 @@ message FlowFilter {
   }];
   repeated string client_ips = 5 [(buf.validate.field).repeated.items.string.ip = true];
   HttpFilter http = 6;
+  repeated string flow_ids = 7;
 }
 
 message HttpFilter {
@@ -39,13 +43,21 @@ message HttpFilter {
   repeated string status_codes = 3;
 }
 
+message GetFlowRequest {
+  string flow_id = 1;
+}
+
+message GetFlowResponse {
+  Flow flow = 1;
+}
+
 message GetFlowsRequest {
   FlowFilter filter = 1;
   int32 limit = 2;
 }
 
 message GetFlowsResponse {
-  Flow flow = 1;
+  FlowSummary flow = 1;
 }
 
 message StreamFlowsRequest {
@@ -55,7 +67,7 @@ message StreamFlowsRequest {
 
 message StreamFlowsResponse {
   oneof response {
-    Flow flow = 1;
+    FlowSummary flow = 1;
   }
 }
 
@@ -66,7 +78,7 @@ message UpdateFlowRequest {
 }
 
 message UpdateFlowResponse {
-  Flow flow = 1;
+  FlowSummary flow = 1;
 }
 
 message DeleteFlowsRequest {
@@ -76,6 +88,71 @@ message DeleteFlowsRequest {
 
 message DeleteFlowsResponse {
   int64 count = 1;
+}
+
+enum ExportFormat {
+  EXPORT_FORMAT_UNSPECIFIED = 0;
+  EXPORT_FORMAT_HAR = 1;
+  EXPORT_FORMAT_JSON = 2;
+}
+
+message ExportFlowsRequest {
+  repeated string flow_ids = 1;
+  ExportFormat format = 2;
+}
+
+message ExportFlowsResponse {
+  bytes data = 1;
+  string filename = 2;
+}
+
+message FlowSummary {
+  string id = 1;
+  string type = 2; // "http", "dns", "tcp", "udp"
+  google.protobuf.Timestamp timestamp_start = 3;
+  bool pinned = 4;
+  string note = 5;
+  oneof summary {
+    HttpFlowSummary http = 6;
+    DnsFlowSummary dns = 7;
+    TcpFlowSummary tcp = 8;
+    UdpFlowSummary udp = 9;
+  }
+}
+
+message HttpFlowSummary {
+  string method = 1;
+  string url = 2;
+  int32 status_code = 3;
+  int64 duration_ms = 4;
+  int64 request_content_length = 5;
+  int64 response_content_length = 6;
+  string client_peername_host = 7;
+  string server_address_host = 8;
+  uint32 server_address_port = 9;
+  uint32 client_peername_port = 10;
+}
+
+message DnsFlowSummary {
+  string question_name = 1;
+  string client_peername_host = 2;
+  string error = 3;
+}
+
+message TcpFlowSummary {
+  string server_address_host = 1;
+  uint32 server_address_port = 2;
+  string client_peername_host = 3;
+  uint32 client_peername_port = 4;
+  string error = 5;
+}
+
+message UdpFlowSummary {
+  string server_address_host = 1;
+  uint32 server_address_port = 2;
+  string client_peername_host = 3;
+  uint32 client_peername_port = 4;
+  string error = 5;
 }
 
 message Flow {
@@ -98,4 +175,5 @@ message HTTPFlowExtra {
 message MessageDetails {
   repeated string textual_frames = 1;
   string effective_content_type = 2;
+  int64 body_size = 3;
 }

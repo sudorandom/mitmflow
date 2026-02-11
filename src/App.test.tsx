@@ -15,7 +15,7 @@ test('renders the main app component', () => {
         getFlows: async function* () {
             // empty stream by default
         },
-        exportFlow: async function () {
+        exportFlows: async function () {
             return Promise.resolve({ received: true, message: "ok", flowsProcessed: 0n });
         },
         deleteFlows: async function () {
@@ -23,6 +23,9 @@ test('renders the main app component', () => {
         },
         updateFlow: async function () {
              return Promise.resolve({});
+        },
+        getFlow: async function () {
+            return Promise.resolve({});
         }
     } as unknown as ReturnType<typeof createClient>);
     render(<App />);
@@ -35,25 +38,16 @@ test('renders the details panel when a flow is selected', async () => {
         response: {
             case: 'flow',
             value: {
-                flow: {
-                    case: 'httpFlow',
+                id: '1',
+                type: 'http',
+                summary: {
+                    case: 'http',
                     value: {
-                        id: '1',
-                        request: {
-                            method: 'GET',
-                            url: 'http://example.com',
-                            httpVersion: 'HTTP/1.1',
-                            headers: {},
-                            content: new Uint8Array(),
-                        },
-                        response: {
-                            statusCode: 200,
-                            httpVersion: 'HTTP/1.1',
-                            headers: {},
-                            content: new Uint8Array(),
-                        },
-                    },
-                },
+                        method: 'GET',
+                        url: 'http://example.com',
+                        statusCode: 200,
+                    }
+                }
             }
         }
     };
@@ -67,7 +61,7 @@ test('renders the details panel when a flow is selected', async () => {
         getFlows: async function* () {
              // empty history
         },
-        exportFlow: async function () {
+        exportFlows: async function () {
             return Promise.resolve({ received: true, message: "ok", flowsProcessed: 0n });
         },
         deleteFlows: async function () {
@@ -75,6 +69,20 @@ test('renders the details panel when a flow is selected', async () => {
         },
         updateFlow: async function () {
              return Promise.resolve({});
+        },
+        getFlow: async function () {
+            return Promise.resolve({
+                flow: {
+                    flow: {
+                        case: 'httpFlow',
+                        value: {
+                            id: '1',
+                            request: { method: 'GET', url: 'http://example.com', headers: {} },
+                            response: { statusCode: 200, headers: {} }
+                        }
+                    }
+                }
+            });
         }
     } as unknown as ReturnType<typeof createClient>);
 
@@ -92,25 +100,16 @@ test('details panel is focusable for keyboard scrolling', async () => {
         response: {
             case: 'flow',
             value: {
-                flow: {
-                    case: 'httpFlow',
+                id: '1',
+                type: 'http',
+                summary: {
+                    case: 'http',
                     value: {
-                        id: '1',
-                        request: {
-                            method: 'GET',
-                            url: 'http://example.com',
-                            httpVersion: 'HTTP/1.1',
-                            headers: {},
-                            content: new Uint8Array(),
-                        },
-                        response: {
-                            statusCode: 200,
-                            httpVersion: 'HTTP/1.1',
-                            headers: {},
-                            content: new Uint8Array(),
-                        },
-                    },
-                },
+                        method: 'GET',
+                        url: 'http://example.com',
+                        statusCode: 200,
+                    }
+                }
             }
         }
     };
@@ -123,7 +122,7 @@ test('details panel is focusable for keyboard scrolling', async () => {
         getFlows: async function* () {
              // empty history
         },
-        exportFlow: async function () {
+        exportFlows: async function () {
             return Promise.resolve({ received: true, message: "ok", flowsProcessed: 0n });
         },
         deleteFlows: async function () {
@@ -131,6 +130,20 @@ test('details panel is focusable for keyboard scrolling', async () => {
         },
         updateFlow: async function () {
              return Promise.resolve({});
+        },
+        getFlow: async function () {
+            return Promise.resolve({
+                flow: {
+                    flow: {
+                        case: 'httpFlow',
+                        value: {
+                            id: '1',
+                            request: { method: 'GET', url: 'http://example.com', headers: {} },
+                            response: { statusCode: 200, headers: {} }
+                        }
+                    }
+                }
+            });
         }
     } as unknown as ReturnType<typeof createClient>);
 
@@ -160,25 +173,16 @@ test('adds flows to the list', async () => {
         response: {
             case: 'flow',
             value: {
-                flow: {
-                    case: 'httpFlow',
+                id: '1',
+                type: 'http',
+                summary: {
+                    case: 'http',
                     value: {
-                        id: '1',
-                        request: {
-                            method: 'GET',
-                            url: 'http://example.com',
-                            httpVersion: 'HTTP/1.1',
-                            headers: {},
-                            content: new Uint8Array(),
-                        },
-                        response: {
-                            statusCode: 200,
-                            httpVersion: 'HTTP/1.1',
-                            headers: {},
-                            content: new Uint8Array(),
-                        },
-                    },
-                },
+                        method: 'GET',
+                        url: 'http://example.com',
+                        statusCode: 200,
+                    }
+                }
             }
         }
     };
@@ -192,7 +196,7 @@ test('adds flows to the list', async () => {
         getFlows: async function* () {
              // empty history
         },
-        exportFlow: async function () {
+        exportFlows: async function () {
             return Promise.resolve({ received: true, message: "ok", flowsProcessed: 0n });
         },
         deleteFlows: async function () {
@@ -200,6 +204,20 @@ test('adds flows to the list', async () => {
         },
         updateFlow: async function () {
              return Promise.resolve({});
+        },
+        getFlow: async function () {
+            return Promise.resolve({
+                flow: {
+                    flow: {
+                        case: 'httpFlow',
+                        value: {
+                            id: '1',
+                            request: { method: 'GET', url: 'http://example.com', headers: {} },
+                            response: { statusCode: 200, headers: {} }
+                        }
+                    }
+                }
+            });
         }
     } as unknown as ReturnType<typeof createClient>);
 
@@ -214,29 +232,20 @@ test('newly streamed flows are highlighted and then unhighlighted', async () => 
         response: {
             case: 'flow',
             value: {
-                flow: {
-                    case: 'httpFlow',
-                    value: {
-                        id: 'test-flow-highlight',
-                        request: {
-                            method: 'GET',
-                            url: 'http://example.com/highlight',
-                            httpVersion: 'HTTP/1.1',
-                            headers: {},
-                            content: new Uint8Array(),
-                        },
-                        response: {
-                            statusCode: 200,
-                            httpVersion: 'HTTP/1.1',
-                            headers: {},
-                            content: new Uint8Array(),
-                        },
-                        timestampStart: {
-                            seconds: BigInt(Math.floor(Date.now() / 1000)),
-                            nanos: (Date.now() % 1000) * 1000000
-                        },
-                    },
+                id: 'test-flow-highlight',
+                type: 'http',
+                timestampStart: {
+                    seconds: BigInt(Math.floor(Date.now() / 1000)),
+                    nanos: (Date.now() % 1000) * 1000000
                 },
+                summary: {
+                    case: 'http',
+                    value: {
+                        method: 'GET',
+                        url: 'http://example.com/highlight',
+                        statusCode: 200,
+                    }
+                }
             }
         }
     };
@@ -247,9 +256,10 @@ test('newly streamed flows are highlighted and then unhighlighted', async () => 
             await new Promise(() => {});
         },
         getFlows: async function* () {},
-        exportFlow: async () => ({}),
+        exportFlows: async () => ({}),
         deleteFlows: async () => ({}),
         updateFlow: async () => ({}),
+        getFlow: async () => ({}),
     } as unknown as ReturnType<typeof createClient>);
 
     render(<App />);

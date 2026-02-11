@@ -40,6 +40,10 @@ const (
 	ServiceUpdateFlowProcedure = "/mitmflow.v1.Service/UpdateFlow"
 	// ServiceDeleteFlowsProcedure is the fully-qualified name of the Service's DeleteFlows RPC.
 	ServiceDeleteFlowsProcedure = "/mitmflow.v1.Service/DeleteFlows"
+	// ServiceExportFlowsProcedure is the fully-qualified name of the Service's ExportFlows RPC.
+	ServiceExportFlowsProcedure = "/mitmflow.v1.Service/ExportFlows"
+	// ServiceGetFlowProcedure is the fully-qualified name of the Service's GetFlow RPC.
+	ServiceGetFlowProcedure = "/mitmflow.v1.Service/GetFlow"
 )
 
 // ServiceClient is a client for the mitmflow.v1.Service service.
@@ -48,6 +52,8 @@ type ServiceClient interface {
 	StreamFlows(context.Context, *connect.Request[StreamFlowsRequest]) (*connect.ServerStreamForClient[StreamFlowsResponse], error)
 	UpdateFlow(context.Context, *connect.Request[UpdateFlowRequest]) (*connect.Response[UpdateFlowResponse], error)
 	DeleteFlows(context.Context, *connect.Request[DeleteFlowsRequest]) (*connect.Response[DeleteFlowsResponse], error)
+	ExportFlows(context.Context, *connect.Request[ExportFlowsRequest]) (*connect.Response[ExportFlowsResponse], error)
+	GetFlow(context.Context, *connect.Request[GetFlowRequest]) (*connect.Response[GetFlowResponse], error)
 }
 
 // NewServiceClient constructs a client for the mitmflow.v1.Service service. By default, it uses the
@@ -85,6 +91,18 @@ func NewServiceClient(httpClient connect.HTTPClient, baseURL string, opts ...con
 			connect.WithSchema(serviceMethods.ByName("DeleteFlows")),
 			connect.WithClientOptions(opts...),
 		),
+		exportFlows: connect.NewClient[ExportFlowsRequest, ExportFlowsResponse](
+			httpClient,
+			baseURL+ServiceExportFlowsProcedure,
+			connect.WithSchema(serviceMethods.ByName("ExportFlows")),
+			connect.WithClientOptions(opts...),
+		),
+		getFlow: connect.NewClient[GetFlowRequest, GetFlowResponse](
+			httpClient,
+			baseURL+ServiceGetFlowProcedure,
+			connect.WithSchema(serviceMethods.ByName("GetFlow")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
@@ -94,6 +112,8 @@ type serviceClient struct {
 	streamFlows *connect.Client[StreamFlowsRequest, StreamFlowsResponse]
 	updateFlow  *connect.Client[UpdateFlowRequest, UpdateFlowResponse]
 	deleteFlows *connect.Client[DeleteFlowsRequest, DeleteFlowsResponse]
+	exportFlows *connect.Client[ExportFlowsRequest, ExportFlowsResponse]
+	getFlow     *connect.Client[GetFlowRequest, GetFlowResponse]
 }
 
 // GetFlows calls mitmflow.v1.Service.GetFlows.
@@ -116,12 +136,24 @@ func (c *serviceClient) DeleteFlows(ctx context.Context, req *connect.Request[De
 	return c.deleteFlows.CallUnary(ctx, req)
 }
 
+// ExportFlows calls mitmflow.v1.Service.ExportFlows.
+func (c *serviceClient) ExportFlows(ctx context.Context, req *connect.Request[ExportFlowsRequest]) (*connect.Response[ExportFlowsResponse], error) {
+	return c.exportFlows.CallUnary(ctx, req)
+}
+
+// GetFlow calls mitmflow.v1.Service.GetFlow.
+func (c *serviceClient) GetFlow(ctx context.Context, req *connect.Request[GetFlowRequest]) (*connect.Response[GetFlowResponse], error) {
+	return c.getFlow.CallUnary(ctx, req)
+}
+
 // ServiceHandler is an implementation of the mitmflow.v1.Service service.
 type ServiceHandler interface {
 	GetFlows(context.Context, *connect.Request[GetFlowsRequest], *connect.ServerStream[GetFlowsResponse]) error
 	StreamFlows(context.Context, *connect.Request[StreamFlowsRequest], *connect.ServerStream[StreamFlowsResponse]) error
 	UpdateFlow(context.Context, *connect.Request[UpdateFlowRequest]) (*connect.Response[UpdateFlowResponse], error)
 	DeleteFlows(context.Context, *connect.Request[DeleteFlowsRequest]) (*connect.Response[DeleteFlowsResponse], error)
+	ExportFlows(context.Context, *connect.Request[ExportFlowsRequest]) (*connect.Response[ExportFlowsResponse], error)
+	GetFlow(context.Context, *connect.Request[GetFlowRequest]) (*connect.Response[GetFlowResponse], error)
 }
 
 // NewServiceHandler builds an HTTP handler from the service implementation. It returns the path on
@@ -155,6 +187,18 @@ func NewServiceHandler(svc ServiceHandler, opts ...connect.HandlerOption) (strin
 		connect.WithSchema(serviceMethods.ByName("DeleteFlows")),
 		connect.WithHandlerOptions(opts...),
 	)
+	serviceExportFlowsHandler := connect.NewUnaryHandler(
+		ServiceExportFlowsProcedure,
+		svc.ExportFlows,
+		connect.WithSchema(serviceMethods.ByName("ExportFlows")),
+		connect.WithHandlerOptions(opts...),
+	)
+	serviceGetFlowHandler := connect.NewUnaryHandler(
+		ServiceGetFlowProcedure,
+		svc.GetFlow,
+		connect.WithSchema(serviceMethods.ByName("GetFlow")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/mitmflow.v1.Service/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case ServiceGetFlowsProcedure:
@@ -165,6 +209,10 @@ func NewServiceHandler(svc ServiceHandler, opts ...connect.HandlerOption) (strin
 			serviceUpdateFlowHandler.ServeHTTP(w, r)
 		case ServiceDeleteFlowsProcedure:
 			serviceDeleteFlowsHandler.ServeHTTP(w, r)
+		case ServiceExportFlowsProcedure:
+			serviceExportFlowsHandler.ServeHTTP(w, r)
+		case ServiceGetFlowProcedure:
+			serviceGetFlowHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -188,4 +236,12 @@ func (UnimplementedServiceHandler) UpdateFlow(context.Context, *connect.Request[
 
 func (UnimplementedServiceHandler) DeleteFlows(context.Context, *connect.Request[DeleteFlowsRequest]) (*connect.Response[DeleteFlowsResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("mitmflow.v1.Service.DeleteFlows is not implemented"))
+}
+
+func (UnimplementedServiceHandler) ExportFlows(context.Context, *connect.Request[ExportFlowsRequest]) (*connect.Response[ExportFlowsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("mitmflow.v1.Service.ExportFlows is not implemented"))
+}
+
+func (UnimplementedServiceHandler) GetFlow(context.Context, *connect.Request[GetFlowRequest]) (*connect.Response[GetFlowResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("mitmflow.v1.Service.GetFlow is not implemented"))
 }

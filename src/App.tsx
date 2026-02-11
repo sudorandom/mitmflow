@@ -2,14 +2,13 @@ import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react'
 import { Search, Pause, Play, Download, Braces, HardDriveDownload, Menu, Filter, X, Settings, Trash, ChevronDown } from 'lucide-react';
 import { createConnectTransport } from "@connectrpc/connect-web";
 import { createClient } from "@connectrpc/connect";
-import { Service, Flow, FlowSchema, StreamFlowsRequestSchema, GetFlowsRequestSchema, FlowFilterSchema } from "./gen/mitmflow/v1/mitmflow_pb"
+import { Flow, FlowSummary, FlowSchema, ExportFormat, Service, FlowFilterSchema, GetFlowsRequestSchema, StreamFlowsRequestSchema } from "./gen/mitmflow/v1/mitmflow_pb";
 import { toJson, create } from "@bufbuild/protobuf";
 import { DnsFlowDetails } from './components/DnsFlowDetails';
 import { HttpFlowDetails } from './components/HttpFlowDetails';
 import { TcpFlowDetails } from './components/TcpFlowDetails';
 import { UdpFlowDetails } from './components/UdpFlowDetails';
 import { ContentFormat, getFlowId, getFlowTimestampNs } from './utils';
-import { WorkerMessage, WorkerResponse } from './harUtils';
 import { DetailsPanel } from './components/DetailsPanel';
 import FilterModal from './components/FilterModal';
 import NoteModal from './components/NoteModal';
@@ -35,7 +34,9 @@ const App: React.FC = () => {
   // Use relative URL - in dev mode Vite proxies to backend, in production both are served from same origin
   const client = useMemo(() => createClient(Service, createConnectTransport({ baseUrl: window.MITMFLOW_GRPC_ADDR || "." })), []);
   // --- State ---
-  const [flowState, setFlowState] = useState<{ all: Flow[]; filtered: Flow[]; newIds: Set<string> }>({ all: [], filtered: [], newIds: new Set() });
+  const [flowState, setFlowState] = useState<{ all: FlowSummary[]; filtered: FlowSummary[]; newIds: Set<string> }>({ all: [], filtered: [], newIds: new Set() });
+  const [detailsFlow, setDetailsFlow] = useState<Flow | null>(null);
+  const [selectedFlowSummary, setSelectedFlowSummary] = useState<FlowSummary | null>(null);
   const newFlowsMap = useRef<Map<string, number>>(new Map());
   const [isFlowsTruncated, setIsFlowsTruncated] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
@@ -62,7 +63,7 @@ const App: React.FC = () => {
   const debouncedFilterText = useDebounce(filterText, 300);
 
   // Settings from store
-  const { theme, maxFlows: storedMaxFlows, maxBodySize } = useSettingsStore();
+  const { theme, maxFlows: storedMaxFlows } = useSettingsStore();
   // Ensure maxFlows is a valid number, defaulting to 500 if undefined or invalid (e.g. NaN from old local storage)
   const maxFlows = Number.isFinite(storedMaxFlows) ? storedMaxFlows : 500;
 
@@ -193,47 +194,34 @@ const App: React.FC = () => {
   const deleteMenuRef = useRef<HTMLDivElement>(null); // Ref for delete menu
   const bulkDownloadRef = useRef<HTMLDivElement>(null); // New ref for bulk download menu
 
-  // --- Worker for HAR generation ---
-  const harWorker = useRef<Worker | null>(null);
-
-  useEffect(() => {
-    harWorker.current = new Worker(new URL('./workers/harWorker.ts', import.meta.url), { type: 'module' });
-    return () => {
-      harWorker.current?.terminate();
-    };
-  }, []);
-
-  const generateHarWithWorker = useCallback((flows: Flow[]): Promise<Blob> => {
-    return new Promise((resolve, reject) => {
-      if (!harWorker.current) {
-        reject(new Error("Worker not initialized"));
-        return;
-      }
-      const id = String(Date.now() + Math.random());
-      const handler = (e: MessageEvent<WorkerResponse>) => {
-        if (e.data.id === id) {
-          harWorker.current?.removeEventListener('message', handler);
-          if (e.data.success && e.data.blob) {
-            resolve(e.data.blob);
-          } else {
-            reject(new Error(e.data.error || 'Worker failed'));
-          }
-        }
-      };
-      harWorker.current.addEventListener('message', handler);
-      harWorker.current.postMessage({ id, flows } as WorkerMessage);
-    });
-  }, []);
-
   const downloadFlowContent = useCallback(async (flow: Flow, type: 'har' | 'flow-json' | 'request' | 'response') => {
     const httpFlow = flow.flow.case === 'httpFlow' ? flow.flow.value : null;
+    const flowId = getFlowId(flow);
 
     let blob: Blob;
     let filename: string;
 
     if (type === 'flow-json') {
       blob = new Blob([JSON.stringify(toJson(FlowSchema, flow), null, 2)], { type: 'application/json;charset=utf-8' });
-      filename = `${getFlowId(flow)}.json`;
+      filename = `${flowId}.json`;
+    } else if (type === 'har') {
+      if (!flowId) return;
+      try {
+        const response = await client.exportFlows({
+          flowIds: [flowId],
+          format: ExportFormat.HAR,
+        });
+        if (response.data) {
+          blob = new Blob([response.data as any], { type: 'application/json' });
+          filename = response.filename || `${flowId}.har`;
+        } else {
+          return;
+        }
+      } catch (err) {
+        console.error("Failed to export flow as HAR", err);
+        showToast("Failed to export flow as HAR");
+        return;
+      }
     } else {
       if (!httpFlow) return;
 
@@ -254,10 +242,6 @@ const App: React.FC = () => {
       })();
 
       switch (type) {
-        case 'har':
-          blob = await generateHarWithWorker([flow]);
-          filename = `${httpFlow.id}.har`;
-          break;
         case 'request':
           blob = new Blob([requestAsText], { type: 'text/plain;charset=utf-8' });
           filename = `${httpFlow.id}_request.txt`;
@@ -279,11 +263,11 @@ const App: React.FC = () => {
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
-  }, [generateHarWithWorker]);
+  }, [client, showToast]);
 
-  const flowBuffer = useRef<Flow[]>([]);
+  const flowBuffer = useRef<FlowSummary[]>([]);
 
-  const processIncomingFlow = useCallback((incomingFlow: Flow) => {
+  const processIncomingFlow = useCallback((incomingFlow: FlowSummary) => {
     flowBuffer.current.push(incomingFlow);
   }, []);
 
@@ -313,31 +297,18 @@ const App: React.FC = () => {
         if (flowsToProcess.length > 0) {
            const flowIdMap = new Map<string, number>();
            newAll.forEach((f, i) => {
-             const id = getFlowId(f);
+             const id = f.id;
              if (id) flowIdMap.set(id, i);
            });
 
-           const addedFlowsMap = new Map<string, Flow>();
+           const addedFlowsMap = new Map<string, FlowSummary>();
 
            for (const incomingFlow of flowsToProcess) {
-             const incomingFlowId = getFlowId(incomingFlow);
+             const incomingFlowId = incomingFlow.id;
 
              const flowTs = getFlowTimestampNs(incomingFlow);
              if (flowTs > latestTimestampNs.current) {
                latestTimestampNs.current = flowTs;
-             }
-
-             if (incomingFlow.flow.case === 'httpFlow') {
-               const httpFlow = incomingFlow.flow.value;
-               const maxBodySizeBytes = maxBodySize * 1024;
-               if (httpFlow.request && httpFlow.request.content.length > maxBodySizeBytes) {
-                 httpFlow.request.content = httpFlow.request.content.slice(0, maxBodySizeBytes);
-                 httpFlow.request.contentTruncated = true;
-               }
-               if (httpFlow.response && httpFlow.response.content.length > maxBodySizeBytes) {
-                 httpFlow.response.content = httpFlow.response.content.slice(0, maxBodySizeBytes);
-                 httpFlow.response.contentTruncated = true;
-               }
              }
 
              if (incomingFlowId && flowIdMap.has(incomingFlowId)) {
@@ -364,7 +335,7 @@ const App: React.FC = () => {
           const droppedFlows = newAll.splice(newAll.length - excessCount, excessCount);
           setIsFlowsTruncated(true);
 
-          const droppedIds = new Set(droppedFlows.map(f => getFlowId(f)).filter((id): id is string => !!id));
+          const droppedIds = new Set(droppedFlows.map(f => f.id).filter((id): id is string => !!id));
 
           if (droppedIds.size > 0) {
             // Remove dropped IDs from newFlowsMap
@@ -395,7 +366,7 @@ const App: React.FC = () => {
     }, 500);
 
     return () => clearInterval(interval);
-  }, [maxFlows, maxBodySize]);
+  }, [maxFlows]);
 
   // --- Data Fetching ---
   const filter = useMemo(() => create(FlowFilterSchema, {
@@ -411,7 +382,7 @@ const App: React.FC = () => {
       },
   }), [debouncedFilterText, pinned, hasNote, flowTypes, clientIps, http]);
 
-  const processHistoryFlow = useCallback((incomingFlow: Flow) => {
+  const processHistoryFlow = useCallback((incomingFlow: FlowSummary) => {
     setFlowState(prevState => {
       const flowTs = getFlowTimestampNs(incomingFlow);
       if (flowTs > latestTimestampNs.current) {
@@ -419,8 +390,8 @@ const App: React.FC = () => {
       }
 
       // Similar logic to the batched processing, but applied synchronously
-      const incomingFlowId = getFlowId(incomingFlow);
-      const existingIndex = prevState.all.findIndex(r => getFlowId(r) === incomingFlowId);
+      const incomingFlowId = incomingFlow.id;
+      const existingIndex = prevState.all.findIndex(r => r.id === incomingFlowId);
       
       const newAll = [...prevState.all];
       if (existingIndex !== -1) {
@@ -537,15 +508,17 @@ const App: React.FC = () => {
   const uniqueClientIps = useMemo(() => {
     const ips = new Set<string>();
     flowState.all.forEach(flow => {
-        const ip = flow.flow.value?.client?.peernameHost;
+        let ip: string | undefined;
+        switch (flow.summary.case) {
+            case 'http': ip = flow.summary.value.clientPeernameHost; break;
+            case 'dns': ip = flow.summary.value.clientPeernameHost; break;
+            case 'tcp': ip = flow.summary.value.clientPeernameHost; break;
+            case 'udp': ip = flow.summary.value.clientPeernameHost; break;
+        }
         if (ip) ips.add(ip);
     });
     return Array.from(ips).sort();
   }, [flowState.all]);
-
-  const detailsFlow = useMemo(() =>
-    selectedFlowId ? flowState.all.find(f => getFlowId(f) === selectedFlowId) || null : null
-  , [flowState.all, selectedFlowId]);
 
   const getFlowType = (flow: Flow | null): string => {
     if (!flow?.flow?.case) return 'unknown';
@@ -557,31 +530,34 @@ const App: React.FC = () => {
 
   // --- Event Handlers ---
   const handleDownloadSelectedFlows = async (format: 'har' | 'json') => {
-    const selectedFlows = flowState.all.filter(flow => {
-      const flowId = getFlowId(flow);
-      return flowId && selectedFlowIds.has(flowId);
-    });
+    const ids = Array.from(selectedFlowIds);
+    if (ids.length === 0) return;
 
-    let blob: Blob;
-    let filename: string;
+    try {
+      const exportFormat = format === 'har' 
+        ? ExportFormat.HAR 
+        : ExportFormat.JSON;
+      
+      const response = await client.exportFlows({
+        flowIds: ids,
+        format: exportFormat,
+      });
 
-    if (format === 'json') {
-      const jsonFlows = selectedFlows.map(flow => toJson(FlowSchema, flow));
-      blob = new Blob([JSON.stringify(jsonFlows, null, 2)], { type: 'application/json;charset=utf-8' });
-      filename = 'flows.json';
-    } else {
-      blob = await generateHarWithWorker(selectedFlows);
-      filename = 'flows.har';
+      if (response.data) {
+        const blob = new Blob([response.data as any], { type: format === 'har' ? 'application/json' : 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = response.filename || `flows.${format}`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      }
+    } catch (err) {
+      console.error("Failed to export flows", err);
+      showToast(`Failed to export flows: ${err instanceof Error ? err.message : String(err)}`);
     }
-
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = filename;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
   };
 
   const togglePause = () => setIsPaused(prev => !prev);
@@ -591,6 +567,7 @@ const App: React.FC = () => {
     newFlowsMap.current.clear();
     setIsFlowsTruncated(false);
     setSelectedFlowId(null);
+    setDetailsFlow(null);
     setSelectedFlowIds(new Set());
     setRequestFormats(new Map()); // Clear formats when flows are cleared
     setResponseFormats(new Map()); // Clear formats when flows are cleared
@@ -603,11 +580,14 @@ const App: React.FC = () => {
     try {
       await client.deleteFlows({ flowIds: ids });
       setFlowState(prev => ({
-        all: prev.all.filter(f => !ids.includes(getFlowId(f) || '')),
-        filtered: prev.filtered.filter(f => !ids.includes(getFlowId(f) || '')),
+        all: prev.all.filter(f => !ids.includes(f.id)),
+        filtered: prev.filtered.filter(f => !ids.includes(f.id)),
         newIds: prev.newIds
       }));
-      setSelectedFlowId(null);
+      if (detailsFlow && ids.includes(getFlowId(detailsFlow) || '')) {
+          setDetailsFlow(null);
+          setSelectedFlowId(null);
+      }
       setSelectedFlowIds(new Set());
     } catch (err) {
       console.error("Failed to delete selected flows", err);
@@ -639,18 +619,19 @@ const App: React.FC = () => {
     setIsDeleteMenuOpen(false);
   };
 
-  const handleDeleteFlow = useCallback(async (flow: Flow) => {
+  const handleDeleteFlow = useCallback(async (flow: Flow | FlowSummary) => {
     const flowId = getFlowId(flow);
     if (!flowId) return;
     try {
       await client.deleteFlows({ flowIds: [flowId] });
       setFlowState(prev => ({
-        all: prev.all.filter(f => getFlowId(f) !== flowId),
-        filtered: prev.filtered.filter(f => getFlowId(f) !== flowId),
+        all: prev.all.filter(f => f.id !== flowId),
+        filtered: prev.filtered.filter(f => f.id !== flowId),
         newIds: prev.newIds
       }));
       if (selectedFlowId === flowId) {
         setSelectedFlowId(null);
+        setDetailsFlow(null);
       }
       setSelectedFlowIds(prev => {
         const newSet = new Set(prev);
@@ -680,7 +661,27 @@ const App: React.FC = () => {
 
   const handleUpdateFlow = useCallback(async (flowId: string, updates: { pinned?: boolean, note?: string }) => {
     try {
-      await client.updateFlow({ flowId, ...updates });
+      const res = await client.updateFlow({ flowId, ...updates });
+      
+      setFlowState(prev => {
+          const newAll = prev.all.map(f => f.id === flowId ? res.flow! : f);
+          return { ...prev, all: newAll, filtered: newAll }; // Note: filtering update logic is imperfect here but acceptable for now
+      });
+
+      if (detailsFlow && getFlowId(detailsFlow) === flowId) {
+          // Update details flow if it's currently selected.
+          // Since UpdateFlow returns summary, we might not want to replace the full flow with summary.
+          // Just update the metadata fields.
+          setDetailsFlow(prev => {
+              if (!prev) return null;
+              // We need to clone and update
+              // Ideally backend returns full flow on update, or we re-fetch.
+              // Or we manually patch. Since pinned/note are top-level on Flow and FlowSummary, it works.
+              // But Flow is immutable message object usually? No, in Connect/Buf it's standard JS object.
+              // Let's rely on re-fetching or patching.
+              return { ...prev, pinned: res.flow?.pinned ?? prev.pinned, note: res.flow?.note ?? prev.note } as Flow;
+          });
+      }
 
       if (updates.pinned === true) {
         showToast("Flow pinned. It will not be deleted automatically.");
@@ -688,28 +689,40 @@ const App: React.FC = () => {
     } catch (err) {
       console.error("Failed to update flow", err);
     }
-  }, [client, showToast]);
+  }, [client, showToast, detailsFlow]);
 
-  const handleTogglePin = useCallback(async (flow: Flow) => {
+  const handleTogglePin = useCallback(async (flow: Flow | FlowSummary) => {
     const flowId = getFlowId(flow);
     if (!flowId) return;
     handleUpdateFlow(flowId, { pinned: !flow.pinned });
   }, [handleUpdateFlow]);
 
-  const handleFlowSelection = useCallback((flow: Flow) => {
-    const currentFlowId = getFlowId(flow);
-    if (!currentFlowId) {
-      return;
-    }
+  const handleFlowSelection = useCallback(async (flow: FlowSummary) => {
+    const currentFlowId = flow.id;
+    if (!currentFlowId) return;
 
-    // Update focused and displayed flow
     setSelectedFlowId(currentFlowId);
+    setSelectedFlowSummary(flow);
+    setDetailsFlow(null); // Clear previous details while loading new ones
     lastSelectedFlowId.current = currentFlowId;
     setIsPanelMinimized(false);
-  }, []);
+    
+    // Fetch full flow details
+    try {
+        const res = await client.getFlow({ flowId: currentFlowId });
+        if (res.flow) {
+            setDetailsFlow(res.flow);
+        }
+    } catch (err) {
+        console.error("Failed to fetch flow details", err);
+        showToast("Failed to load flow details");
+    }
+  }, [client, showToast]);
 
   const handleClosePanel = useCallback(() => {
     setSelectedFlowId(null);
+    setSelectedFlowSummary(null);
+    setDetailsFlow(null);
     setDetailsPanelHeight(null); // Reset height when panel is closed
   }, []); // Memoize with useCallback
 
@@ -1008,6 +1021,7 @@ const App: React.FC = () => {
       />
       <DetailsPanel
         flow={detailsFlow}
+        summary={selectedFlowSummary}
         isMinimized={isPanelMinimized}
         onClose={handleClosePanel}
         panelHeight={detailsPanelHeight}

@@ -2,8 +2,9 @@
 // @generated from file mitmflow/v1/mitmflow.proto (package mitmflow.v1, edition 2023)
 /* eslint-disable */
 
-import type { GenFile, GenMessage, GenService } from "@bufbuild/protobuf/codegenv2";
+import type { GenEnum, GenFile, GenMessage, GenService } from "@bufbuild/protobuf/codegenv2";
 import type { Message } from "@bufbuild/protobuf";
+import type { Timestamp } from "@bufbuild/protobuf/wkt";
 import type { DNSFlow, HTTPFlow, TCPFlow, UDPFlow } from "../../mitmproxygrpc/v1/service_pb";
 
 /**
@@ -44,6 +45,11 @@ export declare type FlowFilter = Message<"mitmflow.v1.FlowFilter"> & {
    * @generated from field: mitmflow.v1.HttpFilter http = 6;
    */
   http?: HttpFilter;
+
+  /**
+   * @generated from field: repeated string flow_ids = 7;
+   */
+  flowIds: string[];
 };
 
 /**
@@ -83,6 +89,38 @@ export declare type HttpFilter = Message<"mitmflow.v1.HttpFilter"> & {
 export declare const HttpFilterSchema: GenMessage<HttpFilter>;
 
 /**
+ * @generated from message mitmflow.v1.GetFlowRequest
+ */
+export declare type GetFlowRequest = Message<"mitmflow.v1.GetFlowRequest"> & {
+  /**
+   * @generated from field: string flow_id = 1;
+   */
+  flowId: string;
+};
+
+/**
+ * Describes the message mitmflow.v1.GetFlowRequest.
+ * Use `create(GetFlowRequestSchema)` to create a new message.
+ */
+export declare const GetFlowRequestSchema: GenMessage<GetFlowRequest>;
+
+/**
+ * @generated from message mitmflow.v1.GetFlowResponse
+ */
+export declare type GetFlowResponse = Message<"mitmflow.v1.GetFlowResponse"> & {
+  /**
+   * @generated from field: mitmflow.v1.Flow flow = 1;
+   */
+  flow?: Flow;
+};
+
+/**
+ * Describes the message mitmflow.v1.GetFlowResponse.
+ * Use `create(GetFlowResponseSchema)` to create a new message.
+ */
+export declare const GetFlowResponseSchema: GenMessage<GetFlowResponse>;
+
+/**
  * @generated from message mitmflow.v1.GetFlowsRequest
  */
 export declare type GetFlowsRequest = Message<"mitmflow.v1.GetFlowsRequest"> & {
@@ -108,9 +146,9 @@ export declare const GetFlowsRequestSchema: GenMessage<GetFlowsRequest>;
  */
 export declare type GetFlowsResponse = Message<"mitmflow.v1.GetFlowsResponse"> & {
   /**
-   * @generated from field: mitmflow.v1.Flow flow = 1;
+   * @generated from field: mitmflow.v1.FlowSummary flow = 1;
    */
-  flow?: Flow;
+  flow?: FlowSummary;
 };
 
 /**
@@ -149,9 +187,9 @@ export declare type StreamFlowsResponse = Message<"mitmflow.v1.StreamFlowsRespon
    */
   response: {
     /**
-     * @generated from field: mitmflow.v1.Flow flow = 1;
+     * @generated from field: mitmflow.v1.FlowSummary flow = 1;
      */
-    value: Flow;
+    value: FlowSummary;
     case: "flow";
   } | { case: undefined; value?: undefined };
 };
@@ -193,9 +231,9 @@ export declare const UpdateFlowRequestSchema: GenMessage<UpdateFlowRequest>;
  */
 export declare type UpdateFlowResponse = Message<"mitmflow.v1.UpdateFlowResponse"> & {
   /**
-   * @generated from field: mitmflow.v1.Flow flow = 1;
+   * @generated from field: mitmflow.v1.FlowSummary flow = 1;
    */
-  flow?: Flow;
+  flow?: FlowSummary;
 };
 
 /**
@@ -240,6 +278,274 @@ export declare type DeleteFlowsResponse = Message<"mitmflow.v1.DeleteFlowsRespon
  * Use `create(DeleteFlowsResponseSchema)` to create a new message.
  */
 export declare const DeleteFlowsResponseSchema: GenMessage<DeleteFlowsResponse>;
+
+/**
+ * @generated from message mitmflow.v1.ExportFlowsRequest
+ */
+export declare type ExportFlowsRequest = Message<"mitmflow.v1.ExportFlowsRequest"> & {
+  /**
+   * @generated from field: repeated string flow_ids = 1;
+   */
+  flowIds: string[];
+
+  /**
+   * @generated from field: mitmflow.v1.ExportFormat format = 2;
+   */
+  format: ExportFormat;
+};
+
+/**
+ * Describes the message mitmflow.v1.ExportFlowsRequest.
+ * Use `create(ExportFlowsRequestSchema)` to create a new message.
+ */
+export declare const ExportFlowsRequestSchema: GenMessage<ExportFlowsRequest>;
+
+/**
+ * @generated from message mitmflow.v1.ExportFlowsResponse
+ */
+export declare type ExportFlowsResponse = Message<"mitmflow.v1.ExportFlowsResponse"> & {
+  /**
+   * @generated from field: bytes data = 1;
+   */
+  data: Uint8Array;
+
+  /**
+   * @generated from field: string filename = 2;
+   */
+  filename: string;
+};
+
+/**
+ * Describes the message mitmflow.v1.ExportFlowsResponse.
+ * Use `create(ExportFlowsResponseSchema)` to create a new message.
+ */
+export declare const ExportFlowsResponseSchema: GenMessage<ExportFlowsResponse>;
+
+/**
+ * @generated from message mitmflow.v1.FlowSummary
+ */
+export declare type FlowSummary = Message<"mitmflow.v1.FlowSummary"> & {
+  /**
+   * @generated from field: string id = 1;
+   */
+  id: string;
+
+  /**
+   * "http", "dns", "tcp", "udp"
+   *
+   * @generated from field: string type = 2;
+   */
+  type: string;
+
+  /**
+   * @generated from field: google.protobuf.Timestamp timestamp_start = 3;
+   */
+  timestampStart?: Timestamp;
+
+  /**
+   * @generated from field: bool pinned = 4;
+   */
+  pinned: boolean;
+
+  /**
+   * @generated from field: string note = 5;
+   */
+  note: string;
+
+  /**
+   * @generated from oneof mitmflow.v1.FlowSummary.summary
+   */
+  summary: {
+    /**
+     * @generated from field: mitmflow.v1.HttpFlowSummary http = 6;
+     */
+    value: HttpFlowSummary;
+    case: "http";
+  } | {
+    /**
+     * @generated from field: mitmflow.v1.DnsFlowSummary dns = 7;
+     */
+    value: DnsFlowSummary;
+    case: "dns";
+  } | {
+    /**
+     * @generated from field: mitmflow.v1.TcpFlowSummary tcp = 8;
+     */
+    value: TcpFlowSummary;
+    case: "tcp";
+  } | {
+    /**
+     * @generated from field: mitmflow.v1.UdpFlowSummary udp = 9;
+     */
+    value: UdpFlowSummary;
+    case: "udp";
+  } | { case: undefined; value?: undefined };
+};
+
+/**
+ * Describes the message mitmflow.v1.FlowSummary.
+ * Use `create(FlowSummarySchema)` to create a new message.
+ */
+export declare const FlowSummarySchema: GenMessage<FlowSummary>;
+
+/**
+ * @generated from message mitmflow.v1.HttpFlowSummary
+ */
+export declare type HttpFlowSummary = Message<"mitmflow.v1.HttpFlowSummary"> & {
+  /**
+   * @generated from field: string method = 1;
+   */
+  method: string;
+
+  /**
+   * @generated from field: string url = 2;
+   */
+  url: string;
+
+  /**
+   * @generated from field: int32 status_code = 3;
+   */
+  statusCode: number;
+
+  /**
+   * @generated from field: int64 duration_ms = 4;
+   */
+  durationMs: bigint;
+
+  /**
+   * @generated from field: int64 request_content_length = 5;
+   */
+  requestContentLength: bigint;
+
+  /**
+   * @generated from field: int64 response_content_length = 6;
+   */
+  responseContentLength: bigint;
+
+  /**
+   * @generated from field: string client_peername_host = 7;
+   */
+  clientPeernameHost: string;
+
+  /**
+   * @generated from field: string server_address_host = 8;
+   */
+  serverAddressHost: string;
+
+  /**
+   * @generated from field: uint32 server_address_port = 9;
+   */
+  serverAddressPort: number;
+
+  /**
+   * @generated from field: uint32 client_peername_port = 10;
+   */
+  clientPeernamePort: number;
+};
+
+/**
+ * Describes the message mitmflow.v1.HttpFlowSummary.
+ * Use `create(HttpFlowSummarySchema)` to create a new message.
+ */
+export declare const HttpFlowSummarySchema: GenMessage<HttpFlowSummary>;
+
+/**
+ * @generated from message mitmflow.v1.DnsFlowSummary
+ */
+export declare type DnsFlowSummary = Message<"mitmflow.v1.DnsFlowSummary"> & {
+  /**
+   * @generated from field: string question_name = 1;
+   */
+  questionName: string;
+
+  /**
+   * @generated from field: string client_peername_host = 2;
+   */
+  clientPeernameHost: string;
+
+  /**
+   * @generated from field: string error = 3;
+   */
+  error: string;
+};
+
+/**
+ * Describes the message mitmflow.v1.DnsFlowSummary.
+ * Use `create(DnsFlowSummarySchema)` to create a new message.
+ */
+export declare const DnsFlowSummarySchema: GenMessage<DnsFlowSummary>;
+
+/**
+ * @generated from message mitmflow.v1.TcpFlowSummary
+ */
+export declare type TcpFlowSummary = Message<"mitmflow.v1.TcpFlowSummary"> & {
+  /**
+   * @generated from field: string server_address_host = 1;
+   */
+  serverAddressHost: string;
+
+  /**
+   * @generated from field: uint32 server_address_port = 2;
+   */
+  serverAddressPort: number;
+
+  /**
+   * @generated from field: string client_peername_host = 3;
+   */
+  clientPeernameHost: string;
+
+  /**
+   * @generated from field: uint32 client_peername_port = 4;
+   */
+  clientPeernamePort: number;
+
+  /**
+   * @generated from field: string error = 5;
+   */
+  error: string;
+};
+
+/**
+ * Describes the message mitmflow.v1.TcpFlowSummary.
+ * Use `create(TcpFlowSummarySchema)` to create a new message.
+ */
+export declare const TcpFlowSummarySchema: GenMessage<TcpFlowSummary>;
+
+/**
+ * @generated from message mitmflow.v1.UdpFlowSummary
+ */
+export declare type UdpFlowSummary = Message<"mitmflow.v1.UdpFlowSummary"> & {
+  /**
+   * @generated from field: string server_address_host = 1;
+   */
+  serverAddressHost: string;
+
+  /**
+   * @generated from field: uint32 server_address_port = 2;
+   */
+  serverAddressPort: number;
+
+  /**
+   * @generated from field: string client_peername_host = 3;
+   */
+  clientPeernameHost: string;
+
+  /**
+   * @generated from field: uint32 client_peername_port = 4;
+   */
+  clientPeernamePort: number;
+
+  /**
+   * @generated from field: string error = 5;
+   */
+  error: string;
+};
+
+/**
+ * Describes the message mitmflow.v1.UdpFlowSummary.
+ * Use `create(UdpFlowSummarySchema)` to create a new message.
+ */
+export declare const UdpFlowSummarySchema: GenMessage<UdpFlowSummary>;
 
 /**
  * @generated from message mitmflow.v1.Flow
@@ -330,6 +636,11 @@ export declare type MessageDetails = Message<"mitmflow.v1.MessageDetails"> & {
    * @generated from field: string effective_content_type = 2;
    */
   effectiveContentType: string;
+
+  /**
+   * @generated from field: int64 body_size = 3;
+   */
+  bodySize: bigint;
 };
 
 /**
@@ -337,6 +648,31 @@ export declare type MessageDetails = Message<"mitmflow.v1.MessageDetails"> & {
  * Use `create(MessageDetailsSchema)` to create a new message.
  */
 export declare const MessageDetailsSchema: GenMessage<MessageDetails>;
+
+/**
+ * @generated from enum mitmflow.v1.ExportFormat
+ */
+export enum ExportFormat {
+  /**
+   * @generated from enum value: EXPORT_FORMAT_UNSPECIFIED = 0;
+   */
+  UNSPECIFIED = 0,
+
+  /**
+   * @generated from enum value: EXPORT_FORMAT_HAR = 1;
+   */
+  HAR = 1,
+
+  /**
+   * @generated from enum value: EXPORT_FORMAT_JSON = 2;
+   */
+  JSON = 2,
+}
+
+/**
+ * Describes the enum mitmflow.v1.ExportFormat.
+ */
+export declare const ExportFormatSchema: GenEnum<ExportFormat>;
 
 /**
  * @generated from service mitmflow.v1.Service
@@ -373,6 +709,22 @@ export declare const Service: GenService<{
     methodKind: "unary";
     input: typeof DeleteFlowsRequestSchema;
     output: typeof DeleteFlowsResponseSchema;
+  },
+  /**
+   * @generated from rpc mitmflow.v1.Service.ExportFlows
+   */
+  exportFlows: {
+    methodKind: "unary";
+    input: typeof ExportFlowsRequestSchema;
+    output: typeof ExportFlowsResponseSchema;
+  },
+  /**
+   * @generated from rpc mitmflow.v1.Service.GetFlow
+   */
+  getFlow: {
+    methodKind: "unary";
+    input: typeof GetFlowRequestSchema;
+    output: typeof GetFlowResponseSchema;
   },
 }>;
 

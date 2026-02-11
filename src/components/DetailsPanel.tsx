@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Download, X, ChevronDown, Pin, Trash, StickyNote } from 'lucide-react';
-import { Flow } from '../gen/mitmflow/v1/mitmflow_pb';
+import { Flow, FlowSummary } from '../gen/mitmflow/v1/mitmflow_pb';
 import { getFlowTitle } from '../utils';
 import FlowIcon from './FlowIcon';
 import { StatusPill } from './StatusPill';
@@ -8,19 +8,23 @@ import { forwardRef } from 'react';
 
 interface DetailsPanelProps {
   flow: Flow | null;
+  summary: FlowSummary | null;
+  isLoading?: boolean;
   isMinimized: boolean;
   onClose: () => void;
   panelHeight: number | null;
   setPanelHeight: (height: number) => void;
   children: React.ReactNode;
   downloadFlowContent: (flow: Flow, type: 'har' | 'flow-json' | 'request' | 'response') => void;
-  onTogglePin: (flow: Flow) => void;
-  onDeleteFlow: (flow: Flow) => void;
+  onTogglePin: (flow: Flow | FlowSummary) => void;
+  onDeleteFlow: (flow: Flow | FlowSummary) => void;
   onEditNote: () => void;
 }
 
 export const DetailsPanel = forwardRef<HTMLDivElement, DetailsPanelProps>(({
   flow,
+  summary,
+  isLoading,
   isMinimized,
   onClose,
   panelHeight,
@@ -90,11 +94,14 @@ export const DetailsPanel = forwardRef<HTMLDivElement, DetailsPanelProps>(({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [onClose, ref]);
 
-  if (!flow) {
+  if (!flow && !summary && !isLoading) {
     return null;
   }
 
-  const isHttp = flow.flow.case === 'httpFlow';
+  const displayFlow = flow || summary;
+  if (!displayFlow) return null;
+
+  const isHttp = flow?.flow.case === 'httpFlow' || summary?.summary.case === 'http';
 
   return (
     <div
@@ -118,58 +125,81 @@ export const DetailsPanel = forwardRef<HTMLDivElement, DetailsPanelProps>(({
         onMouseDown={handleMouseDown}
       />
       <div className="flex items-center p-2.5 px-4 bg-gray-50 dark:bg-zinc-900 border-b border-gray-200 dark:border-zinc-800 flex-shrink-0 gap-3">
-        <FlowIcon flow={flow} />
+        <FlowIcon flow={displayFlow} />
         <button
-          onClick={() => flow && onTogglePin(flow)}
-          className={`p-1 rounded hover:bg-gray-200 dark:hover:bg-zinc-700 ${flow.pinned ? 'text-orange-500' : 'text-gray-500 dark:text-zinc-500 hover:text-gray-900 dark:hover:text-zinc-200'}`}
-          title={flow.pinned ? "Unpin flow" : "Pin flow"}
+          onClick={() => displayFlow && onTogglePin(displayFlow)}
+          className={`p-1 rounded hover:bg-gray-200 dark:hover:bg-zinc-700 ${displayFlow.pinned ? 'text-orange-500' : 'text-gray-500 dark:text-zinc-500 hover:text-gray-900 dark:hover:text-zinc-200'}`}
+          title={displayFlow.pinned ? "Unpin flow" : "Pin flow"}
         >
-          <Pin size={20} className={flow.pinned ? "fill-current" : ""} />
+          <Pin size={20} className={displayFlow.pinned ? "fill-current" : ""} />
         </button>
         <StatusPill
           status={(() => {
-            if (!flow.flow?.case) return '...';
-            if (flow.flow.case === 'httpFlow') {
-              return flow.flow.value.response?.statusCode ?? '...';
-            }
-            if (flow.flow.case === 'dnsFlow') {
-              return flow.flow.value.response ? 'OK' : 'ERROR';
-            }
-            if (flow.flow.case === 'tcpFlow') {
-              return flow.flow.value.error ? 'ERROR' : 'OK';
-            }
-            if (flow.flow.case === 'udpFlow') {
-              return flow.flow.value.error ? 'ERROR' : 'OK';
+            if (flow) {
+                if (flow.flow.case === 'httpFlow') {
+                  return flow.flow.value.response?.statusCode ?? '...';
+                }
+                if (flow.flow.case === 'dnsFlow') {
+                  return flow.flow.value.response ? 'OK' : 'ERROR';
+                }
+                if (flow.flow.case === 'tcpFlow') {
+                  return flow.flow.value.error ? 'ERROR' : 'OK';
+                }
+                if (flow.flow.case === 'udpFlow') {
+                  return flow.flow.value.error ? 'ERROR' : 'OK';
+                }
+            } else if (summary) {
+                if (summary.summary.case === 'http') {
+                    return summary.summary.value.statusCode || '...';
+                }
+                if (summary.summary.case === 'dns' || summary.summary.case === 'tcp' || summary.summary.case === 'udp') {
+                    return summary.summary.value.error ? 'ERROR' : 'OK';
+                }
+                return 'OK';
             }
             return '...';
           })()}
           color={(() => {
-            if (!flow.flow?.case) return 'gray';
-            if (flow.flow.case === 'httpFlow') {
-              if (!flow.flow.value.response) return 'gray';
-              if (flow.flow.value.response.statusCode >= 500) return 'red';
-              if (flow.flow.value.response.statusCode >= 400) return 'red';
-              if (flow.flow.value.response.statusCode >= 300) return 'yellow';
-              return 'green';
-            }
-            if (flow.flow.case === 'dnsFlow') {
-              return flow.flow.value.response ? 'green' : 'red';
-            }
-            if (flow.flow.case === 'tcpFlow') {
-              return flow.flow.value.error ? 'red' : 'green';
-            }
-            if (flow.flow.case === 'udpFlow') {
-              return flow.flow.value.error ? 'red' : 'green';
+            if (flow) {
+                if (flow.flow.case === 'httpFlow') {
+                  if (!flow.flow.value.response) return 'gray';
+                  if (flow.flow.value.response.statusCode >= 500) return 'red';
+                  if (flow.flow.value.response.statusCode >= 400) return 'red';
+                  if (flow.flow.value.response.statusCode >= 300) return 'yellow';
+                  return 'green';
+                }
+                if (flow.flow.case === 'dnsFlow') {
+                  return flow.flow.value.response ? 'green' : 'red';
+                }
+                if (flow.flow.case === 'tcpFlow') {
+                  return flow.flow.value.error ? 'red' : 'green';
+                }
+                if (flow.flow.case === 'udpFlow') {
+                  return flow.flow.value.error ? 'red' : 'green';
+                }
+            } else if (summary) {
+                if (summary.summary.case === 'http') {
+                    const status = summary.summary.value.statusCode;
+                    if (!status) return 'gray';
+                    if (status >= 500) return 'red';
+                    if (status >= 400) return 'red';
+                    if (status >= 300) return 'yellow';
+                    return 'green';
+                }
+                if (summary.summary.case === 'dns' || summary.summary.case === 'tcp' || summary.summary.case === 'udp') {
+                    return summary.summary.value.error ? 'red' : 'green';
+                }
+                return 'green';
             }
             return 'gray';
           })()}
         />
-        <div className="font-mono text-sm truncate text-gray-700 dark:text-zinc-300">{getFlowTitle(flow)}</div>
+        <div className="font-mono text-sm truncate text-gray-700 dark:text-zinc-300">{getFlowTitle(displayFlow)}</div>
         <div className="ml-auto flex items-center gap-2">
           <button
             onClick={() => {
               if (window.confirm("Are you sure you want to delete this flow?")) {
-                onDeleteFlow(flow);
+                onDeleteFlow(displayFlow);
                 onClose();
               }
             }}
@@ -180,21 +210,22 @@ export const DetailsPanel = forwardRef<HTMLDivElement, DetailsPanelProps>(({
           </button>
           <button
             onClick={onEditNote}
-            className={`p-1 rounded hover:bg-gray-200 dark:hover:bg-zinc-700 ${flow.note ? 'text-blue-500' : 'text-gray-500 dark:text-zinc-500 hover:text-gray-900 dark:hover:text-zinc-200'}`}
-            title={flow.note ? "Edit note" : "Add note"}
+            className={`p-1 rounded hover:bg-gray-200 dark:hover:bg-zinc-700 ${displayFlow.note ? 'text-blue-500' : 'text-gray-500 dark:text-zinc-500 hover:text-gray-900 dark:hover:text-zinc-200'}`}
+            title={displayFlow.note ? "Edit note" : "Add note"}
           >
-            <StickyNote size={20} className={flow.note ? "fill-current" : ""} />
+            <StickyNote size={20} className={displayFlow.note ? "fill-current" : ""} />
           </button>
           <div className="relative" ref={downloadRef}>
             <button
               onClick={() => setDownloadOpen(!isDownloadOpen)}
-              className="flex items-center gap-1 p-1 text-gray-500 dark:text-zinc-500 hover:text-gray-900 dark:hover:text-zinc-200"
+              disabled={!flow}
+              className={`flex items-center gap-1 p-1 ${flow ? 'text-gray-500 dark:text-zinc-500 hover:text-gray-900 dark:hover:text-zinc-200' : 'text-gray-300 dark:text-zinc-700 cursor-not-allowed'}`}
               title="Download"
             >
               <Download size={20} />
               <ChevronDown size={16} />
             </button>
-            {isDownloadOpen && (
+            {isDownloadOpen && flow && (
               <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 rounded-md shadow-lg z-50">
                 <a
                   href="#"
@@ -257,7 +288,11 @@ export const DetailsPanel = forwardRef<HTMLDivElement, DetailsPanelProps>(({
       </div>
       {/* Scrollable content area: flex-1 ensures it grows and overflow-auto allows keyboard paging once focused */}
       <div className="flex-1 min-h-0 overflow-auto bg-white dark:bg-zinc-900">
-        {children}
+        {!flow ? (
+            <div className="flex items-center justify-center h-full text-gray-500 dark:text-zinc-500">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-500"></div>
+            </div>
+        ) : children}
       </div>
     </div>
   );

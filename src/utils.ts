@@ -1,4 +1,4 @@
-import { Flow } from "./gen/mitmflow/v1/mitmflow_pb";
+import { Flow, FlowSummary } from "./gen/mitmflow/v1/mitmflow_pb";
 import { Timestamp } from "@bufbuild/protobuf/wkt";
 
 
@@ -94,30 +94,33 @@ export const formatContent = (content: Uint8Array | string | undefined, format: 
   }
 
   const contentAsUint8Array = typeof content === 'string' ? new TextEncoder().encode(content) : content;
-  const contentAsString = typeof content === 'string' ? content : new TextDecoder().decode(contentAsUint8Array);
+  const getContentAsString = () => typeof content === 'string' ? content : new TextDecoder().decode(contentAsUint8Array);
 
   switch (effectiveFormat) {
     case 'json':
       try {
+        const contentAsString = getContentAsString();
         const parsedJson = JSON.parse(contentAsString);
         return { data: JSON.stringify(parsedJson, null, 2), encoding: 'text', effectiveFormat: effectiveFormat };
       } catch {
         // If JSON parsing fails, return the raw string content as text, but keep effectiveFormat as 'json'
         // so SyntaxHighlighter still tries to highlight it as JSON.
-        return { data: contentAsString, encoding: 'text', effectiveFormat: 'json' };
+        return { data: getContentAsString(), encoding: 'text', effectiveFormat: 'json' };
       }
     case 'html':
-      return { data: contentAsString, encoding: 'text', effectiveFormat: effectiveFormat };
+      return { data: getContentAsString(), encoding: 'text', effectiveFormat: effectiveFormat };
     case 'xml':
     case 'javascript':
     case 'text':
-      return { data: contentAsString, encoding: 'text', effectiveFormat: effectiveFormat };
+      return { data: getContentAsString(), encoding: 'text', effectiveFormat: effectiveFormat };
     case 'dns':
     case 'image': {
       let binary = '';
-      contentAsUint8Array.forEach((byte) => {
-        binary += String.fromCharCode(byte);
-      });
+      const chunkSize = 0x8000;
+      for (let i = 0; i < contentAsUint8Array.length; i += chunkSize) {
+        const chunk = contentAsUint8Array.subarray(i, i + chunkSize);
+        binary += String.fromCharCode.apply(null, Array.from(chunk));
+      }
       return { data: btoa(binary), encoding: 'base64', effectiveFormat: effectiveFormat };
     }
     case 'binary':
@@ -157,43 +160,55 @@ export const formatDateTime = (ms: number | undefined): string => {
   });
 };
 
-export const getFlowId = (flow: Flow | undefined | null): string | undefined => {
-  if (!flow || !flow.flow) {
-    return undefined;
+export const getFlowId = (flow: Flow | FlowSummary | undefined | null): string | undefined => {
+  if (!flow) return undefined;
+  // Check if it's a FlowSummary (has top-level id)
+  if ('id' in flow && typeof flow.id === 'string' && flow.id) {
+    return flow.id;
   }
-  switch (flow.flow.case) {
-    case 'httpFlow':
-      return flow.flow.value.id;
-    case 'dnsFlow':
-      return flow.flow.value.id;
-    case 'tcpFlow':
+  // It's a Flow (id is inside oneof)
+  if ('flow' in flow && flow.flow) {
+    switch (flow.flow.case) {
+      case 'httpFlow':
         return flow.flow.value.id;
-    case 'udpFlow':
+      case 'dnsFlow':
         return flow.flow.value.id;
-    default:
-      return undefined;
+      case 'tcpFlow':
+          return flow.flow.value.id;
+      case 'udpFlow':
+          return flow.flow.value.id;
+      default:
+        return undefined;
+    }
   }
+  return undefined;
 };
 
-export const getFlowTimestampStart = (flow: Flow | undefined | null): Timestamp | undefined => {
-  if (!flow || !flow.flow) {
-    return undefined;
+export const getFlowTimestampStart = (flow: Flow | FlowSummary | undefined | null): Timestamp | undefined => {
+  if (!flow) return undefined;
+  // Check if it's a FlowSummary (has top-level timestampStart)
+  if ('timestampStart' in flow && flow.timestampStart) {
+    return flow.timestampStart;
   }
-  switch (flow.flow.case) {
-    case 'httpFlow':
-      return flow.flow.value.timestampStart;
-    case 'dnsFlow':
-      return flow.flow.value.timestampStart;
-    case 'tcpFlow':
+  // It's a Flow
+  if ('flow' in flow && flow.flow) {
+    switch (flow.flow.case) {
+      case 'httpFlow':
         return flow.flow.value.timestampStart;
-    case 'udpFlow':
+      case 'dnsFlow':
         return flow.flow.value.timestampStart;
-    default:
-      return undefined;
+      case 'tcpFlow':
+          return flow.flow.value.timestampStart;
+      case 'udpFlow':
+          return flow.flow.value.timestampStart;
+      default:
+        return undefined;
+    }
   }
+  return undefined;
 };
 
-export const getFlowTimestampNs = (flow: Flow | undefined | null): bigint => {
+export const getFlowTimestampNs = (flow: Flow | FlowSummary | undefined | null): bigint => {
   const ts = getFlowTimestampStart(flow);
   if (!ts) return BigInt(0);
   return BigInt(ts.seconds) * BigInt(1000000000) + BigInt(ts.nanos);
@@ -259,28 +274,43 @@ export const formatTimestampWithRelative = (ts: number, relativeTo: number): str
     }
 };
 
-export const getFlowTitle = (flow: Flow): string => {
-    if (!flow.flow) {
-        return '';
+export const getFlowTitle = (flow: Flow | FlowSummary): string => {
+    if ('summary' in flow) {
+        // FlowSummary
+        switch (flow.summary.case) {
+            case 'http':
+                return `${flow.summary.value.method} ${flow.summary.value.url}`;
+            case 'dns':
+                return `dns://${flow.summary.value.questionName}`; // Assuming questionName is in summary
+            case 'tcp':
+                return `tcp://${flow.summary.value.clientPeernameHost}:${flow.summary.value.clientPeernamePort} -> ${flow.summary.value.serverAddressHost}:${flow.summary.value.serverAddressPort}`;
+            case 'udp':
+                return `udp://${flow.summary.value.clientPeernameHost}:${flow.summary.value.clientPeernamePort} -> ${flow.summary.value.serverAddressHost}:${flow.summary.value.serverAddressPort}`;
+            default:
+                return '';
+        }
+    } else if (flow.flow) {
+        // Flow
+        switch (flow.flow.case) {
+            case 'httpFlow':
+                const httpFlow = flow.flow.value;
+                const url = (httpFlow.request?.prettyUrl || httpFlow.request?.url) ?? '';
+                const urlWithoutQuery = url.split('?')[0];
+                return `${httpFlow.request?.method} ${urlWithoutQuery}`;
+            case 'dnsFlow':
+                const dnsFlow = flow.flow.value;
+                return `dns://${dnsFlow.server?.addressHost}`; // Or question if available
+            case 'tcpFlow':
+                const tcpFlow = flow.flow.value;
+                return `tcp://${tcpFlow.client?.peernameHost}:${tcpFlow.client?.peernamePort} -> ${tcpFlow.server?.addressHost}:${tcpFlow.server?.addressPort}`;
+            case 'udpFlow':
+                const udpFlow = flow.flow.value;
+                return `udp://${udpFlow.client?.peernameHost}:${udpFlow.client?.peernamePort} -> ${udpFlow.server?.addressHost}:${udpFlow.server?.addressPort}`;
+            default:
+                return '';
+        }
     }
-    switch (flow.flow.case) {
-        case 'httpFlow':
-            const httpFlow = flow.flow.value;
-            const url = (httpFlow.request?.prettyUrl || httpFlow.request?.url) ?? '';
-            const urlWithoutQuery = url.split('?')[0];
-            return `${httpFlow.request?.method} ${urlWithoutQuery}`;
-        case 'dnsFlow':
-            const dnsFlow = flow.flow.value;
-            return `dns://${dnsFlow.server?.addressHost}`;
-        case 'tcpFlow':
-            const tcpFlow = flow.flow.value;
-            return `tcp://${tcpFlow.client?.peernameHost}:${tcpFlow.client?.peernamePort} -> ${tcpFlow.server?.addressHost}:${tcpFlow.server?.addressPort}`;
-        case 'udpFlow':
-            const udpFlow = flow.flow.value;
-            return `udp://${udpFlow.client?.peernameHost}:${udpFlow.client?.peernamePort} -> ${udpFlow.server?.addressHost}:${udpFlow.server?.addressPort}`;
-        default:
-            return '';
-    }
+    return '';
 }
 
 export const formatBytes = (bytes: number | undefined, decimals = 2): string => {

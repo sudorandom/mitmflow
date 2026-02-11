@@ -1,32 +1,29 @@
 import React, { forwardRef, useMemo, useState, useEffect, useRef } from 'react';
-import { AgGridReact } from 'ag-grid-react';
 import { ColDef, ValueGetterParams } from 'ag-grid-community';
 import { Pin, StickyNote } from 'lucide-react';
-import 'ag-grid-community/styles/ag-grid.css';
-import 'ag-grid-community/styles/ag-theme-alpine.css';
-import { Flow } from '../gen/mitmflow/v1/mitmflow_pb';
+import { FlowSummary } from '../gen/mitmflow/v1/mitmflow_pb';
 import { getFlowId, getFlowTimestampStart, getTimestamp } from '../utils';
 
 import './FlowTable.css';
 import { DurationCellRenderer, InTransferCellRenderer, OutTransferCellRenderer, RequestCellRenderer, StatusCellRenderer, TimestampCellRenderer } from './cellRenderers';
 
 interface FlowTableProps {
-    flows: Flow[];
+    flows: FlowSummary[];
     focusedFlowId: string | null;
     selectedFlowIds: Set<string>;
     newFlowIds?: Set<string>;
-    onRowSelected: (flow: Flow, options: { event?: React.MouseEvent | React.KeyboardEvent }) => void;
+    onRowSelected: (flow: FlowSummary, options: { event?: React.MouseEvent | React.KeyboardEvent }) => void;
     onToggleRowSelection: (flowId: string) => void;
-    onTogglePin: (flow: Flow) => void;
+    onTogglePin: (flow: FlowSummary) => void;
     pinned: boolean | undefined;
     onTogglePinnedFilter: () => void;
 }
 
-type CustomColDef = ColDef<Flow> & {
+type CustomColDef = ColDef<FlowSummary> & {
     headerComponent?: () => React.ReactNode;
 };
 
-const FlowTable = forwardRef<AgGridReact, FlowTableProps>(
+const FlowTable = forwardRef<HTMLDivElement, FlowTableProps>(
     function FlowTable({ flows, focusedFlowId, selectedFlowIds, newFlowIds, onRowSelected, onToggleRowSelection, onTogglePin, pinned, onTogglePinnedFilter }, ref) {
         // Sort config: track column index (in columnDefs) and direction
         const [sortConfig, setSortConfig] = useState<{ colIndex: number | null; direction: 'asc' | 'desc' }>({ colIndex: 2, direction: 'desc' }); // default sort by Timestamp desc
@@ -48,7 +45,7 @@ const FlowTable = forwardRef<AgGridReact, FlowTableProps>(
                         <Pin size={14} className={pinned === true ? "fill-current" : ""} />
                     </button>
                 ),
-                cellRenderer: (params: { data: Flow }) => (
+                cellRenderer: (params: { data: FlowSummary }) => (
                     <div className="flex items-center justify-center gap-1">
                         <button
                             onClick={(e) => { e.stopPropagation(); onTogglePin(params.data); }}
@@ -72,25 +69,25 @@ const FlowTable = forwardRef<AgGridReact, FlowTableProps>(
                 cellRenderer: TimestampCellRenderer,
                 headerClass: 'text-center',
                 cellClass: 'text-center font-mono',
-                comparator: (valueA: Flow, valueB: Flow) => {
+                comparator: (valueA: FlowSummary, valueB: FlowSummary) => {
                     const tsA = getFlowTimestampStart(valueA);
                     const tsB = getFlowTimestampStart(valueB);
                     const msA = tsA ? getTimestamp(tsA) : 0;
                     const msB = tsB ? getTimestamp(tsB) : 0;
                     return msA - msB;
                 },
-                valueGetter: (params: ValueGetterParams<Flow>) => params.data,
+                valueGetter: (params: ValueGetterParams<FlowSummary>) => params.data,
                 sortable: true,
             },
             {
                 headerName: "Status",
                 width: 100,
                 cellRenderer: StatusCellRenderer,
-                valueGetter: (params: ValueGetterParams<Flow>) => {
+                valueGetter: (params: ValueGetterParams<FlowSummary>) => {
                     const flow = params.data;
                     if (!flow) return null;
-                    if (flow.flow?.case === 'httpFlow') {
-                        return flow.flow.value.response?.statusCode;
+                    if (flow.summary.case === 'http') {
+                        return flow.summary.value.statusCode;
                     }
                     return null;
                 },
@@ -100,24 +97,19 @@ const FlowTable = forwardRef<AgGridReact, FlowTableProps>(
                 headerName: "Request",
                 flex: 1,
                 cellRenderer: RequestCellRenderer,
-                valueGetter: (params: ValueGetterParams<Flow>) => {
+                valueGetter: (params: ValueGetterParams<FlowSummary>) => {
                     const flow = params.data;
-                    if (!flow || !flow.flow) return '';
-                    switch (flow.flow.case) {
-                        case 'httpFlow':
-                            const httpFlow = flow.flow.value;
-                            const url = (httpFlow.request?.prettyUrl || httpFlow.request?.url) ?? '';
-                            const urlWithoutQuery = url.split('?')[0];
-                            return `${httpFlow.request?.method} ${urlWithoutQuery}`;
-                        case 'dnsFlow':
-                            const dnsFlow = flow.flow.value;
-                            return dnsFlow.request?.questions[0]?.name || '';
-                        case 'tcpFlow':
-                            const tcpFlow = flow.flow.value;
-                            return `${tcpFlow.server?.addressHost}:${tcpFlow.server?.addressPort}`;
-                        case 'udpFlow':
-                            const udpFlow = flow.flow.value;
-                            return `${udpFlow.server?.addressHost}:${udpFlow.server?.addressPort}`;
+                    if (!flow || !flow.summary.case) return '';
+                    switch (flow.summary.case) {
+                        case 'http':
+                            const http = flow.summary.value;
+                            return `${http.method} ${http.url.split('?')[0]}`;
+                        case 'dns':
+                            return flow.summary.value.questionName;
+                        case 'tcp':
+                            return `${flow.summary.value.serverAddressHost}:${flow.summary.value.serverAddressPort}`;
+                        case 'udp':
+                            return `${flow.summary.value.serverAddressHost}:${flow.summary.value.serverAddressPort}`;
                         default:
                             return '';
                     }
@@ -129,11 +121,11 @@ const FlowTable = forwardRef<AgGridReact, FlowTableProps>(
                 width: 100,
                 cellRenderer: OutTransferCellRenderer,
                 cellClass: 'nowrap-cell',
-                valueGetter: (params: ValueGetterParams<Flow>) => {
+                valueGetter: (params: ValueGetterParams<FlowSummary>) => {
                     const flow = params.data;
                     if (!flow) return null;
-                    if (flow.flow?.case === 'httpFlow') {
-                        return flow.flow.value.request?.content?.length;
+                    if (flow.summary.case === 'http') {
+                        return flow.summary.value.requestContentLength;
                     }
                     return null;
                 },
@@ -144,11 +136,11 @@ const FlowTable = forwardRef<AgGridReact, FlowTableProps>(
                 width: 100,
                 cellRenderer: InTransferCellRenderer,
                 cellClass: 'nowrap-cell',
-                valueGetter: (params: ValueGetterParams<Flow>) => {
+                valueGetter: (params: ValueGetterParams<FlowSummary>) => {
                     const flow = params.data;
                     if (!flow) return null;
-                    if (flow.flow?.case === 'httpFlow') {
-                        return flow.flow.value.response?.content?.length;
+                    if (flow.summary.case === 'http') {
+                        return flow.summary.value.responseContentLength;
                     }
                     return null;
                 },
@@ -159,11 +151,11 @@ const FlowTable = forwardRef<AgGridReact, FlowTableProps>(
                 width: 150,
                 cellRenderer: DurationCellRenderer,
                 cellClass: 'nowrap-cell',
-                valueGetter: (params: ValueGetterParams<Flow>) => {
+                valueGetter: (params: ValueGetterParams<FlowSummary>) => {
                     const flow = params.data;
                     if (!flow) return null;
-                    if (flow.flow?.case === 'httpFlow') {
-                        return flow.flow.value.durationMs;
+                    if (flow.summary.case === 'http') {
+                        return flow.summary.value.durationMs;
                     }
                     return null;
                 },
@@ -180,15 +172,15 @@ const FlowTable = forwardRef<AgGridReact, FlowTableProps>(
             data.sort((a, b) => {
                 if (col.comparator) {
                     // Use valueGetter to supply values to comparator when defined, else pass raw flows.
-                    const valueGetter = col.valueGetter as ((p: ValueGetterParams<Flow>) => unknown) | undefined;
-                    const va = valueGetter ? valueGetter({ data: a } as ValueGetterParams<Flow>) : a;
-                    const vb = valueGetter ? valueGetter({ data: b } as ValueGetterParams<Flow>) : b;
+                    const valueGetter = col.valueGetter as ((p: ValueGetterParams<FlowSummary>) => unknown) | undefined;
+                    const va = valueGetter ? valueGetter({ data: a } as ValueGetterParams<FlowSummary>) : a;
+                    const vb = valueGetter ? valueGetter({ data: b } as ValueGetterParams<FlowSummary>) : b;
                     const customComparator = col.comparator as (valueA: unknown, valueB: unknown, nodeA?: unknown, nodeB?: unknown, isInverted?: boolean) => number;
                     return directionFactor * customComparator(va, vb);
                 }
                 if (typeof col.valueGetter === 'function') {
-                    const va = col.valueGetter({ data: a } as ValueGetterParams<Flow>);
-                    const vb = col.valueGetter({ data: b } as ValueGetterParams<Flow>);
+                    const va = col.valueGetter({ data: a } as ValueGetterParams<FlowSummary>);
+                    const vb = col.valueGetter({ data: b } as ValueGetterParams<FlowSummary>);
                     if (va == null && vb == null) return 0;
                     if (va == null) return -1 * directionFactor;
                     if (vb == null) return 1 * directionFactor;
@@ -421,9 +413,9 @@ const FlowTable = forwardRef<AgGridReact, FlowTableProps>(
                                     {/* Render other columns */}
                                     {columnDefs.slice(1).map((col, i) => {
                                         const content: React.ReactNode = col.cellRenderer && typeof col.cellRenderer === 'function'
-                                            ? (col.cellRenderer as (params: { data: Flow }) => React.ReactNode)({ data: flow })
+                                            ? (col.cellRenderer as (params: { data: FlowSummary }) => React.ReactNode)({ data: flow })
                                             : (typeof col.valueGetter === 'function'
-                                                ? col.valueGetter({ data: flow } as ValueGetterParams<Flow>)
+                                                ? col.valueGetter({ data: flow } as ValueGetterParams<FlowSummary>)
                                                 : null);
                                         return (
                                             <td

@@ -173,6 +173,10 @@ func (s *FlowStorage) GetFlows() []*mitmflowv1.Flow {
 	return s.store.List()
 }
 
+func (s *FlowStorage) GetFlow(id string) (*mitmflowv1.Flow, bool) {
+	return s.store.Get(id)
+}
+
 func (s *FlowStorage) saveToDisk(flow *mitmflowv1.Flow) error {
 	data, err := proto.Marshal(flow)
 	if err != nil {

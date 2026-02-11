@@ -4,6 +4,7 @@ import (
 	"context"
 	"embed"
 	"encoding/base64"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"io/fs"
@@ -23,6 +24,7 @@ import (
 	"golang.org/x/net/http2/h2c"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoreflect"
+	"google.golang.org/protobuf/types/known/timestamppb"
 
 	mitmflowv1 "github.com/sudorandom/mitmflow/gen/go/mitmflow/v1"
 	mitmproxygrpcv1 "github.com/sudorandom/mitmflow/gen/go/mitmproxygrpc/v1"
@@ -119,6 +121,18 @@ func (s *MITMFlowServer) ExportFlow(
 	return res, nil
 }
 
+func (s *MITMFlowServer) GetFlow(
+	ctx context.Context,
+	req *connect.Request[mitmflowv1.GetFlowRequest],
+) (*connect.Response[mitmflowv1.GetFlowResponse], error) {
+	id := req.Msg.GetFlowId()
+	flow, ok := s.storage.GetFlow(id)
+	if !ok {
+		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("flow not found: %s", id))
+	}
+	return connect.NewResponse(mitmflowv1.GetFlowResponse_builder{Flow: flow}.Build()), nil
+}
+
 func (s *MITMFlowServer) GetFlows(
 	ctx context.Context,
 	req *connect.Request[mitmflowv1.GetFlowsRequest],
@@ -136,25 +150,12 @@ func (s *MITMFlowServer) GetFlows(
 	filter := req.Msg.GetFilter()
 
 	sendFlow := func(flow *mitmflowv1.Flow) error {
+		summary := convertToSummary(flow)
 		builder := mitmflowv1.GetFlowsResponse_builder{
-			Flow: flow,
+			Flow: summary,
 		}
 		return stream.Send(builder.Build())
 	}
-
-	// We collect matching flows first to handle sorting correctly if needed?
-	// Actually, if we want "newest first" (reverse_order=true, which is typical for logs),
-	// we can just iterate backwards and stream.
-	// If we want "oldest first", but only the "last X flows", we still need to find the *last X* first.
-	// Typically logs are "show me the last 500 flows".
-	// If reverse_order=false (oldest first), we usually want the *first* 500 flows?
-	// Or do we want the last 500 flows, but sorted oldest->newest?
-	// The prompt said: "backend can only send the last X number of flows matching the filter".
-	// This usually implies "Limit applied to the set of flows, effectively taking the N most recent".
-	// The sorting order (reverse_order) determines how they are presented.
-
-	// So: Find N most recent matching flows.
-	// Then: Send them in requested order.
 
 	for i := len(flows) - 1; i >= 0; i-- {
 		flow := flows[i]
@@ -195,8 +196,9 @@ func (s *MITMFlowServer) StreamFlows(
 	filter := req.Msg.GetFilter()
 
 	sendFlow := func(flow *mitmflowv1.Flow) error {
+		summary := convertToSummary(flow)
 		builder := mitmflowv1.StreamFlowsResponse_builder{
-			Flow: flow,
+			Flow: summary,
 		}
 		return stream.Send(builder.Build())
 	}
@@ -236,11 +238,6 @@ func (s *MITMFlowServer) StreamFlows(
 
 			flow := flows[i]
 			if GetFlowStartTime(flow) <= sinceNs {
-				// Since flows are sorted by time (mostly), we can stop early?
-				// Actually storage.sortedFlows implies they are sorted.
-				// If we iterate backwards (newest to oldest), once we hit a flow <= sinceNs,
-				// all subsequent flows (older) will also be <= sinceNs.
-				// So we can break.
 				break
 			}
 			if !matchFlow(flow, filter) {
@@ -309,7 +306,88 @@ func (s *MITMFlowServer) UpdateFlow(
 	}
 	s.mu.RUnlock()
 
-	return connect.NewResponse(mitmflowv1.UpdateFlowResponse_builder{Flow: flow}.Build()), nil
+	summary := convertToSummary(flow)
+	return connect.NewResponse(mitmflowv1.UpdateFlowResponse_builder{Flow: summary}.Build()), nil
+}
+
+func convertToSummary(flow *mitmflowv1.Flow) *mitmflowv1.FlowSummary {
+	id := GetFlowID(flow)
+	startTime := GetFlowStartTime(flow)
+	
+	var ts *timestamppb.Timestamp
+	if startTime != 0 {
+		ts = &timestamppb.Timestamp{
+			Seconds: startTime / 1e9,
+			Nanos:   int32(startTime % 1e9),
+		}
+	}
+
+	builder := mitmflowv1.FlowSummary_builder{
+		Id:             proto.String(id),
+		TimestampStart: ts,
+		Pinned:         proto.Bool(flow.GetPinned()),
+		Note:           proto.String(flow.GetNote()),
+	}
+
+	switch flow.WhichFlow() {
+	case mitmflowv1.Flow_HttpFlow_case:
+		f := flow.GetHttpFlow()
+		builder.Type = proto.String("http")
+		
+		reqLen := int64(0)
+		if f.GetRequest() != nil {
+			reqLen = int64(len(f.GetRequest().GetContent()))
+		}
+		resLen := int64(0)
+		if f.GetResponse() != nil {
+			resLen = int64(len(f.GetResponse().GetContent()))
+		}
+		
+		builder.Http = mitmflowv1.HttpFlowSummary_builder{
+			Method:               proto.String(f.GetRequest().GetMethod()),
+			Url:                  proto.String(getPrettyURL(f.GetRequest())),
+			StatusCode:           proto.Int32(f.GetResponse().GetStatusCode()),
+			DurationMs:           proto.Int64(int64(f.GetDurationMs())),
+			RequestContentLength: proto.Int64(reqLen),
+			ResponseContentLength: proto.Int64(resLen),
+			ClientPeernameHost:   proto.String(f.GetClient().GetPeernameHost()),
+			ClientPeernamePort:   proto.Uint32(f.GetClient().GetPeernamePort()),
+			ServerAddressHost:    proto.String(f.GetServer().GetAddressHost()),
+			ServerAddressPort:    proto.Uint32(f.GetServer().GetAddressPort()),
+		}.Build()
+	case mitmflowv1.Flow_DnsFlow_case:
+		f := flow.GetDnsFlow()
+		builder.Type = proto.String("dns")
+		dnsBuilder := mitmflowv1.DnsFlowSummary_builder{
+			ClientPeernameHost: proto.String(f.GetClient().GetPeernameHost()),
+			Error:              proto.String(f.GetError()),
+		}
+		if f.GetRequest() != nil && len(f.GetRequest().GetQuestions()) > 0 {
+			dnsBuilder.QuestionName = proto.String(f.GetRequest().GetQuestions()[0].GetName())
+		}
+		builder.Dns = dnsBuilder.Build()
+	case mitmflowv1.Flow_TcpFlow_case:
+		f := flow.GetTcpFlow()
+		builder.Type = proto.String("tcp")
+		builder.Tcp = mitmflowv1.TcpFlowSummary_builder{
+			ServerAddressHost:  proto.String(f.GetServer().GetAddressHost()),
+			ServerAddressPort:  proto.Uint32(f.GetServer().GetAddressPort()),
+			ClientPeernameHost: proto.String(f.GetClient().GetPeernameHost()),
+			ClientPeernamePort: proto.Uint32(f.GetClient().GetPeernamePort()),
+			Error:              proto.String(f.GetError()),
+		}.Build()
+	case mitmflowv1.Flow_UdpFlow_case:
+		f := flow.GetUdpFlow()
+		builder.Type = proto.String("udp")
+		builder.Udp = mitmflowv1.UdpFlowSummary_builder{
+			ServerAddressHost:  proto.String(f.GetServer().GetAddressHost()),
+			ServerAddressPort:  proto.Uint32(f.GetServer().GetAddressPort()),
+			ClientPeernameHost: proto.String(f.GetClient().GetPeernameHost()),
+			ClientPeernamePort: proto.Uint32(f.GetClient().GetPeernamePort()),
+			Error:              proto.String(f.GetError()),
+		}.Build()
+	}
+	return builder.Build()
 }
 
 func (s *MITMFlowServer) DeleteFlows(
@@ -485,6 +563,59 @@ func (s *MITMFlowServer) preprocessResponse(resp *mitmproxygrpcv1.Response, deta
 			log.Printf("failed to parse grpc frames: %v", err)
 		}
 	}
+}
+
+func (s *MITMFlowServer) ExportFlows(
+	ctx context.Context,
+	req *connect.Request[mitmflowv1.ExportFlowsRequest],
+) (*connect.Response[mitmflowv1.ExportFlowsResponse], error) {
+	log.Printf("ExportFlows called with %d flow IDs, format: %v", len(req.Msg.GetFlowIds()), req.Msg.GetFormat())
+
+	flows := s.storage.GetFlows()
+	var filteredFlows []*mitmflowv1.Flow
+
+	// If specific IDs are requested, filter by them
+	if len(req.Msg.GetFlowIds()) > 0 {
+		ids := make(map[string]bool)
+		for _, id := range req.Msg.GetFlowIds() {
+			ids[id] = true
+		}
+		for _, f := range flows {
+			if ids[GetFlowID(f)] {
+				filteredFlows = append(filteredFlows, f)
+			}
+		}
+	} else {
+		// If no IDs provided, return empty list or maybe error?
+		// For now, let's assume empty list.
+		// Or should we support "Export All" flag?
+		// The prompt said "explicit list". So empty list = empty export.
+	}
+
+	var data []byte
+	var filename string
+	var err error
+
+	switch req.Msg.GetFormat() {
+	case mitmflowv1.ExportFormat_EXPORT_FORMAT_HAR:
+		data, err = GenerateHAR(filteredFlows)
+		filename = "flows.har"
+	case mitmflowv1.ExportFormat_EXPORT_FORMAT_JSON:
+		data, err = json.MarshalIndent(filteredFlows, "", "  ")
+		filename = "flows.json"
+	default:
+		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("unsupported format: %v", req.Msg.GetFormat()))
+	}
+
+	if err != nil {
+		log.Printf("Export generation failed: %v", err)
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+
+	return connect.NewResponse(mitmflowv1.ExportFlowsResponse_builder{
+		Data:     data,
+		Filename: &filename,
+	}.Build()), nil
 }
 
 func main() {

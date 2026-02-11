@@ -2,15 +2,16 @@
 // @generated from file mitmflow/v1/mitmflow.proto (package mitmflow.v1, edition 2023)
 /* eslint-disable */
 
-import { fileDesc, messageDesc, serviceDesc } from "@bufbuild/protobuf/codegenv2";
+import { enumDesc, fileDesc, messageDesc, serviceDesc, tsEnum } from "@bufbuild/protobuf/codegenv2";
 import { file_buf_validate_validate } from "../../buf/validate/validate_pb";
+import { file_google_protobuf_timestamp } from "@bufbuild/protobuf/wkt";
 import { file_mitmproxygrpc_v1_service } from "../../mitmproxygrpc/v1/service_pb";
 
 /**
  * Describes the file mitmflow/v1/mitmflow.proto.
  */
 export const file_mitmflow_v1_mitmflow = /*@__PURE__*/
-  fileDesc("ChptaXRtZmxvdy92MS9taXRtZmxvdy5wcm90bxILbWl0bWZsb3cudjEi1gEKCkZsb3dGaWx0ZXISGgoLZmlsdGVyX3RleHQYASABKAlCBaoBAggBEhUKBnBpbm5lZBgCIAEoCEIFqgECCAESFwoIaGFzX25vdGUYAyABKAhCBaoBAggBEjMKCmZsb3dfdHlwZXMYBCADKAlCH7pIHJIBGSIXchVSBGh0dHBSA2Ruc1IDdGNwUgN1ZHASIAoKY2xpZW50X2lwcxgFIAMoCUIMukgJkgEGIgRyAnABEiUKBGh0dHAYBiABKAsyFy5taXRtZmxvdy52MS5IdHRwRmlsdGVyImIKCkh0dHBGaWx0ZXISJwoHbWV0aG9kcxgBIAMoCUIWukgTkgEQIg5yDBgUMgheW0EtWl0rJBIVCg1jb250ZW50X3R5cGVzGAIgAygJEhQKDHN0YXR1c19jb2RlcxgDIAMoCSJJCg9HZXRGbG93c1JlcXVlc3QSJwoGZmlsdGVyGAEgASgLMhcubWl0bWZsb3cudjEuRmxvd0ZpbHRlchINCgVsaW1pdBgCIAEoBSIzChBHZXRGbG93c1Jlc3BvbnNlEh8KBGZsb3cYASABKAsyES5taXRtZmxvdy52MS5GbG93IlkKElN0cmVhbUZsb3dzUmVxdWVzdBIaChJzaW5jZV90aW1lc3RhbXBfbnMYASABKAMSJwoGZmlsdGVyGAIgASgLMhcubWl0bWZsb3cudjEuRmxvd0ZpbHRlciJEChNTdHJlYW1GbG93c1Jlc3BvbnNlEiEKBGZsb3cYASABKAsyES5taXRtZmxvdy52MS5GbG93SABCCgoIcmVzcG9uc2UiUAoRVXBkYXRlRmxvd1JlcXVlc3QSDwoHZmxvd19pZBgBIAEoCRIVCgZwaW5uZWQYAiABKAhCBaoBAggBEhMKBG5vdGUYAyABKAlCBaoBAggBIjUKElVwZGF0ZUZsb3dSZXNwb25zZRIfCgRmbG93GAEgASgLMhEubWl0bWZsb3cudjEuRmxvdyIzChJEZWxldGVGbG93c1JlcXVlc3QSEAoIZmxvd19pZHMYASADKAkSCwoDYWxsGAIgASgIIiQKE0RlbGV0ZUZsb3dzUmVzcG9uc2USDQoFY291bnQYASABKAMijwIKBEZsb3cSKwoJaHR0cF9mbG93GAEgASgLMhYubWl0bXByb3h5LnYxLkhUVFBGbG93SAASKQoIdGNwX2Zsb3cYAiABKAsyFS5taXRtcHJveHkudjEuVENQRmxvd0gAEikKCHVkcF9mbG93GAMgASgLMhUubWl0bXByb3h5LnYxLlVEUEZsb3dIABIpCghkbnNfZmxvdxgEIAEoCzIVLm1pdG1wcm94eS52MS5ETlNGbG93SAASMwoPaHR0cF9mbG93X2V4dHJhGAUgASgLMhoubWl0bWZsb3cudjEuSFRUUEZsb3dFeHRyYRIOCgZwaW5uZWQYBiABKAgSDAoEbm90ZRgHIAEoCUIGCgRmbG93ImwKDUhUVFBGbG93RXh0cmESLAoHcmVxdWVzdBgBIAEoCzIbLm1pdG1mbG93LnYxLk1lc3NhZ2VEZXRhaWxzEi0KCHJlc3BvbnNlGAIgASgLMhsubWl0bWZsb3cudjEuTWVzc2FnZURldGFpbHMiSAoOTWVzc2FnZURldGFpbHMSFgoOdGV4dHVhbF9mcmFtZXMYASADKAkSHgoWZWZmZWN0aXZlX2NvbnRlbnRfdHlwZRgCIAEoCTLRAgoHU2VydmljZRJLCghHZXRGbG93cxIcLm1pdG1mbG93LnYxLkdldEZsb3dzUmVxdWVzdBodLm1pdG1mbG93LnYxLkdldEZsb3dzUmVzcG9uc2UiADABElQKC1N0cmVhbUZsb3dzEh8ubWl0bWZsb3cudjEuU3RyZWFtRmxvd3NSZXF1ZXN0GiAubWl0bWZsb3cudjEuU3RyZWFtRmxvd3NSZXNwb25zZSIAMAESTwoKVXBkYXRlRmxvdxIeLm1pdG1mbG93LnYxLlVwZGF0ZUZsb3dSZXF1ZXN0Gh8ubWl0bWZsb3cudjEuVXBkYXRlRmxvd1Jlc3BvbnNlIgASUgoLRGVsZXRlRmxvd3MSHy5taXRtZmxvdy52MS5EZWxldGVGbG93c1JlcXVlc3QaIC5taXRtZmxvdy52MS5EZWxldGVGbG93c1Jlc3BvbnNlIgBiCGVkaXRpb25zcOgH", [file_buf_validate_validate, file_mitmproxygrpc_v1_service]);
+  fileDesc("ChptaXRtZmxvdy92MS9taXRtZmxvdy5wcm90bxILbWl0bWZsb3cudjEi6AEKCkZsb3dGaWx0ZXISGgoLZmlsdGVyX3RleHQYASABKAlCBaoBAggBEhUKBnBpbm5lZBgCIAEoCEIFqgECCAESFwoIaGFzX25vdGUYAyABKAhCBaoBAggBEjMKCmZsb3dfdHlwZXMYBCADKAlCH7pIHJIBGSIXchVSBGh0dHBSA2Ruc1IDdGNwUgN1ZHASIAoKY2xpZW50X2lwcxgFIAMoCUIMukgJkgEGIgRyAnABEiUKBGh0dHAYBiABKAsyFy5taXRtZmxvdy52MS5IdHRwRmlsdGVyEhAKCGZsb3dfaWRzGAcgAygJImIKCkh0dHBGaWx0ZXISJwoHbWV0aG9kcxgBIAMoCUIWukgTkgEQIg5yDBgUMgheW0EtWl0rJBIVCg1jb250ZW50X3R5cGVzGAIgAygJEhQKDHN0YXR1c19jb2RlcxgDIAMoCSIhCg5HZXRGbG93UmVxdWVzdBIPCgdmbG93X2lkGAEgASgJIjIKD0dldEZsb3dSZXNwb25zZRIfCgRmbG93GAEgASgLMhEubWl0bWZsb3cudjEuRmxvdyJJCg9HZXRGbG93c1JlcXVlc3QSJwoGZmlsdGVyGAEgASgLMhcubWl0bWZsb3cudjEuRmxvd0ZpbHRlchINCgVsaW1pdBgCIAEoBSI6ChBHZXRGbG93c1Jlc3BvbnNlEiYKBGZsb3cYASABKAsyGC5taXRtZmxvdy52MS5GbG93U3VtbWFyeSJZChJTdHJlYW1GbG93c1JlcXVlc3QSGgoSc2luY2VfdGltZXN0YW1wX25zGAEgASgDEicKBmZpbHRlchgCIAEoCzIXLm1pdG1mbG93LnYxLkZsb3dGaWx0ZXIiSwoTU3RyZWFtRmxvd3NSZXNwb25zZRIoCgRmbG93GAEgASgLMhgubWl0bWZsb3cudjEuRmxvd1N1bW1hcnlIAEIKCghyZXNwb25zZSJQChFVcGRhdGVGbG93UmVxdWVzdBIPCgdmbG93X2lkGAEgASgJEhUKBnBpbm5lZBgCIAEoCEIFqgECCAESEwoEbm90ZRgDIAEoCUIFqgECCAEiPAoSVXBkYXRlRmxvd1Jlc3BvbnNlEiYKBGZsb3cYASABKAsyGC5taXRtZmxvdy52MS5GbG93U3VtbWFyeSIzChJEZWxldGVGbG93c1JlcXVlc3QSEAoIZmxvd19pZHMYASADKAkSCwoDYWxsGAIgASgIIiQKE0RlbGV0ZUZsb3dzUmVzcG9uc2USDQoFY291bnQYASABKAMiUQoSRXhwb3J0Rmxvd3NSZXF1ZXN0EhAKCGZsb3dfaWRzGAEgAygJEikKBmZvcm1hdBgCIAEoDjIZLm1pdG1mbG93LnYxLkV4cG9ydEZvcm1hdCI1ChNFeHBvcnRGbG93c1Jlc3BvbnNlEgwKBGRhdGEYASABKAwSEAoIZmlsZW5hbWUYAiABKAkitwIKC0Zsb3dTdW1tYXJ5EgoKAmlkGAEgASgJEgwKBHR5cGUYAiABKAkSMwoPdGltZXN0YW1wX3N0YXJ0GAMgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIOCgZwaW5uZWQYBCABKAgSDAoEbm90ZRgFIAEoCRIsCgRodHRwGAYgASgLMhwubWl0bWZsb3cudjEuSHR0cEZsb3dTdW1tYXJ5SAASKgoDZG5zGAcgASgLMhsubWl0bWZsb3cudjEuRG5zRmxvd1N1bW1hcnlIABIqCgN0Y3AYCCABKAsyGy5taXRtZmxvdy52MS5UY3BGbG93U3VtbWFyeUgAEioKA3VkcBgJIAEoCzIbLm1pdG1mbG93LnYxLlVkcEZsb3dTdW1tYXJ5SABCCQoHc3VtbWFyeSKPAgoPSHR0cEZsb3dTdW1tYXJ5Eg4KBm1ldGhvZBgBIAEoCRILCgN1cmwYAiABKAkSEwoLc3RhdHVzX2NvZGUYAyABKAUSEwoLZHVyYXRpb25fbXMYBCABKAMSHgoWcmVxdWVzdF9jb250ZW50X2xlbmd0aBgFIAEoAxIfChdyZXNwb25zZV9jb250ZW50X2xlbmd0aBgGIAEoAxIcChRjbGllbnRfcGVlcm5hbWVfaG9zdBgHIAEoCRIbChNzZXJ2ZXJfYWRkcmVzc19ob3N0GAggASgJEhsKE3NlcnZlcl9hZGRyZXNzX3BvcnQYCSABKA0SHAoUY2xpZW50X3BlZXJuYW1lX3BvcnQYCiABKA0iVAoORG5zRmxvd1N1bW1hcnkSFQoNcXVlc3Rpb25fbmFtZRgBIAEoCRIcChRjbGllbnRfcGVlcm5hbWVfaG9zdBgCIAEoCRINCgVlcnJvchgDIAEoCSKVAQoOVGNwRmxvd1N1bW1hcnkSGwoTc2VydmVyX2FkZHJlc3NfaG9zdBgBIAEoCRIbChNzZXJ2ZXJfYWRkcmVzc19wb3J0GAIgASgNEhwKFGNsaWVudF9wZWVybmFtZV9ob3N0GAMgASgJEhwKFGNsaWVudF9wZWVybmFtZV9wb3J0GAQgASgNEg0KBWVycm9yGAUgASgJIpUBCg5VZHBGbG93U3VtbWFyeRIbChNzZXJ2ZXJfYWRkcmVzc19ob3N0GAEgASgJEhsKE3NlcnZlcl9hZGRyZXNzX3BvcnQYAiABKA0SHAoUY2xpZW50X3BlZXJuYW1lX2hvc3QYAyABKAkSHAoUY2xpZW50X3BlZXJuYW1lX3BvcnQYBCABKA0SDQoFZXJyb3IYBSABKAkijwIKBEZsb3cSKwoJaHR0cF9mbG93GAEgASgLMhYubWl0bXByb3h5LnYxLkhUVFBGbG93SAASKQoIdGNwX2Zsb3cYAiABKAsyFS5taXRtcHJveHkudjEuVENQRmxvd0gAEikKCHVkcF9mbG93GAMgASgLMhUubWl0bXByb3h5LnYxLlVEUEZsb3dIABIpCghkbnNfZmxvdxgEIAEoCzIVLm1pdG1wcm94eS52MS5ETlNGbG93SAASMwoPaHR0cF9mbG93X2V4dHJhGAUgASgLMhoubWl0bWZsb3cudjEuSFRUUEZsb3dFeHRyYRIOCgZwaW5uZWQYBiABKAgSDAoEbm90ZRgHIAEoCUIGCgRmbG93ImwKDUhUVFBGbG93RXh0cmESLAoHcmVxdWVzdBgBIAEoCzIbLm1pdG1mbG93LnYxLk1lc3NhZ2VEZXRhaWxzEi0KCHJlc3BvbnNlGAIgASgLMhsubWl0bWZsb3cudjEuTWVzc2FnZURldGFpbHMiWwoOTWVzc2FnZURldGFpbHMSFgoOdGV4dHVhbF9mcmFtZXMYASADKAkSHgoWZWZmZWN0aXZlX2NvbnRlbnRfdHlwZRgCIAEoCRIRCglib2R5X3NpemUYAyABKAMqXAoMRXhwb3J0Rm9ybWF0Eh0KGUVYUE9SVF9GT1JNQVRfVU5TUEVDSUZJRUQQABIVChFFWFBPUlRfRk9STUFUX0hBUhABEhYKEkVYUE9SVF9GT1JNQVRfSlNPThACMu0DCgdTZXJ2aWNlEksKCEdldEZsb3dzEhwubWl0bWZsb3cudjEuR2V0Rmxvd3NSZXF1ZXN0Gh0ubWl0bWZsb3cudjEuR2V0Rmxvd3NSZXNwb25zZSIAMAESVAoLU3RyZWFtRmxvd3MSHy5taXRtZmxvdy52MS5TdHJlYW1GbG93c1JlcXVlc3QaIC5taXRtZmxvdy52MS5TdHJlYW1GbG93c1Jlc3BvbnNlIgAwARJPCgpVcGRhdGVGbG93Eh4ubWl0bWZsb3cudjEuVXBkYXRlRmxvd1JlcXVlc3QaHy5taXRtZmxvdy52MS5VcGRhdGVGbG93UmVzcG9uc2UiABJSCgtEZWxldGVGbG93cxIfLm1pdG1mbG93LnYxLkRlbGV0ZUZsb3dzUmVxdWVzdBogLm1pdG1mbG93LnYxLkRlbGV0ZUZsb3dzUmVzcG9uc2UiABJSCgtFeHBvcnRGbG93cxIfLm1pdG1mbG93LnYxLkV4cG9ydEZsb3dzUmVxdWVzdBogLm1pdG1mbG93LnYxLkV4cG9ydEZsb3dzUmVzcG9uc2UiABJGCgdHZXRGbG93EhsubWl0bWZsb3cudjEuR2V0Rmxvd1JlcXVlc3QaHC5taXRtZmxvdy52MS5HZXRGbG93UmVzcG9uc2UiAGIIZWRpdGlvbnNw6Ac", [file_buf_validate_validate, file_google_protobuf_timestamp, file_mitmproxygrpc_v1_service]);
 
 /**
  * Describes the message mitmflow.v1.FlowFilter.
@@ -27,81 +28,156 @@ export const HttpFilterSchema = /*@__PURE__*/
   messageDesc(file_mitmflow_v1_mitmflow, 1);
 
 /**
+ * Describes the message mitmflow.v1.GetFlowRequest.
+ * Use `create(GetFlowRequestSchema)` to create a new message.
+ */
+export const GetFlowRequestSchema = /*@__PURE__*/
+  messageDesc(file_mitmflow_v1_mitmflow, 2);
+
+/**
+ * Describes the message mitmflow.v1.GetFlowResponse.
+ * Use `create(GetFlowResponseSchema)` to create a new message.
+ */
+export const GetFlowResponseSchema = /*@__PURE__*/
+  messageDesc(file_mitmflow_v1_mitmflow, 3);
+
+/**
  * Describes the message mitmflow.v1.GetFlowsRequest.
  * Use `create(GetFlowsRequestSchema)` to create a new message.
  */
 export const GetFlowsRequestSchema = /*@__PURE__*/
-  messageDesc(file_mitmflow_v1_mitmflow, 2);
+  messageDesc(file_mitmflow_v1_mitmflow, 4);
 
 /**
  * Describes the message mitmflow.v1.GetFlowsResponse.
  * Use `create(GetFlowsResponseSchema)` to create a new message.
  */
 export const GetFlowsResponseSchema = /*@__PURE__*/
-  messageDesc(file_mitmflow_v1_mitmflow, 3);
+  messageDesc(file_mitmflow_v1_mitmflow, 5);
 
 /**
  * Describes the message mitmflow.v1.StreamFlowsRequest.
  * Use `create(StreamFlowsRequestSchema)` to create a new message.
  */
 export const StreamFlowsRequestSchema = /*@__PURE__*/
-  messageDesc(file_mitmflow_v1_mitmflow, 4);
+  messageDesc(file_mitmflow_v1_mitmflow, 6);
 
 /**
  * Describes the message mitmflow.v1.StreamFlowsResponse.
  * Use `create(StreamFlowsResponseSchema)` to create a new message.
  */
 export const StreamFlowsResponseSchema = /*@__PURE__*/
-  messageDesc(file_mitmflow_v1_mitmflow, 5);
+  messageDesc(file_mitmflow_v1_mitmflow, 7);
 
 /**
  * Describes the message mitmflow.v1.UpdateFlowRequest.
  * Use `create(UpdateFlowRequestSchema)` to create a new message.
  */
 export const UpdateFlowRequestSchema = /*@__PURE__*/
-  messageDesc(file_mitmflow_v1_mitmflow, 6);
+  messageDesc(file_mitmflow_v1_mitmflow, 8);
 
 /**
  * Describes the message mitmflow.v1.UpdateFlowResponse.
  * Use `create(UpdateFlowResponseSchema)` to create a new message.
  */
 export const UpdateFlowResponseSchema = /*@__PURE__*/
-  messageDesc(file_mitmflow_v1_mitmflow, 7);
+  messageDesc(file_mitmflow_v1_mitmflow, 9);
 
 /**
  * Describes the message mitmflow.v1.DeleteFlowsRequest.
  * Use `create(DeleteFlowsRequestSchema)` to create a new message.
  */
 export const DeleteFlowsRequestSchema = /*@__PURE__*/
-  messageDesc(file_mitmflow_v1_mitmflow, 8);
+  messageDesc(file_mitmflow_v1_mitmflow, 10);
 
 /**
  * Describes the message mitmflow.v1.DeleteFlowsResponse.
  * Use `create(DeleteFlowsResponseSchema)` to create a new message.
  */
 export const DeleteFlowsResponseSchema = /*@__PURE__*/
-  messageDesc(file_mitmflow_v1_mitmflow, 9);
+  messageDesc(file_mitmflow_v1_mitmflow, 11);
+
+/**
+ * Describes the message mitmflow.v1.ExportFlowsRequest.
+ * Use `create(ExportFlowsRequestSchema)` to create a new message.
+ */
+export const ExportFlowsRequestSchema = /*@__PURE__*/
+  messageDesc(file_mitmflow_v1_mitmflow, 12);
+
+/**
+ * Describes the message mitmflow.v1.ExportFlowsResponse.
+ * Use `create(ExportFlowsResponseSchema)` to create a new message.
+ */
+export const ExportFlowsResponseSchema = /*@__PURE__*/
+  messageDesc(file_mitmflow_v1_mitmflow, 13);
+
+/**
+ * Describes the message mitmflow.v1.FlowSummary.
+ * Use `create(FlowSummarySchema)` to create a new message.
+ */
+export const FlowSummarySchema = /*@__PURE__*/
+  messageDesc(file_mitmflow_v1_mitmflow, 14);
+
+/**
+ * Describes the message mitmflow.v1.HttpFlowSummary.
+ * Use `create(HttpFlowSummarySchema)` to create a new message.
+ */
+export const HttpFlowSummarySchema = /*@__PURE__*/
+  messageDesc(file_mitmflow_v1_mitmflow, 15);
+
+/**
+ * Describes the message mitmflow.v1.DnsFlowSummary.
+ * Use `create(DnsFlowSummarySchema)` to create a new message.
+ */
+export const DnsFlowSummarySchema = /*@__PURE__*/
+  messageDesc(file_mitmflow_v1_mitmflow, 16);
+
+/**
+ * Describes the message mitmflow.v1.TcpFlowSummary.
+ * Use `create(TcpFlowSummarySchema)` to create a new message.
+ */
+export const TcpFlowSummarySchema = /*@__PURE__*/
+  messageDesc(file_mitmflow_v1_mitmflow, 17);
+
+/**
+ * Describes the message mitmflow.v1.UdpFlowSummary.
+ * Use `create(UdpFlowSummarySchema)` to create a new message.
+ */
+export const UdpFlowSummarySchema = /*@__PURE__*/
+  messageDesc(file_mitmflow_v1_mitmflow, 18);
 
 /**
  * Describes the message mitmflow.v1.Flow.
  * Use `create(FlowSchema)` to create a new message.
  */
 export const FlowSchema = /*@__PURE__*/
-  messageDesc(file_mitmflow_v1_mitmflow, 10);
+  messageDesc(file_mitmflow_v1_mitmflow, 19);
 
 /**
  * Describes the message mitmflow.v1.HTTPFlowExtra.
  * Use `create(HTTPFlowExtraSchema)` to create a new message.
  */
 export const HTTPFlowExtraSchema = /*@__PURE__*/
-  messageDesc(file_mitmflow_v1_mitmflow, 11);
+  messageDesc(file_mitmflow_v1_mitmflow, 20);
 
 /**
  * Describes the message mitmflow.v1.MessageDetails.
  * Use `create(MessageDetailsSchema)` to create a new message.
  */
 export const MessageDetailsSchema = /*@__PURE__*/
-  messageDesc(file_mitmflow_v1_mitmflow, 12);
+  messageDesc(file_mitmflow_v1_mitmflow, 21);
+
+/**
+ * Describes the enum mitmflow.v1.ExportFormat.
+ */
+export const ExportFormatSchema = /*@__PURE__*/
+  enumDesc(file_mitmflow_v1_mitmflow, 0);
+
+/**
+ * @generated from enum mitmflow.v1.ExportFormat
+ */
+export const ExportFormat = /*@__PURE__*/
+  tsEnum(ExportFormatSchema);
 
 /**
  * @generated from service mitmflow.v1.Service
