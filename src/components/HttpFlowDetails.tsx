@@ -80,7 +80,13 @@ export const RequestResponseView: React.FC<RequestResponseViewProps> = ({ fullCo
                                 <h4 className="text-sm font-semibold mb-1">Frame {index + 1}</h4>
                             )}
                             <SyntaxHighlighter
-                                language={effectiveFormat === 'dns' ? 'json' : (effectiveFormat === 'text' ? 'text' : 'protobuf')}
+                                language={(() => {
+                                    if (effectiveFormat === 'dns') return 'json';
+                                    if (effectiveFormat === 'text') return 'text';
+                                    const trimmed = frame.trim();
+                                    if (trimmed.startsWith('{') || trimmed.startsWith('[')) return 'json';
+                                    return 'protobuf';
+                                })()}
                                 style={atomOneDark}
                                 customStyle={{
                                     backgroundColor: '#27272a',

@@ -29,6 +29,7 @@ func processProtobufMessage(message []byte, msgDesc protoreflect.MessageDescript
 		if err := proto.Unmarshal(message, msg); err == nil {
 			opts := protojson.MarshalOptions{
 				EmitUnpopulated: true,
+				Indent:          "  ",
 			}
 			if jsonBytes, err := opts.Marshal(msg); err == nil {
 				if len(jsonBytes) > MaxTextualFrameSize {
@@ -88,16 +89,6 @@ func parseGrpcFrames(content []byte, trailers map[string]string, msgDesc protore
 		}
 
 		frames = append(frames, processProtobufMessage(message, msgDesc)...)
-	}
-
-	if statusBin, ok := trailers["grpc-status-details-bin"]; ok {
-		status := &statuspb.Status{}
-		if err := proto.Unmarshal([]byte(statusBin), status); err == nil {
-			jsonBytes, err := protojson.MarshalOptions{Indent: "  "}.Marshal(status)
-			if err == nil {
-				frames = append(frames, string(jsonBytes))
-			}
-		}
 	}
 
 	if statusFrame := parseErrorDetails(trailers["grpc-status-details-bin"]); statusFrame != nil {
@@ -199,7 +190,14 @@ func parseConnectStreamingFrames(content []byte, msgDesc protoreflect.MessageDes
 
 		if isTrailer {
 			// Trailer is a JSON object in Connect.
-			// We append it directly as it provides metadata.
+			// We try to parse and re-marshal it with indentation.
+			var trailer map[string]interface{}
+			if err := json.Unmarshal(message, &trailer); err == nil {
+				if indented, err := json.MarshalIndent(trailer, "", "  "); err == nil {
+					frames = append(frames, string(indented))
+					continue
+				}
+			}
 			frames = append(frames, string(message))
 			continue
 		}
