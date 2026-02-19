@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"strconv"
 	"strings"
 
@@ -148,9 +147,9 @@ func matchText(flow *mitmflowv1.Flow, filterText string) bool {
 		serverIp = f.GetServer().GetAddressHost()
 	}
 
-	if strings.Contains(strings.ToLower(clientIp), filterText) ||
-		strings.Contains(strings.ToLower(serverIp), filterText) ||
-		strings.Contains(strings.ToLower(note), filterText) {
+	if containsFold(clientIp, filterText) ||
+		containsFold(serverIp, filterText) ||
+		containsFold(note, filterText) {
 		return true
 	}
 
@@ -177,9 +176,39 @@ func matchHttpFlowText(flow *mitmflowv1.Flow, f *mitmproxygrpcv1.HTTPFlow, filte
 	statusCode := f.GetResponse().GetStatusCode()
 	sni := f.GetClient().GetSni()
 
-	metaText := strings.ToLower(fmt.Sprintf("%s %s %d %s", url, method, statusCode, sni))
-	if strings.Contains(metaText, filterText) {
-		return true
+	// Optimized matching:
+	// If filterText has no spaces, we can check fields individually.
+	// This avoids string concatenation and allocation.
+	if !strings.Contains(filterText, " ") {
+		if containsFold(url, filterText) {
+			return true
+		}
+		if containsFold(method, filterText) {
+			return true
+		}
+		// Check status code
+		if containsFold(strconv.Itoa(int(statusCode)), filterText) {
+			return true
+		}
+		if containsFold(sni, filterText) {
+			return true
+		}
+	} else {
+		// Fallback for multi-token search (e.g. "GET 200")
+		// Use strings.Builder to minimize allocations
+		var b strings.Builder
+		b.Grow(len(url) + len(method) + 10 + len(sni) + 3)
+		b.WriteString(url)
+		b.WriteByte(' ')
+		b.WriteString(method)
+		b.WriteByte(' ')
+		b.WriteString(strconv.Itoa(int(statusCode)))
+		b.WriteByte(' ')
+		b.WriteString(sni)
+
+		if containsFold(b.String(), filterText) {
+			return true
+		}
 	}
 
 	// Header check
@@ -199,14 +228,14 @@ func matchHttpFlowText(flow *mitmflowv1.Flow, f *mitmproxygrpcv1.HTTPFlow, filte
 	} else {
 		// Content check
 		// Simple check on raw bytes as string
-		if strings.Contains(strings.ToLower(string(f.GetRequest().GetContent())), filterText) {
+		if containsFold(string(f.GetRequest().GetContent()), filterText) {
 			return true
-		} else if strings.Contains(strings.ToLower(string(f.GetResponse().GetContent())), filterText) {
+		} else if containsFold(string(f.GetResponse().GetContent()), filterText) {
 			return true
 		}
 		// Websocket messages
 		for _, msg := range f.GetWebsocketMessages() {
-			if strings.Contains(strings.ToLower(string(msg.GetContent())), filterText) {
+			if containsFold(string(msg.GetContent()), filterText) {
 				return true
 			}
 		}
@@ -216,10 +245,10 @@ func matchHttpFlowText(flow *mitmflowv1.Flow, f *mitmproxygrpcv1.HTTPFlow, filte
 
 func matchHeaders(headers map[string]string, filterText string) bool {
 	for k, v := range headers {
-		if strings.Contains(strings.ToLower(k), filterText) {
+		if containsFold(k, filterText) {
 			return true
 		}
-		if strings.Contains(strings.ToLower(v), filterText) {
+		if containsFold(v, filterText) {
 			return true
 		}
 	}
@@ -229,7 +258,7 @@ func matchHeaders(headers map[string]string, filterText string) bool {
 func matchDnsFlowText(f *mitmproxygrpcv1.DNSFlow, filterText string) bool {
 	if len(f.GetRequest().GetQuestions()) > 0 {
 		name := f.GetRequest().GetQuestions()[0].GetName()
-		if strings.Contains(strings.ToLower(name), filterText) {
+		if containsFold(name, filterText) {
 			return true
 		}
 	}
@@ -238,14 +267,52 @@ func matchDnsFlowText(f *mitmproxygrpcv1.DNSFlow, filterText string) bool {
 
 func matchTcpFlowText(f *mitmproxygrpcv1.TCPFlow, filterText string) bool {
 	server := f.GetServer()
-	text := strings.ToLower(fmt.Sprintf("%s:%d", server.GetAddressHost(), server.GetAddressPort()))
-	return strings.Contains(text, filterText)
+	host := server.GetAddressHost()
+	port := int(server.GetAddressPort())
+
+	if !strings.Contains(filterText, ":") {
+		if containsFold(host, filterText) {
+			return true
+		}
+		if containsFold(strconv.Itoa(port), filterText) {
+			return true
+		}
+	} else {
+		var b strings.Builder
+		b.Grow(len(host) + 10)
+		b.WriteString(host)
+		b.WriteByte(':')
+		b.WriteString(strconv.Itoa(port))
+		if containsFold(b.String(), filterText) {
+			return true
+		}
+	}
+	return false
 }
 
 func matchUdpFlowText(f *mitmproxygrpcv1.UDPFlow, filterText string) bool {
 	server := f.GetServer()
-	text := strings.ToLower(fmt.Sprintf("%s:%d", server.GetAddressHost(), server.GetAddressPort()))
-	return strings.Contains(text, filterText)
+	host := server.GetAddressHost()
+	port := int(server.GetAddressPort())
+
+	if !strings.Contains(filterText, ":") {
+		if containsFold(host, filterText) {
+			return true
+		}
+		if containsFold(strconv.Itoa(port), filterText) {
+			return true
+		}
+	} else {
+		var b strings.Builder
+		b.Grow(len(host) + 10)
+		b.WriteString(host)
+		b.WriteByte(':')
+		b.WriteString(strconv.Itoa(port))
+		if containsFold(b.String(), filterText) {
+			return true
+		}
+	}
+	return false
 }
 
 func matchHttpFlow(flow *mitmflowv1.Flow, f *mitmproxygrpcv1.HTTPFlow, filter *mitmflowv1.FlowFilter) bool {
@@ -339,7 +406,24 @@ func matchDnsFlow(flow *mitmflowv1.Flow, f *mitmproxygrpcv1.DNSFlow, filter *mit
 
 func hasText(list []string, sub string) bool {
 	for _, s := range list {
-		if strings.Contains(strings.ToLower(s), sub) {
+		if containsFold(s, sub) {
+			return true
+		}
+	}
+	return false
+}
+
+func containsFold(s, substr string) bool {
+	n := len(s)
+	m := len(substr)
+	if m == 0 {
+		return true
+	}
+	if m > n {
+		return false
+	}
+	for i := 0; i <= n-m; i++ {
+		if strings.EqualFold(s[i:i+m], substr) {
 			return true
 		}
 	}
