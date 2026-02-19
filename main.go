@@ -328,7 +328,7 @@ func (s *MITMFlowServer) UpdateFlow(
 func convertToSummary(flow *mitmflowv1.Flow) *mitmflowv1.FlowSummary {
 	id := GetFlowID(flow)
 	startTime := GetFlowStartTime(flow)
-	
+
 	var ts *timestamppb.Timestamp
 	if startTime != 0 {
 		ts = &timestamppb.Timestamp{
@@ -348,7 +348,7 @@ func convertToSummary(flow *mitmflowv1.Flow) *mitmflowv1.FlowSummary {
 	case mitmflowv1.Flow_HttpFlow_case:
 		f := flow.GetHttpFlow()
 		builder.Type = proto.String("http")
-		
+
 		reqLen := int64(0)
 		if f.GetRequest() != nil {
 			reqLen = int64(len(f.GetRequest().GetContent()))
@@ -357,18 +357,18 @@ func convertToSummary(flow *mitmflowv1.Flow) *mitmflowv1.FlowSummary {
 		if f.GetResponse() != nil {
 			resLen = int64(len(f.GetResponse().GetContent()))
 		}
-		
+
 		builder.Http = mitmflowv1.HttpFlowSummary_builder{
-			Method:               proto.String(f.GetRequest().GetMethod()),
-			Url:                  proto.String(getPrettyURL(f.GetRequest())),
-			StatusCode:           proto.Int32(f.GetResponse().GetStatusCode()),
-			DurationMs:           proto.Int64(int64(f.GetDurationMs())),
-			RequestContentLength: proto.Int64(reqLen),
+			Method:                proto.String(f.GetRequest().GetMethod()),
+			Url:                   proto.String(getPrettyURL(f.GetRequest())),
+			StatusCode:            proto.Int32(f.GetResponse().GetStatusCode()),
+			DurationMs:            proto.Int64(int64(f.GetDurationMs())),
+			RequestContentLength:  proto.Int64(reqLen),
 			ResponseContentLength: proto.Int64(resLen),
-			ClientPeernameHost:   proto.String(f.GetClient().GetPeernameHost()),
-			ClientPeernamePort:   proto.Uint32(f.GetClient().GetPeernamePort()),
-			ServerAddressHost:    proto.String(f.GetServer().GetAddressHost()),
-			ServerAddressPort:    proto.Uint32(f.GetServer().GetAddressPort()),
+			ClientPeernameHost:    proto.String(f.GetClient().GetPeernameHost()),
+			ClientPeernamePort:    proto.Uint32(f.GetClient().GetPeernamePort()),
+			ServerAddressHost:     proto.String(f.GetServer().GetAddressHost()),
+			ServerAddressPort:     proto.Uint32(f.GetServer().GetAddressPort()),
 		}.Build()
 	case mitmflowv1.Flow_DnsFlow_case:
 		f := flow.GetDnsFlow()
@@ -590,9 +590,14 @@ func (s *MITMFlowServer) ExportFlows(
 
 	// If specific IDs are requested, filter by them
 	if len(req.Msg.GetFlowIds()) > 0 {
+		seen := make(map[string]bool)
 		for _, id := range req.Msg.GetFlowIds() {
-			if flow, ok := s.storage.GetFlow(id); ok {
-				filteredFlows = append(filteredFlows, flow)
+			if seen[id] {
+				continue
+			}
+			if f, ok := s.storage.GetFlow(id); ok {
+				filteredFlows = append(filteredFlows, f)
+				seen[id] = true
 			}
 		}
 		sort.Slice(filteredFlows, func(i, j int) bool {
