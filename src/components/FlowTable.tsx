@@ -165,6 +165,13 @@ const FlowTable = forwardRef<HTMLDivElement, FlowTableProps>(
 
         // Compute sorted flows based on current sort configuration
         const sortedFlows = useMemo(() => {
+            // Optimized path: if sorting by timestamp desc, assume flows are already sorted by backend/parent
+            // We find the index dynamically to remain robust if columns change order.
+            const timestampIndex = columnDefs.findIndex(col => col.headerName === 'Timestamp');
+            if (sortConfig.colIndex === timestampIndex && sortConfig.direction === 'desc') {
+                return flows;
+            }
+
             if (!sortConfig.colIndex && sortConfig.colIndex !== 0) return flows;
             const col = columnDefs[sortConfig.colIndex];
             const directionFactor = sortConfig.direction === 'asc' ? 1 : -1;
