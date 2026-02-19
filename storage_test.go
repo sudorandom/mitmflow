@@ -29,6 +29,7 @@ func TestFlowStorage_SortOrder(t *testing.T) {
 
 	s, err := NewFlowStorage(tmpDir, 100)
 	assert.NoError(t, err)
+	defer s.Close()
 
 	t1 := time.Now()
 	t2 := t1.Add(1 * time.Second)
@@ -58,6 +59,7 @@ func TestFlowStorage_Prune(t *testing.T) {
 	maxFlows := 3
 	s, err := NewFlowStorage(tmpDir, maxFlows)
 	assert.NoError(t, err)
+	defer s.Close()
 
 	// Add 3 flows
 	baseTime := time.Now()
@@ -87,6 +89,7 @@ func TestFlowStorage_PrunePinned(t *testing.T) {
 	maxFlows := 3
 	s, err := NewFlowStorage(tmpDir, maxFlows)
 	assert.NoError(t, err)
+	defer s.Close()
 
 	baseTime := time.Now()
 	f1 := createFlow("1", baseTime.Add(1*time.Second))
@@ -126,6 +129,7 @@ func TestFlowStorage_UpdateFlow(t *testing.T) {
 
 	s, err := NewFlowStorage(tmpDir, 10)
 	assert.NoError(t, err)
+	defer s.Close()
 
 	f1 := createFlow("1", time.Now())
 	s.SaveFlow(f1)
@@ -152,6 +156,7 @@ func TestFlowStorage_DeleteFlows(t *testing.T) {
 
 	s, err := NewFlowStorage(tmpDir, 10)
 	assert.NoError(t, err)
+	defer s.Close()
 
 	s.SaveFlow(createFlow("1", time.Now()))
 	s.SaveFlow(createFlow("2", time.Now().Add(time.Second)))
