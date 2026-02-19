@@ -130,7 +130,7 @@ func matchFlowType(flow *mitmflowv1.Flow, filter *mitmflowv1.FlowFilter) bool {
 
 func matchText(flow *mitmflowv1.Flow, filterText string) bool {
 	var clientIp, serverIp string
-	var note string = flow.GetNote()
+	var note = flow.GetNote()
 
 	// 1. Common Metadata Check (Note, IP)
 	if f := flow.GetHttpFlow(); f != nil {

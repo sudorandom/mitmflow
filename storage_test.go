@@ -7,6 +7,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	mitmflowv1 "github.com/sudorandom/mitmflow/gen/go/mitmflow/v1"
 	mitmproxyv1 "github.com/sudorandom/mitmflow/gen/go/mitmproxygrpc/v1"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -24,11 +25,13 @@ func createFlow(id string, ts time.Time) *mitmflowv1.Flow {
 
 func TestFlowStorage_SortOrder(t *testing.T) {
 	tmpDir, err := os.MkdirTemp("", "mitmflow_test_sort")
-	assert.NoError(t, err)
-	defer os.RemoveAll(tmpDir)
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		require.NoError(t, os.RemoveAll(tmpDir))
+	})
 
 	s, err := NewFlowStorage(tmpDir, 100)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	defer s.Close()
 
 	t1 := time.Now()
@@ -40,9 +43,9 @@ func TestFlowStorage_SortOrder(t *testing.T) {
 	f2 := createFlow("2", t2)
 
 	// Save out of order
-	s.SaveFlow(f3)
-	s.SaveFlow(f1)
-	s.SaveFlow(f2)
+	require.NoError(t, s.SaveFlow(f3))
+	require.NoError(t, s.SaveFlow(f1))
+	require.NoError(t, s.SaveFlow(f2))
 
 	flows := s.GetFlows()
 	assert.Equal(t, 3, len(flows))
@@ -53,23 +56,25 @@ func TestFlowStorage_SortOrder(t *testing.T) {
 
 func TestFlowStorage_Prune(t *testing.T) {
 	tmpDir, err := os.MkdirTemp("", "mitmflow_test_prune")
-	assert.NoError(t, err)
-	defer os.RemoveAll(tmpDir)
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		require.NoError(t, os.RemoveAll(tmpDir))
+	})
 
 	maxFlows := 3
 	s, err := NewFlowStorage(tmpDir, maxFlows)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	defer s.Close()
 
 	// Add 3 flows
 	baseTime := time.Now()
-	for i := 0; i < 3; i++ {
-		s.SaveFlow(createFlow(uuid.New().String(), baseTime.Add(time.Duration(i)*time.Second)))
+	for i := range 3 {
+		require.NoError(t, s.SaveFlow(createFlow(uuid.New().String(), baseTime.Add(time.Duration(i)*time.Second))))
 	}
 	assert.Equal(t, 3, len(s.GetFlows()))
 
 	// Add 4th flow, should prune oldest (first one)
-	s.SaveFlow(createFlow("new", baseTime.Add(10*time.Second)))
+	require.NoError(t, s.SaveFlow(createFlow("new", baseTime.Add(10*time.Second))))
 
 	flows := s.GetFlows()
 	assert.Equal(t, 3, len(flows))
@@ -83,24 +88,26 @@ func TestFlowStorage_Prune(t *testing.T) {
 
 func TestFlowStorage_PrunePinned(t *testing.T) {
 	tmpDir, err := os.MkdirTemp("", "mitmflow_test_prune_pinned")
-	assert.NoError(t, err)
-	defer os.RemoveAll(tmpDir)
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		require.NoError(t, os.RemoveAll(tmpDir))
+	})
 
 	maxFlows := 3
 	s, err := NewFlowStorage(tmpDir, maxFlows)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	defer s.Close()
 
 	baseTime := time.Now()
 	f1 := createFlow("1", baseTime.Add(1*time.Second))
 	f1.SetPinned(true)
-	s.SaveFlow(f1)
+	require.NoError(t, s.SaveFlow(f1))
 
 	f2 := createFlow("2", baseTime.Add(2*time.Second))
-	s.SaveFlow(f2)
+	require.NoError(t, s.SaveFlow(f2))
 
 	f3 := createFlow("3", baseTime.Add(3*time.Second))
-	s.SaveFlow(f3)
+	require.NoError(t, s.SaveFlow(f3))
 
 	// Flows: 1(pinned), 2, 3. Count=3. Max=3.
 
@@ -108,7 +115,7 @@ func TestFlowStorage_PrunePinned(t *testing.T) {
 	// Oldest is 1 (pinned). Next is 2 (unpinned).
 	// So 2 should be removed.
 	f4 := createFlow("4", baseTime.Add(4*time.Second))
-	s.SaveFlow(f4)
+	require.NoError(t, s.SaveFlow(f4))
 
 	flows := s.GetFlows()
 	assert.Equal(t, 3, len(flows))
@@ -124,26 +131,30 @@ func TestFlowStorage_PrunePinned(t *testing.T) {
 
 func TestFlowStorage_UpdateFlow(t *testing.T) {
 	tmpDir, err := os.MkdirTemp("", "mitmflow_test_update")
-	assert.NoError(t, err)
-	defer os.RemoveAll(tmpDir)
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		require.NoError(t, os.RemoveAll(tmpDir))
+	})
 
 	s, err := NewFlowStorage(tmpDir, 10)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	defer s.Close()
 
 	f1 := createFlow("1", time.Now())
-	s.SaveFlow(f1)
+	require.NoError(t, s.SaveFlow(f1))
 
 	// Update pinned
 	pinned := true
-	s.UpdateFlow("1", &pinned, nil)
+	_, err = s.UpdateFlow("1", &pinned, nil)
+	require.NoError(t, err)
 
 	flows := s.GetFlows()
 	assert.True(t, flows[0].GetPinned())
 
 	// Update note
 	note := "my note"
-	s.UpdateFlow("1", nil, &note)
+	_, err = s.UpdateFlow("1", nil, &note)
+	require.NoError(t, err)
 
 	flows = s.GetFlows()
 	assert.Equal(t, "my note", flows[0].GetNote())
@@ -152,17 +163,19 @@ func TestFlowStorage_UpdateFlow(t *testing.T) {
 func TestFlowStorage_DeleteFlows(t *testing.T) {
 	tmpDir, err := os.MkdirTemp("", "mitmflow_test_delete")
 	assert.NoError(t, err)
-	defer os.RemoveAll(tmpDir)
+	t.Cleanup(func() {
+		assert.NoError(t, os.RemoveAll(tmpDir))
+	})
 
 	s, err := NewFlowStorage(tmpDir, 10)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	defer s.Close()
 
-	s.SaveFlow(createFlow("1", time.Now()))
-	s.SaveFlow(createFlow("2", time.Now().Add(time.Second)))
+	require.NoError(t, s.SaveFlow(createFlow("1", time.Now())))
+	require.NoError(t, s.SaveFlow(createFlow("2", time.Now().Add(time.Second))))
 
 	count, err := s.DeleteFlows([]string{"1"})
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, int64(1), count)
 
 	flows := s.GetFlows()

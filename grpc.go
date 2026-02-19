@@ -82,7 +82,7 @@ func parseGrpcFrames(content []byte, trailers map[string]string, msgDesc protore
 			if err != nil {
 				return nil, fmt.Errorf("failed to create gzip reader: %w", err)
 			}
-			defer gr.Close()
+			defer gr.Close() //nolint:errcheck
 			message, err = io.ReadAll(gr)
 			if err != nil {
 				return nil, fmt.Errorf("failed to decompress message: %w", err)
@@ -208,7 +208,7 @@ func parseConnectStreamingFrames(content []byte, msgDesc protoreflect.MessageDes
 			if err != nil {
 				return nil, fmt.Errorf("failed to create gzip reader: %w", err)
 			}
-			defer gr.Close()
+			defer gr.Close() //nolint:errcheck
 			message, err = io.ReadAll(gr)
 			if err != nil {
 				return nil, fmt.Errorf("failed to decompress message: %w", err)

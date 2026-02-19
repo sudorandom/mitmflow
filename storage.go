@@ -267,7 +267,7 @@ func (s *FlowStorage) prune() {
 
 		s.persistCh <- func() {
 			for _, id := range idsToDelete {
-				os.Remove(filepath.Join(s.dir, id+".bin"))
+				os.Remove(filepath.Join(s.dir, id+".bin")) //nolint:errcheck
 			}
 		}
 	}
