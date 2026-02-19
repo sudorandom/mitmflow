@@ -603,12 +603,11 @@ func (s *MITMFlowServer) ExportFlows(
 		sort.Slice(filteredFlows, func(i, j int) bool {
 			return GetFlowStartTime(filteredFlows[i]) < GetFlowStartTime(filteredFlows[j])
 		})
-	} else {
-		// If no IDs provided, return empty list or maybe error?
-		// For now, let's assume empty list.
-		// Or should we support "Export All" flag?
-		// The prompt said "explicit list". So empty list = empty export.
 	}
+	// If no IDs provided, return empty list or maybe error?
+	// For now, let's assume empty list.
+	// Or should we support "Export All" flag?
+	// The prompt said "explicit list". So empty list = empty export.
 
 	var data []byte
 	var filename string
@@ -694,7 +693,7 @@ func main() {
 
 			// Serve the modified HTML
 			w.Header().Set("Content-Type", "text/html")
-			w.Write([]byte(modifiedHTML))
+			w.Write([]byte(modifiedHTML)) //nolint:errcheck
 			return
 		}
 

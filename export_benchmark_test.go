@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"connectrpc.com/connect"
+	"github.com/stretchr/testify/require"
 	mitmflowv1 "github.com/sudorandom/mitmflow/gen/go/mitmflow/v1"
 )
 
@@ -16,7 +17,9 @@ func BenchmarkExportFlows(b *testing.B) {
 	if err != nil {
 		b.Fatal(err)
 	}
-	defer os.RemoveAll(tmpDir)
+	b.Cleanup(func() {
+		require.NoError(b, os.RemoveAll(tmpDir))
+	})
 
 	maxFlows := 10000
 	storage, err := NewFlowStorage(tmpDir, maxFlows)
@@ -27,12 +30,11 @@ func BenchmarkExportFlows(b *testing.B) {
 	registry := NewRegistry()
 	server, _ := NewMITMFlowServer(storage, registry)
 
-	numFlows := 5000
-	flowIDs := make([]string, numFlows)
-	for i := range numFlows {
+	flowIDs := make([]string, 5000)
+	for i := range flowIDs {
 		id := fmt.Sprintf("flow-%d", i)
 		flowIDs[i] = id
-		storage.SaveFlow(createFlow(id, time.Now().Add(time.Duration(i)*time.Second)))
+		require.NoError(b, storage.SaveFlow(createFlow(id, time.Now().Add(time.Duration(i)*time.Second))))
 	}
 
 	formatJSON := mitmflowv1.ExportFormat_EXPORT_FORMAT_JSON
