@@ -3,6 +3,7 @@ import { ColDef, ValueGetterParams } from 'ag-grid-community';
 import { Pin, StickyNote } from 'lucide-react';
 import { FlowSummary } from '../gen/mitmflow/v1/mitmflow_pb';
 import { getFlowId, getFlowTimestampStart, getTimestamp } from '../utils';
+import { TableVirtuoso, VirtuosoHandle, TableComponents } from 'react-virtuoso';
 
 import './FlowTable.css';
 import { DurationCellRenderer, InTransferCellRenderer, OutTransferCellRenderer, RequestCellRenderer, StatusCellRenderer, TimestampCellRenderer } from './cellRenderers';
@@ -23,10 +24,118 @@ type CustomColDef = ColDef<FlowSummary> & {
     headerComponent?: () => React.ReactNode;
 };
 
+// Context to pass data to custom components (Scroller, TableRow)
+interface TableContext {
+    focusedFlowId: string | null;
+    selectedFlowIds: Set<string>;
+    newFlowIds: Set<string> | undefined;
+    onRowSelected: (flow: FlowSummary, options: { event?: React.MouseEvent | React.KeyboardEvent }) => void;
+    handleTableKeyDown: (e: React.KeyboardEvent<HTMLDivElement>) => void;
+    parentRef: React.ForwardedRef<HTMLDivElement>;
+}
+
+const Scroller = forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivElement> & { context?: TableContext }>(({ context, ...props }, ref) => {
+    return (
+        <div
+            {...props}
+            ref={(node) => {
+                // Combine refs: react-virtuoso's ref and the forwarded parentRef
+                if (typeof ref === 'function') ref(node);
+                else if (ref) (ref as React.MutableRefObject<HTMLDivElement | null>).current = node;
+
+                if (context?.parentRef) {
+                     if (typeof context.parentRef === 'function') context.parentRef(node);
+                     else (context.parentRef as React.MutableRefObject<HTMLDivElement | null>).current = node;
+                }
+            }}
+            tabIndex={0}
+            role="grid"
+            aria-activedescendant={context?.focusedFlowId ? `flow-row-${context.focusedFlowId}` : undefined}
+            onKeyDown={context?.handleTableKeyDown}
+            className={`flex flex-col min-h-0 w-full overflow-auto bg-white dark:bg-zinc-900 ${props.className || ''}`}
+        >
+            {props.children}
+        </div>
+    );
+});
+Scroller.displayName = 'Scroller';
+
+const Table = forwardRef<HTMLTableElement, React.TableHTMLAttributes<HTMLTableElement>>((props, ref) => (
+    <table
+        {...props}
+        ref={ref}
+        className="w-full text-sm flex-shrink-0 text-gray-900 dark:text-zinc-300"
+        style={{ ...props.style, borderCollapse: 'collapse' }}
+    />
+));
+Table.displayName = 'Table';
+
+const TableHead = forwardRef<HTMLTableSectionElement, React.HTMLAttributes<HTMLTableSectionElement>>((props, ref) => (
+    <thead {...props} ref={ref} className="sticky top-0 z-10 bg-white dark:bg-zinc-900" />
+));
+TableHead.displayName = 'TableHead';
+
+const TableRow = forwardRef<HTMLTableRowElement, { item: FlowSummary; context: TableContext } & React.HTMLAttributes<HTMLTableRowElement>>(({ item: flow, context, ...props }, ref) => {
+    const idx = props['data-index'] as number;
+    const flowId = getFlowId(flow);
+    const isFocused = flowId && context.focusedFlowId === flowId;
+    const isSelected = flowId && context.selectedFlowIds.has(flowId);
+    const isNew = flowId && context.newFlowIds?.has(flowId);
+
+    // Alternating row color: even rows darker
+    const baseRow = idx % 2 === 0 ? 'bg-white dark:bg-zinc-900' : 'bg-gray-50 dark:bg-zinc-800';
+
+    // Selection and Focus styles
+    let rowClass = `cursor-pointer border-b border-gray-200 dark:border-zinc-700 ${baseRow}`;
+
+    if (isNew) {
+        rowClass += ' new-flow-highlight';
+    }
+
+    if (isFocused) {
+        rowClass = `cursor-pointer border-2 border-orange-500 ${baseRow} bg-orange-50 dark:bg-orange-950/30`;
+    }
+
+    if (isSelected) {
+        const selectedBg = 'bg-orange-100 dark:bg-zinc-700';
+        if (isFocused) {
+            rowClass = `cursor-pointer border-2 border-orange-500 bg-orange-100 dark:bg-zinc-700`;
+        } else {
+            rowClass = `cursor-pointer border-b border-gray-200 dark:border-zinc-700 ${selectedBg}`;
+        }
+    }
+
+    return (
+        <tr
+            {...props}
+            ref={ref}
+            id={flowId ? `flow-row-${flowId}` : undefined}
+            data-flow-id={flowId}
+            tabIndex={-1}
+            role="row"
+            className={rowClass}
+            onClick={e => {
+                context.onRowSelected(flow, { event: e as React.MouseEvent });
+            }}
+        >
+            {props.children}
+        </tr>
+    );
+});
+TableRow.displayName = 'TableRow';
+
+const VirtuosoTableComponents: TableComponents<FlowSummary, TableContext> = {
+    Scroller: Scroller,
+    Table: Table,
+    TableHead: TableHead,
+    TableRow: TableRow,
+};
+
 const FlowTable = forwardRef<HTMLDivElement, FlowTableProps>(
     function FlowTable({ flows, focusedFlowId, selectedFlowIds, newFlowIds, onRowSelected, onToggleRowSelection, onTogglePin, pinned, onTogglePinnedFilter }, ref) {
         // Sort config: track column index (in columnDefs) and direction
         const [sortConfig, setSortConfig] = useState<{ colIndex: number | null; direction: 'asc' | 'desc' }>({ colIndex: 2, direction: 'desc' }); // default sort by Timestamp desc
+        const virtuosoRef = useRef<VirtuosoHandle>(null);
 
         // Selection header checkbox ref to set indeterminate state
         const selectAllRef = useRef<HTMLInputElement | null>(null);
@@ -287,152 +396,113 @@ const FlowTable = forwardRef<HTMLDivElement, FlowTableProps>(
                 const nextFlow = sortedFlows[nextIndex];
                 if (nextFlow) {
                     onRowSelected(nextFlow, { event: e });
-                    const nextFlowId = getFlowId(nextFlow);
-                    const rowElement = nextFlowId ? document.querySelector(`[data-flow-id="${nextFlowId}"]`) : null;
-                    rowElement?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                    // Scroll to item using Virtuoso
+                    virtuosoRef.current?.scrollToIndex({ index: nextIndex, align: 'center' });
                 }
             }
         };
+
+        const context = useMemo<TableContext>(() => ({
+            focusedFlowId,
+            selectedFlowIds,
+            newFlowIds,
+            onRowSelected,
+            handleTableKeyDown,
+            parentRef: ref,
+        }), [focusedFlowId, selectedFlowIds, newFlowIds, onRowSelected, handleTableKeyDown, ref]);
+
+        const fixedHeaderContent = () => (
+             <tr>
+                {columnDefs.map((col, i) => {
+                    const headerBaseClass = "px-2 py-1 bg-gray-100 dark:bg-zinc-900 text-gray-700 dark:text-zinc-400 font-semibold border-b border-gray-200 dark:border-zinc-700";
+
+                    if (i === 0) {
+                        return (
+                            <th key={i} style={{ width: col.width }} className={`${headerBaseClass} text-center`}>
+                                <input
+                                    ref={selectAllRef}
+                                    type="checkbox"
+                                    checked={allVisibleSelected}
+                                    onChange={handleSelectAllVisible}
+                                    aria-label="Select/Deselect all visible flows"
+                                />
+                            </th>
+                        );
+                    }
+                    const isSorted = sortConfig.colIndex === i;
+                    const direction = isSorted ? sortConfig.direction : undefined;
+                    const content = col.headerComponent ? (
+                        col.headerComponent()
+                    ) : (
+                        <span className="inline-flex items-center gap-1">
+                            {col.headerName}
+                            {isSorted && (
+                                <span aria-hidden="true">{direction === 'asc' ? '▲' : '▼'}</span>
+                            )}
+                        </span>
+                    );
+                    return (
+                        <th
+                            key={i}
+                            className={`${col.headerClass || ''} ${headerBaseClass} cursor-pointer select-none`}
+                            style={{ width: col.width, textAlign: 'left' }}
+                            onClick={() => !col.headerComponent && handleHeaderSortClick(i)}
+                            aria-sort={isSorted ? (direction === 'asc' ? 'ascending' : 'descending') : 'none'}
+                        >
+                            {content}
+                        </th>
+                    );
+                })}
+            </tr>
+        );
+
+        const itemContent = (index: number, flow: FlowSummary) => {
+            const flowId = getFlowId(flow);
+            const isSelected = flowId && selectedFlowIds.has(flowId);
+
+            return (
+                <>
+                    {/* Checkbox cell */}
+                    <td className="text-center px-2 py-1">
+                        <input
+                            type="checkbox"
+                            checked={!!isSelected}
+                            onChange={() => flowId && onToggleRowSelection(flowId)}
+                            tabIndex={-1}
+                            aria-label="Select row"
+                        />
+                    </td>
+                    {/* Render other columns */}
+                    {columnDefs.slice(1).map((col, i) => {
+                        const content: React.ReactNode = col.cellRenderer && typeof col.cellRenderer === 'function'
+                            ? (col.cellRenderer as (params: { data: FlowSummary }) => React.ReactNode)({ data: flow })
+                            : (typeof col.valueGetter === 'function'
+                                ? col.valueGetter({ data: flow } as ValueGetterParams<FlowSummary>)
+                                : null);
+                        return (
+                            <td
+                                key={i}
+                                className={`${col.cellClass || ''} px-2 py-1`}
+                                role="gridcell"
+                            >
+                                {content}
+                            </td>
+                        );
+                    })}
+                </>
+            );
+        };
+
         return (
-            <div
-                className="flex flex-col min-h-0 w-full overflow-auto bg-white dark:bg-zinc-900"
-                tabIndex={0}
-                role="grid"
-                aria-activedescendant={focusedFlowId ? `flow-row-${focusedFlowId}` : undefined}
-                onKeyDown={handleTableKeyDown}
-                ref={ref as React.RefObject<HTMLDivElement>}
-            >
-                <table className="w-full text-sm flex-shrink-0 text-gray-900 dark:text-zinc-300">
-                    <thead>
-                        <tr>
-                            {columnDefs.map((col, i) => {
-                                const headerBaseClass = "px-2 py-1 bg-gray-100 dark:bg-zinc-900 text-gray-700 dark:text-zinc-400 font-semibold border-b border-gray-200 dark:border-zinc-700 sticky top-0 z-10";
-                                if (i === 0) {
-                                    return (
-                                        <th key={i} style={{ width: col.width }} className={`${headerBaseClass} text-center`}>
-                                            <input
-                                                ref={selectAllRef}
-                                                type="checkbox"
-                                                checked={allVisibleSelected}
-                                                onChange={handleSelectAllVisible}
-                                                aria-label="Select/Deselect all visible flows"
-                                            />
-                                        </th>
-                                    );
-                                }
-                                const isSorted = sortConfig.colIndex === i;
-                                const direction = isSorted ? sortConfig.direction : undefined;
-                                const content = col.headerComponent ? (
-                                    col.headerComponent()
-                                ) : (
-                                    <span className="inline-flex items-center gap-1">
-                                        {col.headerName}
-                                        {isSorted && (
-                                            <span aria-hidden="true">{direction === 'asc' ? '▲' : '▼'}</span>
-                                        )}
-                                    </span>
-                                );
-                                return (
-                                    <th
-                                        key={i}
-                                        className={`${col.headerClass || ''} ${headerBaseClass} cursor-pointer select-none`}
-                                        style={{ width: col.width, textAlign: 'left' }}
-                                        onClick={() => !col.headerComponent && handleHeaderSortClick(i)}
-                                        aria-sort={isSorted ? (direction === 'asc' ? 'ascending' : 'descending') : 'none'}
-                                    >
-                                        {content}
-                                    </th>
-                                );
-                            })}
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {sortedFlows.map((flow, idx) => {
-                            const flowId = getFlowId(flow);
-                            const isFocused = flowId && focusedFlowId === flowId;
-                            const isSelected = flowId && selectedFlowIds.has(flowId);
-                            const isNew = flowId && newFlowIds?.has(flowId);
-                            // Alternating row color: even rows darker
-                            const baseRow = idx % 2 === 0 ? 'bg-white dark:bg-zinc-900' : 'bg-gray-50 dark:bg-zinc-800';
-
-                            // Selection and Focus styles
-                            // Focused: Orange border + subtle orange tint
-                            // Selected: distinct background
-                            // Combined: Both
-
-                            let rowClass = `cursor-pointer border-b border-gray-200 dark:border-zinc-700 ${baseRow}`;
-
-                            if (isNew) {
-                                rowClass += ' new-flow-highlight';
-                            }
-
-                            if (isFocused) {
-                                // Add border and override background with tint
-                                // Using a strong class to override alternating colors if needed, but specificity handles it if placed last
-                                rowClass = `cursor-pointer border-2 border-orange-500 ${baseRow} bg-orange-50 dark:bg-orange-950/30`;
-                            }
-
-                            if (isSelected) {
-                                // Selected has higher precedence for background than alternating, but focus might tint it further or coexist
-                                // Let's match the original logic: if focused, it has specific bg, if selected it has specific bg
-                                // Original: isFocused ? ... bg-orange-950 : ...
-                                // And ${isSelected ? 'bg-zinc-700' : ''} was appended.
-
-                                const selectedBg = 'bg-orange-100 dark:bg-zinc-700';
-                                if (isFocused) {
-                                     // Focused AND Selected
-                                     rowClass = `cursor-pointer border-2 border-orange-500 bg-orange-100 dark:bg-zinc-700`;
-                                } else {
-                                     // Just Selected
-                                     rowClass = `cursor-pointer border-b border-gray-200 dark:border-zinc-700 ${selectedBg}`;
-                                }
-                            }
-
-                            return (
-                                <tr
-                                    key={flowId}
-                                    id={flowId ? `flow-row-${flowId}` : undefined}
-                                    data-flow-id={flowId}
-                                    tabIndex={-1}
-                                    role="row"
-                                    className={rowClass}
-                                    onClick={e => {
-                                        onRowSelected(flow, { event: e as React.MouseEvent });
-                                    }}
-                                >
-                                    {/* Checkbox cell */}
-                                    <td className="text-center px-2 py-1">
-                                        <input
-                                            type="checkbox"
-                                            checked={!!isSelected}
-                                            onChange={() => flowId && onToggleRowSelection(flowId)}
-                                            tabIndex={-1}
-                                            aria-label="Select row"
-                                        />
-                                    </td>
-                                    {/* Render other columns */}
-                                    {columnDefs.slice(1).map((col, i) => {
-                                        const content: React.ReactNode = col.cellRenderer && typeof col.cellRenderer === 'function'
-                                            ? (col.cellRenderer as (params: { data: FlowSummary }) => React.ReactNode)({ data: flow })
-                                            : (typeof col.valueGetter === 'function'
-                                                ? col.valueGetter({ data: flow } as ValueGetterParams<FlowSummary>)
-                                                : null);
-                                        return (
-                                            <td
-                                                key={i}
-                                                className={`${col.cellClass || ''} px-2 py-1`}
-                                                role="gridcell"
-                                            >
-                                                {content}
-                                            </td>
-                                        );
-                                    })}
-                                </tr>
-                            );
-                        })}
-                    </tbody>
-                </table>
-            </div>
+            <TableVirtuoso
+                ref={virtuosoRef}
+                style={{ height: '100%', width: '100%' }}
+                data={sortedFlows}
+                components={VirtuosoTableComponents}
+                context={context}
+                fixedHeaderContent={fixedHeaderContent}
+                itemContent={itemContent}
+            />
         );
     });
 
