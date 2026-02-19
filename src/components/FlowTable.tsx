@@ -34,10 +34,15 @@ interface TableContext {
     parentRef: React.ForwardedRef<HTMLDivElement>;
 }
 
-const Scroller = forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivElement> & { context?: TableContext }>(({ context, ...props }, ref) => {
+// Scroller component definition matching react-virtuoso expectations
+// context is provided by TableVirtuoso to components. It must be strictly typed as TableContext (not optional) to match TableComponents<Data, Context>
+const Scroller = forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivElement> & { context: TableContext }>((props, ref) => {
+    // Separate context from other props
+    const { context, ...divProps } = props;
+
     return (
         <div
-            {...props}
+            {...divProps}
             ref={(node) => {
                 // Combine refs: react-virtuoso's ref and the forwarded parentRef
                 if (typeof ref === 'function') ref(node);
@@ -75,8 +80,9 @@ const TableHead = forwardRef<HTMLTableSectionElement, React.HTMLAttributes<HTMLT
 ));
 TableHead.displayName = 'TableHead';
 
-const TableRow = forwardRef<HTMLTableRowElement, { item: FlowSummary; context: TableContext } & React.HTMLAttributes<HTMLTableRowElement>>(({ item: flow, context, ...props }, ref) => {
-    const idx = props['data-index'] as number;
+// TableRow component definition matching react-virtuoso expectations
+const TableRow = forwardRef<HTMLTableRowElement, { item: FlowSummary; context: TableContext; 'data-index': number } & React.HTMLAttributes<HTMLTableRowElement>>(({ item: flow, context, ...props }, ref) => {
+    const idx = props['data-index'];
     const flowId = getFlowId(flow);
     const isFocused = flowId && context.focusedFlowId === flowId;
     const isSelected = flowId && context.selectedFlowIds.has(flowId);
@@ -456,7 +462,7 @@ const FlowTable = forwardRef<HTMLDivElement, FlowTableProps>(
             </tr>
         );
 
-        const itemContent = (index: number, flow: FlowSummary) => {
+        const itemContent = (_index: number, flow: FlowSummary) => {
             const flowId = getFlowId(flow);
             const isSelected = flowId && selectedFlowIds.has(flowId);
 
