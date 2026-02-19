@@ -1,4 +1,6 @@
 import '@testing-library/jest-dom';
+import { vi } from 'vitest';
+import React from 'react';
 
 Object.defineProperty(window, 'matchMedia', {
   writable: true,
@@ -42,3 +44,31 @@ if (typeof URL.createObjectURL === 'undefined') {
 if (typeof URL.revokeObjectURL === 'undefined') {
   URL.revokeObjectURL = () => {};
 }
+
+// Mock react-virtuoso for testing
+vi.mock('react-virtuoso', () => {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const TableVirtuoso = React.forwardRef(({ data, itemContent, fixedHeaderContent, components, context, ...props }: any, ref) => {
+      const Table = components?.Table || 'table';
+      const TableHead = components?.TableHead || 'thead';
+      const TableBody = components?.TableBody || 'tbody';
+      const TableRow = components?.TableRow || 'tr';
+      const Scroller = components?.Scroller || 'div';
+
+      return React.createElement(Scroller, { ...props, ref, style: { ...props.style, height: '100%', overflow: 'auto' } },
+        React.createElement(Table, { style: { width: '100%', borderCollapse: 'collapse' } },
+            fixedHeaderContent && React.createElement(TableHead, null, fixedHeaderContent()),
+            React.createElement(TableBody, null,
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                data.map((item: any, index: number) =>
+                    React.createElement(TableRow, { key: index, item: item, context: context, 'data-index': index },
+                        itemContent(index, item)
+                    )
+                )
+            )
+        )
+      );
+  });
+  TableVirtuoso.displayName = 'TableVirtuoso';
+  return { TableVirtuoso, Virtuoso: () => null };
+});
