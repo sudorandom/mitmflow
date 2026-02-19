@@ -11,6 +11,7 @@ import (
 	"log"
 	"net/http"
 	"net/url"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -138,8 +139,6 @@ func (s *MITMFlowServer) GetFlows(
 	req *connect.Request[mitmflowv1.GetFlowsRequest],
 	stream *connect.ServerStream[mitmflowv1.GetFlowsResponse],
 ) error {
-	flows := s.storage.GetFlows()
-
 	// Reverse iteration (newest first)
 	limit := int(req.Msg.GetLimit())
 	if limit <= 0 {
@@ -157,17 +156,23 @@ func (s *MITMFlowServer) GetFlows(
 		return stream.Send(builder.Build())
 	}
 
-	for i := len(flows) - 1; i >= 0; i-- {
-		flow := flows[i]
+	var iterErr error
+	s.storage.ReverseWalk(func(flow *mitmflowv1.Flow) bool {
 		if matchFlow(flow, filter) {
 			if err := sendFlow(flow); err != nil {
-				return err
+				iterErr = err
+				return false
 			}
 			count++
 			if count >= limit {
-				break
+				return false
 			}
 		}
+		return true
+	})
+
+	if iterErr != nil {
+		return iterErr
 	}
 
 	return nil
@@ -223,29 +228,39 @@ func (s *MITMFlowServer) StreamFlows(
 	// Only backfill if sinceNs is provided (Resume scenario)
 	// If sinceNs is 0, we assume "start from now" (Live scenario)
 	if sinceNs > 0 {
-		flows := s.storage.GetFlows()
-		// Iterate backwards (newest first) until we hit sinceNs
-		for i := len(flows) - 1; i >= 0; i-- {
+		var iterErr error
+		iterCount := 0
+		s.storage.ReverseWalk(func(flow *mitmflowv1.Flow) bool {
 			// Periodically check context and drain channel
-			if i%10 == 0 {
+			iterCount++
+			if iterCount%10 == 0 {
 				if ctx.Err() != nil {
-					return nil
+					return false
 				}
 				if err := drainChannel(); err != nil {
-					return err
+					iterErr = err
+					return false
 				}
 			}
 
-			flow := flows[i]
 			if GetFlowStartTime(flow) <= sinceNs {
-				break
+				return false
 			}
 			if !matchFlow(flow, filter) {
-				continue
+				return true
 			}
 			if err := sendFlow(flow); err != nil {
-				return err
+				iterErr = err
+				return false
 			}
+			return true
+		})
+
+		if ctx.Err() != nil {
+			return nil
+		}
+		if iterErr != nil {
+			return iterErr
 		}
 	}
 
@@ -571,20 +586,18 @@ func (s *MITMFlowServer) ExportFlows(
 ) (*connect.Response[mitmflowv1.ExportFlowsResponse], error) {
 	log.Printf("ExportFlows called with %d flow IDs, format: %v", len(req.Msg.GetFlowIds()), req.Msg.GetFormat())
 
-	flows := s.storage.GetFlows()
 	var filteredFlows []*mitmflowv1.Flow
 
 	// If specific IDs are requested, filter by them
 	if len(req.Msg.GetFlowIds()) > 0 {
-		ids := make(map[string]bool)
 		for _, id := range req.Msg.GetFlowIds() {
-			ids[id] = true
-		}
-		for _, f := range flows {
-			if ids[GetFlowID(f)] {
-				filteredFlows = append(filteredFlows, f)
+			if flow, ok := s.storage.GetFlow(id); ok {
+				filteredFlows = append(filteredFlows, flow)
 			}
 		}
+		sort.Slice(filteredFlows, func(i, j int) bool {
+			return GetFlowStartTime(filteredFlows[i]) < GetFlowStartTime(filteredFlows[j])
+		})
 	} else {
 		// If no IDs provided, return empty list or maybe error?
 		// For now, let's assume empty list.
