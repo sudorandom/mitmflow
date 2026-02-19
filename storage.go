@@ -173,6 +173,14 @@ func (s *FlowStorage) GetFlows() []*mitmflowv1.Flow {
 	return s.store.List()
 }
 
+func (s *FlowStorage) Walk(fn func(*mitmflowv1.Flow) bool) {
+	s.store.Walk(fn)
+}
+
+func (s *FlowStorage) ReverseWalk(fn func(*mitmflowv1.Flow) bool) {
+	s.store.ReverseWalk(fn)
+}
+
 func (s *FlowStorage) GetFlow(id string) (*mitmflowv1.Flow, bool) {
 	return s.store.Get(id)
 }

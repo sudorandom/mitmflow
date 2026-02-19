@@ -24,6 +24,14 @@ type Store interface {
 	Prune(maxSize int) []string
 	// Len returns the number of flows in the store.
 	Len() int
+	// Walk iterates over all flows in the store, sorted by start time (oldest first).
+	// It calls the given function for each flow.
+	// If the function returns false, iteration stops.
+	Walk(func(*mitmflowv1.Flow) bool)
+	// ReverseWalk iterates over all flows in the store, sorted by start time (newest first).
+	// It calls the given function for each flow.
+	// If the function returns false, iteration stops.
+	ReverseWalk(func(*mitmflowv1.Flow) bool)
 }
 
 type memoryStore struct {
@@ -161,6 +169,28 @@ func (s *memoryStore) Len() int {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	return len(s.flows)
+}
+
+func (s *memoryStore) Walk(fn func(*mitmflowv1.Flow) bool) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	for _, f := range s.sortedFlows {
+		if !fn(f) {
+			break
+		}
+	}
+}
+
+func (s *memoryStore) ReverseWalk(fn func(*mitmflowv1.Flow) bool) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	for i := len(s.sortedFlows) - 1; i >= 0; i-- {
+		if !fn(s.sortedFlows[i]) {
+			break
+		}
+	}
 }
 
 func (s *memoryStore) updateSortedFlows(flow *mitmflowv1.Flow, isUpdate bool) {
