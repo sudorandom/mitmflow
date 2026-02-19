@@ -14,10 +14,12 @@ import (
 )
 
 type FlowStorage struct {
-	mu       sync.RWMutex
-	dir      string
-	maxFlows int
-	store    Store
+	mu        sync.RWMutex
+	dir       string
+	maxFlows  int
+	store     Store
+	persistCh chan func()
+	wg        sync.WaitGroup
 }
 
 func NewFlowStorage(dir string, maxFlows int) (*FlowStorage, error) {
@@ -26,16 +28,37 @@ func NewFlowStorage(dir string, maxFlows int) (*FlowStorage, error) {
 	}
 
 	s := &FlowStorage{
-		dir:      dir,
-		maxFlows: maxFlows,
-		store:    NewMemoryStore(),
+		dir:       dir,
+		maxFlows:  maxFlows,
+		store:     NewMemoryStore(),
+		persistCh: make(chan func(), 1000), // Buffer to avoid blocking main path
 	}
+
+	s.wg.Add(1)
+	go s.persistWorker(s.persistCh)
 
 	if err := s.loadFlows(); err != nil {
 		return nil, err
 	}
 
 	return s, nil
+}
+
+func (s *FlowStorage) persistWorker(ch chan func()) {
+	defer s.wg.Done()
+	for task := range ch {
+		task()
+	}
+}
+
+func (s *FlowStorage) Close() {
+	s.mu.Lock()
+	if s.persistCh != nil {
+		close(s.persistCh)
+		s.persistCh = nil
+	}
+	s.mu.Unlock()
+	s.wg.Wait()
 }
 
 func (s *FlowStorage) loadFlows() error {
@@ -105,8 +128,16 @@ func (s *FlowStorage) SaveFlow(flow *mitmflowv1.Flow) error {
 
 	s.store.Upsert(flow)
 
-	if err := s.saveToDisk(flow); err != nil {
-		return err
+	if s.persistCh == nil {
+		return fmt.Errorf("storage closed")
+	}
+
+	// Clone flow for async persistence to avoid data races
+	flowClone := proto.Clone(flow).(*mitmflowv1.Flow)
+	s.persistCh <- func() {
+		if err := s.saveToDisk(flowClone); err != nil {
+			log.Printf("failed to save flow %s: %v", GetFlowID(flowClone), err)
+		}
 	}
 
 	s.prune()
@@ -132,8 +163,15 @@ func (s *FlowStorage) UpdateFlow(id string, pinned *bool, note *string) (*mitmfl
 	// Upsert to ensure store state is consistent
 	s.store.Upsert(flow)
 
-	if err := s.saveToDisk(flow); err != nil {
-		return nil, err
+	if s.persistCh == nil {
+		return nil, fmt.Errorf("storage closed")
+	}
+
+	flowClone := proto.Clone(flow).(*mitmflowv1.Flow)
+	s.persistCh <- func() {
+		if err := s.saveToDisk(flowClone); err != nil {
+			log.Printf("failed to save flow %s: %v", id, err)
+		}
 	}
 
 	s.prune()
@@ -146,9 +184,20 @@ func (s *FlowStorage) DeleteFlows(ids []string) (int64, error) {
 	defer s.mu.Unlock()
 
 	deletedIDs := s.store.Delete(ids...)
-	for _, id := range deletedIDs {
-		if err := os.Remove(filepath.Join(s.dir, id+".bin")); err != nil && !os.IsNotExist(err) {
-			log.Printf("failed to remove flow file %s: %v", id, err)
+	if len(deletedIDs) > 0 {
+		if s.persistCh == nil {
+			return int64(len(deletedIDs)), nil
+		}
+		// Copy IDs for the closure
+		idsToDelete := make([]string, len(deletedIDs))
+		copy(idsToDelete, deletedIDs)
+
+		s.persistCh <- func() {
+			for _, id := range idsToDelete {
+				if err := os.Remove(filepath.Join(s.dir, id+".bin")); err != nil && !os.IsNotExist(err) {
+					log.Printf("failed to remove flow file %s: %v", id, err)
+				}
+			}
 		}
 	}
 
@@ -160,9 +209,19 @@ func (s *FlowStorage) DeleteAllFlows() (int64, error) {
 	defer s.mu.Unlock()
 
 	deletedIDs := s.store.DeleteAllUnpinned()
-	for _, id := range deletedIDs {
-		if err := os.Remove(filepath.Join(s.dir, id+".bin")); err != nil && !os.IsNotExist(err) {
-			log.Printf("failed to remove flow file %s: %v", id, err)
+	if len(deletedIDs) > 0 {
+		if s.persistCh == nil {
+			return int64(len(deletedIDs)), nil
+		}
+		idsToDelete := make([]string, len(deletedIDs))
+		copy(idsToDelete, deletedIDs)
+
+		s.persistCh <- func() {
+			for _, id := range idsToDelete {
+				if err := os.Remove(filepath.Join(s.dir, id+".bin")); err != nil && !os.IsNotExist(err) {
+					log.Printf("failed to remove flow file %s: %v", id, err)
+				}
+			}
 		}
 	}
 
@@ -190,7 +249,18 @@ func (s *FlowStorage) saveToDisk(flow *mitmflowv1.Flow) error {
 
 func (s *FlowStorage) prune() {
 	deletedIDs := s.store.Prune(s.maxFlows)
-	for _, id := range deletedIDs {
-		os.Remove(filepath.Join(s.dir, id+".bin"))
+	if len(deletedIDs) > 0 {
+		if s.persistCh == nil {
+			return
+		}
+		// Copy IDs for closure
+		idsToDelete := make([]string, len(deletedIDs))
+		copy(idsToDelete, deletedIDs)
+
+		s.persistCh <- func() {
+			for _, id := range idsToDelete {
+				os.Remove(filepath.Join(s.dir, id+".bin"))
+			}
+		}
 	}
 }
