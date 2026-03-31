@@ -228,16 +228,33 @@ func matchHttpFlowText(flow *mitmflowv1.Flow, f *mitmproxygrpcv1.HTTPFlow, filte
 	} else {
 		// Content check
 		// Simple check on raw bytes as string
-		if containsFold(string(f.GetRequest().GetContent()), filterText) {
+		if containsFoldBytes(f.GetRequest().GetContent(), filterText) {
 			return true
-		} else if containsFold(string(f.GetResponse().GetContent()), filterText) {
+		} else if containsFoldBytes(f.GetResponse().GetContent(), filterText) {
 			return true
 		}
 		// Websocket messages
 		for _, msg := range f.GetWebsocketMessages() {
-			if containsFold(string(msg.GetContent()), filterText) {
+			if containsFoldBytes(msg.GetContent(), filterText) {
 				return true
 			}
+		}
+	}
+	return false
+}
+
+func containsFoldBytes(b []byte, substr string) bool {
+	n := len(b)
+	m := len(substr)
+	if m == 0 {
+		return true
+	}
+	if m > n {
+		return false
+	}
+	for i := 0; i <= n-m; i++ {
+		if strings.EqualFold(string(b[i:i+m]), substr) {
+			return true
 		}
 	}
 	return false

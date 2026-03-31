@@ -28,8 +28,8 @@ stubs:
                 },
                 "timestamp_start": now,
                 "duration_ms": fake_float32(),
-                "client": { "peername_host": fake_i_pv4_address(), "peername_port": fake_int8(), "sockname_host": fake_i_pv4_address(), "sockname_port": fake_int8(), "id": fake_uuid() },
-                "server": { "peername_host": fake_i_pv4_address(), "peername_port": fake_int8(), "sockname_host": fake_i_pv4_address(), "sockname_port": fake_int8(), "id": fake_uuid() }
+                "client": { "peername_host": fake_i_pv4_address(), "peername_port": fake_int32(), "sockname_host": fake_i_pv4_address(), "sockname_port": fake_int32(), "id": fake_uuid() },
+                "server": { "peername_host": fake_i_pv4_address(), "peername_port": fake_int32(), "sockname_host": fake_i_pv4_address(), "sockname_port": fake_int32(), "address_host": fake_i_pv4_address(), "address_port": fake_int32(), "id": fake_uuid() }
               }
             }
           }
@@ -55,8 +55,8 @@ stubs:
                 },
                 "timestamp_start": now,
                 "duration_ms": fake_float32(),
-                "client": { "peername_host": fake_i_pv4_address(), "peername_port": fake_int8(), "sockname_host": fake_i_pv4_address(), "sockname_port": fake_int8(), "id": fake_uuid() },
-                "server": { "peername_host": fake_i_pv4_address(), "peername_port": fake_int8(), "sockname_host": fake_i_pv4_address(), "sockname_port": fake_int8(), "id": fake_uuid() }
+                "client": { "peername_host": fake_i_pv4_address(), "peername_port": fake_int32(), "sockname_host": fake_i_pv4_address(), "sockname_port": fake_int32(), "id": fake_uuid() },
+                "server": { "peername_host": fake_i_pv4_address(), "peername_port": fake_int32(), "sockname_host": fake_i_pv4_address(), "sockname_port": fake_int32(), "address_host": fake_i_pv4_address(), "address_port": fake_int32(), "id": fake_uuid() }
               }
             }
           }
@@ -82,8 +82,8 @@ stubs:
                 },
                 "timestamp_start": now,
                 "duration_ms": fake_float32(),
-                "client": { "peername_host": fake_i_pv4_address(), "peername_port": fake_int8(), "sockname_host": fake_i_pv4_address(), "sockname_port": fake_int8(), "id": fake_uuid() },
-                "server": { "peername_host": fake_i_pv4_address(), "peername_port": fake_int8(), "sockname_host": fake_i_pv4_address(), "sockname_port": fake_int8(), "id": fake_uuid() }
+                "client": { "peername_host": fake_i_pv4_address(), "peername_port": fake_int32(), "sockname_host": fake_i_pv4_address(), "sockname_port": fake_int32(), "id": fake_uuid() },
+                "server": { "peername_host": fake_i_pv4_address(), "peername_port": fake_int32(), "sockname_host": fake_i_pv4_address(), "sockname_port": fake_int32(), "address_host": fake_i_pv4_address(), "address_port": fake_int32(), "id": fake_uuid() }
               }
             }
           }
@@ -110,8 +110,8 @@ stubs:
                 },
                 "timestamp_start": now,
                 "duration_ms": fake_float32(),
-                "client": { "peername_host": fake_i_pv4_address(), "peername_port": fake_int8(), "sockname_host": fake_i_pv4_address(), "sockname_port": fake_int8(), "id": fake_uuid() },
-                "server": { "peername_host": fake_i_pv4_address(), "peername_port": fake_int8(), "sockname_host": fake_i_pv4_address(), "sockname_port": fake_int8(), "id": fake_uuid() }
+                "client": { "peername_host": fake_i_pv4_address(), "peername_port": fake_int32(), "sockname_host": fake_i_pv4_address(), "sockname_port": fake_int32(), "id": fake_uuid() },
+                "server": { "peername_host": fake_i_pv4_address(), "peername_port": fake_int32(), "sockname_host": fake_i_pv4_address(), "sockname_port": fake_int32(), "address_host": fake_i_pv4_address(), "address_port": fake_int32(), "id": fake_uuid() }
               }
             }
           }
@@ -138,8 +138,8 @@ stubs:
                 },
                 "timestamp_start": now,
                 "duration_ms": fake_float32(),
-                "client": { "peername_host": fake_i_pv4_address(), "peername_port": fake_int8(), "sockname_host": fake_i_pv4_address(), "sockname_port": fake_int8(), "id": fake_uuid() },
-                "server": { "peername_host": fake_i_pv4_address(), "peername_port": fake_int8(), "sockname_host": fake_i_pv4_address(), "sockname_port": fake_int8(), "id": fake_uuid() }
+                "client": { "peername_host": fake_i_pv4_address(), "peername_port": fake_int32(), "sockname_host": fake_i_pv4_address(), "sockname_port": fake_int32(), "id": fake_uuid() },
+                "server": { "peername_host": fake_i_pv4_address(), "peername_port": fake_int32(), "sockname_host": fake_i_pv4_address(), "sockname_port": fake_int32(), "address_host": fake_i_pv4_address(), "address_port": fake_int32(), "id": fake_uuid() }
               }
             }
           }
@@ -166,8 +166,8 @@ stubs:
                 },
                 "timestamp_start": now,
                 "duration_ms": fake_float32(),
-                "client": { "peername_host": fake_i_pv4_address(), "peername_port": fake_int8(), "sockname_host": fake_i_pv4_address(), "sockname_port": fake_int8(), "id": fake_uuid() },
-                "server": { "peername_host": fake_i_pv4_address(), "peername_port": fake_int8(), "sockname_host": fake_i_pv4_address(), "sockname_port": fake_int8(), "id": fake_uuid() }
+                "client": { "peername_host": fake_i_pv4_address(), "peername_port": fake_int32(), "sockname_host": fake_i_pv4_address(), "sockname_port": fake_int32(), "id": fake_uuid() },
+                "server": { "peername_host": fake_i_pv4_address(), "peername_port": fake_int32(), "sockname_host": fake_i_pv4_address(), "sockname_port": fake_int32(), "address_host": fake_i_pv4_address(), "address_port": fake_int32(), "id": fake_uuid() }
               }
             }
           }
@@ -194,8 +194,8 @@ stubs:
                 },
                 "timestamp_start": now,
                 "duration_ms": fake_float32(),
-                "client": { "peername_host": fake_i_pv4_address(), "peername_port": fake_int8(), "sockname_host": fake_i_pv4_address(), "sockname_port": fake_int8(), "id": fake_uuid() },
-                "server": { "peername_host": fake_i_pv4_address(), "peername_port": fake_int8(), "sockname_host": fake_i_pv4_address(), "sockname_port": fake_int8(), "id": fake_uuid() }
+                "client": { "peername_host": fake_i_pv4_address(), "peername_port": fake_int32(), "sockname_host": fake_i_pv4_address(), "sockname_port": fake_int32(), "id": fake_uuid() },
+                "server": { "peername_host": fake_i_pv4_address(), "peername_port": fake_int32(), "sockname_host": fake_i_pv4_address(), "sockname_port": fake_int32(), "address_host": fake_i_pv4_address(), "address_port": fake_int32(), "id": fake_uuid() }
               }
             }
           }
@@ -222,8 +222,8 @@ stubs:
                 },
                 "timestamp_start": now,
                 "duration_ms": fake_float32(),
-                "client": { "peername_host": fake_i_pv4_address(), "peername_port": fake_int8(), "sockname_host": fake_i_pv4_address(), "sockname_port": fake_int8(), "id": fake_uuid() },
-                "server": { "peername_host": fake_i_pv4_address(), "peername_port": fake_int8(), "sockname_host": fake_i_pv4_address(), "sockname_port": fake_int8(), "id": fake_uuid() }
+                "client": { "peername_host": fake_i_pv4_address(), "peername_port": fake_int32(), "sockname_host": fake_i_pv4_address(), "sockname_port": fake_int32(), "id": fake_uuid() },
+                "server": { "peername_host": fake_i_pv4_address(), "peername_port": fake_int32(), "sockname_host": fake_i_pv4_address(), "sockname_port": fake_int32(), "address_host": fake_i_pv4_address(), "address_port": fake_int32(), "id": fake_uuid() }
               }
             }
           }
@@ -250,8 +250,8 @@ stubs:
                 },
                 "timestamp_start": now,
                 "duration_ms": fake_float32(),
-                "client": { "peername_host": fake_i_pv4_address(), "peername_port": fake_int8(), "sockname_host": fake_i_pv4_address(), "sockname_port": fake_int8(), "id": fake_uuid() },
-                "server": { "peername_host": fake_i_pv4_address(), "peername_port": fake_int8(), "sockname_host": fake_i_pv4_address(), "sockname_port": fake_int8(), "id": fake_uuid() }
+                "client": { "peername_host": fake_i_pv4_address(), "peername_port": fake_int32(), "sockname_host": fake_i_pv4_address(), "sockname_port": fake_int32(), "id": fake_uuid() },
+                "server": { "peername_host": fake_i_pv4_address(), "peername_port": fake_int32(), "sockname_host": fake_i_pv4_address(), "sockname_port": fake_int32(), "address_host": fake_i_pv4_address(), "address_port": fake_int32(), "id": fake_uuid() }
               }
             }
           }
@@ -269,8 +269,8 @@ stubs:
                 ],
                 "timestamp_start": now,
                 "duration_ms": fake_float32(),
-                "client": { "peername_host": fake_i_pv4_address(), "peername_port": fake_int8() },
-                "server": { "address_host": fake_i_pv4_address(), "address_port": fake_int8() }
+                "client": { "peername_host": fake_i_pv4_address(), "peername_port": fake_int32() },
+                "server": { "address_host": fake_i_pv4_address(), "address_port": fake_int32() }
               }
             }
           }
@@ -300,8 +300,8 @@ stubs:
                 ],
                 "timestamp_start": now,
                 "duration_ms": fake_float32(),
-                "client": { "peername_host": fake_i_pv4_address(), "peername_port": fake_int8(), "sockname_host": fake_i_pv4_address(), "sockname_port": fake_int8(), "id": fake_uuid() },
-                "server": { "peername_host": fake_i_pv4_address(), "peername_port": fake_int8(), "sockname_host": fake_i_pv4_address(), "sockname_port": fake_int8(), "address_port": fake_int8(), "address_host": fake_i_pv4_address(), "id": fake_uuid() }
+                "client": { "peername_host": fake_i_pv4_address(), "peername_port": fake_int32(), "sockname_host": fake_i_pv4_address(), "sockname_port": fake_int32(), "id": fake_uuid() },
+                "server": { "peername_host": fake_i_pv4_address(), "peername_port": fake_int32(), "sockname_host": fake_i_pv4_address(), "sockname_port": fake_int32(), "address_port": fake_int32(), "address_host": fake_i_pv4_address(), "id": fake_uuid() }
               }
             }
           }

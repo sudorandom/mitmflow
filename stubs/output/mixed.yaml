@@ -10,25 +10,20 @@ stubs:
         cel_content: |
           {
             "flow": {
-              "http_flow": {
-                "id": fake_uuid(),
-                "request": {
-                  "method": fake_http_method(),
-                  "url": fake_url()+'.json',
-                  "headers": { "User-Agent": fake_user_agent() },
-                  "content": base64.encode(b'{"name": "John", "age": 30, "car": null}'),
-                  "http_version": "HTTP/3"
-                },
-                "response": {
-                  "status_code": fake_http_status_code(),
-                  "headers": { "Content-Type": "application/json", "Server": fake_product_name() },
-                  "content": base64.encode(b'{"name": "John", "age": 30, "car": null}'),
-                  "http_version": "HTTP/3"
-                },
-                "timestamp_start": now,
-                "duration_ms": fake_float32(),
-                "client": { "peername_host": fake_i_pv4_address(), "peername_port": fake_int8(), "sockname_host": fake_i_pv4_address(), "sockname_port": fake_int8(), "id": fake_uuid() },
-                "server": { "peername_host": fake_i_pv4_address(), "peername_port": fake_int8(), "sockname_host": fake_i_pv4_address(), "sockname_port": fake_int8(), "id": fake_uuid() }
+              "id": fake_uuid(),
+              "type": "http",
+              "timestamp_start": now,
+              "http": {
+                "method": fake_http_method(),
+                "url": fake_url()+'.json',
+                "status_code": fake_http_status_code(),
+                "duration_ms": fake_int32(),
+                "request_content_length": fake_int32(),
+                "response_content_length": fake_int32(),
+                "client_peername_host": fake_i_pv4_address(),
+                "server_address_host": fake_i_pv4_address(),
+                "server_address_port": fake_int32(),
+                "client_peername_port": fake_int32()
               }
             }
           }
@@ -37,24 +32,18 @@ stubs:
         cel_content: |
           {
             "flow": {
-              "http_flow": {
-                "id": fake_uuid(),
-                "request": {
-                  "method": fake_http_method(),
-                  "url": fake_url()+'.xml',
-                  "headers": { "User-Agent": fake_user_agent() },
-                  "http_version": "HTTP/1.1"
-                },
-                "response": {
-                  "status_code": fake_http_status_code(),
-                  "headers": { "Content-Type": "application/xml", "Server": fake_product_name() },
-                  "content": base64.encode(b'<root>Hello, world!</root>'),
-                  "http_version": "HTTP/1.1"
-                },
-                "timestamp_start": now,
-                "duration_ms": fake_float32(),
-                "client": { "peername_host": fake_i_pv4_address(), "peername_port": fake_int8(), "sockname_host": fake_i_pv4_address(), "sockname_port": fake_int8(), "id": fake_uuid() },
-                "server": { "peername_host": fake_i_pv4_address(), "peername_port": fake_int8(), "sockname_host": fake_i_pv4_address(), "sockname_port": fake_int8(), "id": fake_uuid() }
+              "id": fake_uuid(),
+              "type": "http",
+              "timestamp_start": now,
+              "http": {
+                "method": fake_http_method(),
+                "url": fake_url()+'.xml',
+                "status_code": fake_http_status_code(),
+                "duration_ms": fake_int32(),
+                "client_peername_host": fake_i_pv4_address(),
+                "server_address_host": fake_i_pv4_address(),
+                "server_address_port": fake_int32(),
+                "client_peername_port": fake_int32()
               }
             }
           }
@@ -63,24 +52,18 @@ stubs:
         cel_content: |
           {
             "flow": {
-              "http_flow": {
-                "id": fake_uuid(),
-                "request": {
-                  "method": fake_http_method(),
-                  "url": fake_url()+'.txt',
-                  "headers": { "User-Agent": fake_user_agent() },
-                  "http_version": "HTTP/3"
-                },
-                "response": {
-                  "status_code": fake_http_status_code(),
-                  "headers": { "Content-Type": "text/plain", "Server": fake_product_name() },
-                  "content": base64.encode(b'Hello, this is a plain text response.'),
-                  "http_version": "HTTP/3"
-                },
-                "timestamp_start": now,
-                "duration_ms": fake_float32(),
-                "client": { "peername_host": fake_i_pv4_address(), "peername_port": fake_int8(), "sockname_host": fake_i_pv4_address(), "sockname_port": fake_int8(), "id": fake_uuid() },
-                "server": { "peername_host": fake_i_pv4_address(), "peername_port": fake_int8(), "sockname_host": fake_i_pv4_address(), "sockname_port": fake_int8(), "id": fake_uuid() }
+              "id": fake_uuid(),
+              "type": "http",
+              "timestamp_start": now,
+              "http": {
+                "method": fake_http_method(),
+                "url": fake_url()+'.txt',
+                "status_code": fake_http_status_code(),
+                "duration_ms": fake_int32(),
+                "client_peername_host": fake_i_pv4_address(),
+                "server_address_host": fake_i_pv4_address(),
+                "server_address_port": fake_int32(),
+                "client_peername_port": fake_int32()
               }
             }
           }
@@ -89,22 +72,18 @@ stubs:
         cel_content: |
           {
             "flow": {
-              "http_flow": {
-                "id": fake_uuid(),
-                "request": {
-                  "method": fake_http_method(),
-                  "url": fake_url()+'.svg',
-                  "headers": { "User-Agent": fake_user_agent() }
-                },
-                "response": {
-                  "status_code": fake_http_status_code(),
-                  "headers": { "Content-Type": "image/svg+xml", "Server": fake_product_name() },
-                  "content": b'<svg height="100" width="100" xmlns="http://www.w3.org/2000/svg"><circle cx="50" cy="50" r="40" stroke="black" stroke-width="3" fill="red" /></svg>'
-                },
-                "timestamp_start": now,
-                "duration_ms": fake_float32(),
-                "client": { "peername_host": fake_i_pv4_address(), "peername_port": fake_int8(), "sockname_host": fake_i_pv4_address(), "sockname_port": fake_int8(), "id": fake_uuid() },
-                "server": { "peername_host": fake_i_pv4_address(), "peername_port": fake_int8(), "sockname_host": fake_i_pv4_address(), "sockname_port": fake_int8(), "id": fake_uuid() }
+              "id": fake_uuid(),
+              "type": "http",
+              "timestamp_start": now,
+              "http": {
+                "method": fake_http_method(),
+                "url": fake_url()+'.svg',
+                "status_code": fake_http_status_code(),
+                "duration_ms": fake_int32(),
+                "client_peername_host": fake_i_pv4_address(),
+                "server_address_host": fake_i_pv4_address(),
+                "server_address_port": fake_int32(),
+                "client_peername_port": fake_int32()
               }
             }
           }
@@ -113,31 +92,18 @@ stubs:
         cel_content: |
           {
             "flow": {
-              "http_flow": {
-                "id": fake_uuid(),
-                "request": {
-                  "method": fake_http_method(),
-                  "url": fake_url()+'/someservice.SomeService/SomeMethod',
-                  "headers": { "User-Agent": fake_user_agent() },
-                  "http_version": "HTTP/2"
-                },
-                "response": {
-                  "status_code": fake_http_status_code(),
-                  "headers": { "Content-Type": "application/protobuf", "Server": fake_product_name() },
-                  "content": b'',
-                  "http_version": "HTTP/2"
-                },
-                "timestamp_start": now,
-                "duration_ms": fake_float32(),
-                "client": { "peername_host": fake_i_pv4_address(), "peername_port": fake_int8(), "sockname_host": fake_i_pv4_address(), "sockname_port": fake_int8(), "id": fake_uuid() },
-                "server": { "peername_host": fake_i_pv4_address(), "peername_port": fake_int8(), "sockname_host": fake_i_pv4_address(), "sockname_port": fake_int8(), "id": fake_uuid() }
-              },
-              "http_flow_extra": {
-                "response": {
-                  "textual_frames": [
-                    '1: {\n  1: {"type.googleapis.com/proto3.TestMessage"}\n  2: {`1005420e65787065637465645f76616c756500000000`}\n}'
-                  ]
-                }
+              "id": fake_uuid(),
+              "type": "http",
+              "timestamp_start": now,
+              "http": {
+                "method": "POST",
+                "url": fake_url()+'/someservice.SomeService/SomeMethod',
+                "status_code": 200,
+                "duration_ms": fake_int32(),
+                "client_peername_host": fake_i_pv4_address(),
+                "server_address_host": fake_i_pv4_address(),
+                "server_address_port": fake_int32(),
+                "client_peername_port": fake_int32()
               }
             }
           }
@@ -146,16 +112,14 @@ stubs:
         cel_content: |
           {
             "flow": {
-              "tcp_flow": {
-                "id": fake_uuid(),
-                "messages": [
-                  { "content": base64.encode(b'Hello, server!'), "from_client": true, "timestamp": fake_date() },
-                  { "content": base64.encode(b'Hello, client!'), "from_client": false, "timestamp": fake_date() }
-                ],
-                "timestamp_start": now,
-                "duration_ms": fake_float32(),
-                "client": { "peername_host": fake_i_pv4_address(), "peername_port": fake_int8() },
-                "server": { "address_host": fake_i_pv4_address(), "address_port": fake_int8() }
+              "id": fake_uuid(),
+              "type": "tcp",
+              "timestamp_start": now,
+              "tcp": {
+                "client_peername_host": fake_i_pv4_address(),
+                "client_peername_port": fake_int32(),
+                "server_address_host": fake_i_pv4_address(),
+                "server_address_port": fake_int32()
               }
             }
           }
@@ -164,28 +128,18 @@ stubs:
         cel_content: |
           {
             "flow": {
-              "http_flow": {
-                "id": fake_uuid(),
-                "request": {
-                  "method": "GET",
-                  "url": fake_url(),
-                  "headers": { "User-Agent": fake_user_agent(), "Upgrade": "websocket", "Connection": "Upgrade" },
-                  "http_version": "HTTP/1.1"
-                },
-                "response": {
-                  "status_code": 101,
-                  "headers": { "Upgrade": "websocket", "Connection": "Upgrade" },
-                  "http_version": "HTTP/1.1"
-                },
-                "is_websocket": true,
-                "websocket_messages": [
-                  { "content": base64.encode(b'Hello, server!'), "from_client": true, "timestamp": fake_date() },
-                  { "content": base64.encode(b'Hello, client!'), "from_client": false, "timestamp": fake_date() }
-                ],
-                "timestamp_start": now,
-                "duration_ms": fake_float32(),
-                "client": { "peername_host": fake_i_pv4_address(), "peername_port": fake_int8(), "sockname_host": fake_i_pv4_address(), "sockname_port": fake_int8(), "id": fake_uuid() },
-                "server": { "peername_host": fake_i_pv4_address(), "peername_port": fake_int8(), "sockname_host": fake_i_pv4_address(), "sockname_port": fake_int8(), "address_port": fake_int8(), "address_host": fake_i_pv4_address(), "id": fake_uuid() }
+              "id": fake_uuid(),
+              "type": "http",
+              "timestamp_start": now,
+              "http": {
+                "method": "GET",
+                "url": fake_url(),
+                "status_code": 101,
+                "duration_ms": fake_int32(),
+                "client_peername_host": fake_i_pv4_address(),
+                "server_address_host": fake_i_pv4_address(),
+                "server_address_port": fake_int32(),
+                "client_peername_port": fake_int32()
               }
             }
           }

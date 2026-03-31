@@ -190,6 +190,7 @@ const App: React.FC = () => {
   const contentRef = useRef<HTMLDivElement>(null);
   const mainTableRef = useRef<HTMLDivElement>(null); // Ref for the main table scrolling area
   const lastSelectedFlowId = useRef<string | null>(null);
+  const detailsAbortController = useRef<AbortController | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   const deleteMenuRef = useRef<HTMLDivElement>(null); // Ref for delete menu
   const bulkDownloadRef = useRef<HTMLDivElement>(null); // New ref for bulk download menu
@@ -498,6 +499,7 @@ const App: React.FC = () => {
   const filteredFlows = flowState.filtered;
 
   const activeFilterCount =
+    (filterText.length > 0 ? 1 : 0) +
     (pinned !== undefined ? 1 : 0) +
     (hasNote !== undefined ? 1 : 0) +
     (flowTypes.length > 0 ? 1 : 0) +
@@ -709,17 +711,39 @@ const App: React.FC = () => {
     lastSelectedFlowId.current = currentFlowId;
     setIsPanelMinimized(false);
     
+    // Cancel any pending request
+    if (detailsAbortController.current) {
+        detailsAbortController.current.abort();
+    }
+    const abortController = new AbortController();
+    detailsAbortController.current = abortController;
+
     // Fetch full flow details
     try {
-        const res = await client.getFlow({ flowId: currentFlowId });
+        const res = await client.getFlow({ flowId: currentFlowId }, { signal: abortController.signal });
         if (res.flow) {
             setDetailsFlow(res.flow);
         }
     } catch (err) {
+        if ((err as { name?: string })?.name === 'AbortError' || (err as { code?: string })?.code === 'canceled') {
+            return;
+        }
         console.error("Failed to fetch flow details", err);
         showToast("Failed to load flow details");
+    } finally {
+        if (detailsAbortController.current === abortController) {
+            detailsAbortController.current = null;
+        }
     }
   }, [client, showToast]);
+
+  useEffect(() => {
+    return () => {
+        if (detailsAbortController.current) {
+            detailsAbortController.current.abort();
+        }
+    };
+  }, []);
 
   const handleClosePanel = useCallback(() => {
     setSelectedFlowId(null);

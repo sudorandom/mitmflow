@@ -139,14 +139,36 @@ interface TimestampWithSecondsNanos {
   nanos: number;
 }
 
-type TimestampInput = TimestampWithSecondsNanos | undefined;
+type TimestampInput = TimestampWithSecondsNanos | string | { seconds: string | number | bigint, nanos: number } | undefined;
 
 export const getTimestamp = (ts: TimestampInput): number => {
   if (!ts) {
     return 0;
   }
-  return Number(ts.seconds) * 1000 + ts.nanos / 1000000;
+  if (typeof ts === 'string') {
+    return new Date(ts).getTime();
+  }
+  const seconds = (typeof ts.seconds === 'string' || typeof ts.seconds === 'number') ? BigInt(ts.seconds) : ts.seconds;
+  return Number(seconds) * 1000 + ts.nanos / 1000000;
 }
+
+// Helper to handle oneof summary in both Protobuf and plain JSON formats
+export const getSummary = (flow: FlowSummary | undefined | null) => {
+  if (!flow) return { case: undefined, value: undefined };
+  
+  if (flow.summary && flow.summary.case) {
+    return flow.summary;
+  }
+
+  // Fallback for plain JSON objects where oneof fields are at the top level
+  const anyFlow = flow as unknown as Record<string, unknown>;
+  if (anyFlow.http) return { case: 'http' as const, value: anyFlow.http as NonNullable<FlowSummary['summary']['value']> };
+  if (anyFlow.dns) return { case: 'dns' as const, value: anyFlow.dns as NonNullable<FlowSummary['summary']['value']> };
+  if (anyFlow.tcp) return { case: 'tcp' as const, value: anyFlow.tcp as NonNullable<FlowSummary['summary']['value']> };
+  if (anyFlow.udp) return { case: 'udp' as const, value: anyFlow.udp as NonNullable<FlowSummary['summary']['value']> };
+  
+  return { case: undefined, value: undefined };
+};
 
 // Returns a full human-readable date/time string (local timezone) for a millisecond epoch.
 // Falls back to '...' if timestamp is falsy (0 or undefined) which indicates missing data.
@@ -167,43 +189,58 @@ export const getFlowId = (flow: Flow | FlowSummary | undefined | null): string |
     return flow.id;
   }
   // It's a Flow (id is inside oneof)
-  if ('flow' in flow && flow.flow) {
-    switch (flow.flow.case) {
-      case 'httpFlow':
-        return flow.flow.value.id;
-      case 'dnsFlow':
-        return flow.flow.value.id;
-      case 'tcpFlow':
-          return flow.flow.value.id;
-      case 'udpFlow':
-          return flow.flow.value.id;
-      default:
-        return undefined;
-    }
+  const anyFlow = flow as unknown as { 
+    flow?: { 
+        case?: string, 
+        value: { id: string },
+        httpFlow?: { id: string },
+        dnsFlow?: { id: string },
+        tcpFlow?: { id: string },
+        udpFlow?: { id: string }
+    } 
+  };
+  if (anyFlow.flow) {
+    const f = anyFlow.flow;
+    if (f.case === 'httpFlow') return f.value.id;
+    if (f.case === 'dnsFlow') return f.value.id;
+    if (f.case === 'tcpFlow') return f.value.id;
+    if (f.case === 'udpFlow') return f.value.id;
+    
+    // Fallback for plain JSON
+    if (f.httpFlow) return f.httpFlow.id;
+    if (f.dnsFlow) return f.dnsFlow.id;
+    if (f.tcpFlow) return f.tcpFlow.id;
+    if (f.udpFlow) return f.udpFlow.id;
   }
   return undefined;
 };
 
 export const getFlowTimestampStart = (flow: Flow | FlowSummary | undefined | null): Timestamp | undefined => {
   if (!flow) return undefined;
+  const anyFlow = flow as unknown as {
+    timestampStart?: Timestamp,
+    flow?: {
+        case?: string,
+        value?: { timestampStart?: Timestamp },
+        httpFlow?: { timestampStart?: Timestamp },
+        dnsFlow?: { timestampStart?: Timestamp },
+        tcpFlow?: { timestampStart?: Timestamp },
+        udpFlow?: { timestampStart?: Timestamp }
+    }
+  };
   // Check if it's a FlowSummary (has top-level timestampStart)
-  if ('timestampStart' in flow && flow.timestampStart) {
-    return flow.timestampStart;
+  if (anyFlow.timestampStart) {
+    return anyFlow.timestampStart;
   }
   // It's a Flow
-  if ('flow' in flow && flow.flow) {
-    switch (flow.flow.case) {
-      case 'httpFlow':
-        return flow.flow.value.timestampStart;
-      case 'dnsFlow':
-        return flow.flow.value.timestampStart;
-      case 'tcpFlow':
-          return flow.flow.value.timestampStart;
-      case 'udpFlow':
-          return flow.flow.value.timestampStart;
-      default:
-        return undefined;
+  if (anyFlow.flow) {
+    const f = anyFlow.flow;
+    if (f.case) {
+        return f.value?.timestampStart;
     }
+    // Fallback for plain JSON
+    const inner = f.httpFlow || f.dnsFlow || f.tcpFlow || f.udpFlow;
+    return inner?.timestampStart;
   }
   return undefined;
 };
@@ -275,21 +312,22 @@ export const formatTimestampWithRelative = (ts: number, relativeTo: number): str
 };
 
 export const getFlowTitle = (flow: Flow | FlowSummary): string => {
-    if ('summary' in flow) {
+    const summary = getSummary(flow as FlowSummary);
+    if (summary && summary.case) {
         // FlowSummary
-        switch (flow.summary.case) {
+        switch (summary.case) {
             case 'http':
-                return `${flow.summary.value.method} ${flow.summary.value.url}`;
+                return `${summary.value.method} ${summary.value.url}`;
             case 'dns':
-                return `dns://${flow.summary.value.questionName}`; // Assuming questionName is in summary
+                return `dns://${summary.value.questionName}`; // Assuming questionName is in summary
             case 'tcp':
-                return `tcp://${flow.summary.value.clientPeernameHost}:${flow.summary.value.clientPeernamePort} -> ${flow.summary.value.serverAddressHost}:${flow.summary.value.serverAddressPort}`;
+                return `tcp://${summary.value.clientPeernameHost}:${summary.value.clientPeernamePort} -> ${summary.value.serverAddressHost}:${summary.value.serverAddressPort}`;
             case 'udp':
-                return `udp://${flow.summary.value.clientPeernameHost}:${flow.summary.value.clientPeernamePort} -> ${flow.summary.value.serverAddressHost}:${flow.summary.value.serverAddressPort}`;
+                return `udp://${summary.value.clientPeernameHost}:${summary.value.clientPeernamePort} -> ${summary.value.serverAddressHost}:${summary.value.serverAddressPort}`;
             default:
                 return '';
         }
-    } else if (flow.flow) {
+    } else if ('flow' in flow && flow.flow) {
         // Flow
         switch (flow.flow.case) {
             case 'httpFlow':

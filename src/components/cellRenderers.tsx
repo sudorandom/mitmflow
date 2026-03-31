@@ -3,33 +3,35 @@ import { ICellRendererParams } from 'ag-grid-community';
 import { Flow, FlowSummary } from '../gen/mitmflow/v1/mitmflow_pb';
 import FlowIcon from './FlowIcon';
 import { StatusPill } from './StatusPill';
-import { formatBytes, formatDuration, formatTimestamp, getFlowTimestampStart, getTimestamp } from '../utils';
+import { formatBytes, formatDuration, formatTimestamp, getFlowTimestampStart, getTimestamp, getSummary } from '../utils';
 
-export const IconCellRenderer: React.FC<ICellRendererParams> = (params) => {
+export const IconCellRenderer: React.FC<ICellRendererParams & { headerName?: string }> = (params) => {
     return <FlowIcon flow={params.data as Flow | FlowSummary} />;
 };
 
-export const StatusCellRenderer: React.FC<ICellRendererParams> = (params) => {
+export const StatusCellRenderer: React.FC<ICellRendererParams & { headerName?: string }> = (params) => {
     const data = params.data as Flow | FlowSummary;
 
     // Handle FlowSummary
-    if ('summary' in data && data.summary) {
-        switch (data.summary.case) {
+    const summary = getSummary(data as FlowSummary);
+    if (summary && summary.case) {
+        switch (summary.case) {
             case 'http': {
-                const http = data.summary.value;
+                const http = summary.value;
+                const statusCode = Number(http.statusCode);
                 const statusColor = () => {
-                    if (http.statusCode >= 500) return 'red';
-                    if (http.statusCode >= 400) return 'red';
-                    if (http.statusCode >= 300) return 'yellow';
-                    if (http.statusCode === 0) return 'gray';
+                    if (statusCode >= 500) return 'red';
+                    if (statusCode >= 400) return 'red';
+                    if (statusCode >= 300) return 'yellow';
+                    if (statusCode === 0) return 'gray';
                     return 'green';
                 };
-                return <StatusPill status={http.statusCode === 0 ? '...' : http.statusCode} color={statusColor()} />;
+                return <StatusPill status={statusCode === 0 ? '...' : statusCode} color={statusColor()} />;
             }
             case 'dns':
             case 'tcp':
             case 'udp':
-                if (data.summary.value.error) {
+                if (summary.value.error) {
                     return <StatusPill status="Error" color="red" />;
                 }
                 return <StatusPill status="OK" color="green" />;
@@ -38,50 +40,54 @@ export const StatusCellRenderer: React.FC<ICellRendererParams> = (params) => {
 
     // Handle full Flow
     const flow = data as Flow;
-    switch (flow.flow?.case) {
-        case 'tcpFlow':
-            const tcpFlow = flow.flow.value;
-            if (tcpFlow.error) {
-                return <StatusPill status="Error" color="red" />;
-            }
-            return <StatusPill status="OK" color="green" />;
-        case 'udpFlow':
-            const udpFlow = flow.flow.value;
-            if (udpFlow.error) {
-                return <StatusPill status="Error" color="red" />;
-            }
-            return <StatusPill status="OK" color="green" />;
-        case 'dnsFlow':
-            const dnsFlow = flow.flow.value;
-            if (dnsFlow.error) {
-                return <StatusPill status="Error" color="red" />;
-            }
-            if (dnsFlow.response) {
+    if (flow && flow.flow) {
+        switch (flow.flow.case) {
+            case 'tcpFlow':
+                const tcpFlow = flow.flow.value;
+                if (tcpFlow.error) {
+                    return <StatusPill status="Error" color="red" />;
+                }
                 return <StatusPill status="OK" color="green" />;
-            }
-            return <StatusPill status="Pending" color="gray" />;
-        case 'httpFlow':
-            const httpFlow = flow.flow.value;
-            const statusColor = () => {
-                if (!httpFlow.response) return 'gray';
-                if (httpFlow.response.statusCode >= 500) return 'red';
-                if (httpFlow.response.statusCode >= 400) return 'red';
-                if (httpFlow.response.statusCode >= 300) return 'yellow';
-                return 'green';
-            };
-            return <StatusPill status={httpFlow.response?.statusCode ?? '...'} color={statusColor()} />;
+            case 'udpFlow':
+                const udpFlow = flow.flow.value;
+                if (udpFlow.error) {
+                    return <StatusPill status="Error" color="red" />;
+                }
+                return <StatusPill status="OK" color="green" />;
+            case 'dnsFlow':
+                const dnsFlow = flow.flow.value;
+                if (dnsFlow.error) {
+                    return <StatusPill status="Error" color="red" />;
+                }
+                if (dnsFlow.response) {
+                    return <StatusPill status="OK" color="green" />;
+                }
+                return <StatusPill status="Pending" color="gray" />;
+            case 'httpFlow':
+                const httpFlow = flow.flow.value;
+                const statusColor = () => {
+                    if (!httpFlow.response) return 'gray';
+                    const statusCode = Number(httpFlow.response.statusCode);
+                    if (statusCode >= 500) return 'red';
+                    if (statusCode >= 400) return 'red';
+                    if (statusCode >= 300) return 'yellow';
+                    return 'green';
+                };
+                return <StatusPill status={httpFlow.response?.statusCode ?? '...'} color={statusColor()} />;
+        }
     }
     return null;
 };
 
-export const RequestCellRenderer: React.FC<ICellRendererParams> = (params) => {
+export const RequestCellRenderer: React.FC<ICellRendererParams & { headerName?: string }> = (params) => {
     const data = params.data as Flow | FlowSummary;
     let requestText = '';
 
-    if ('summary' in data && data.summary) {
-        switch (data.summary.case) {
+    const summary = getSummary(data as FlowSummary);
+    if (summary && summary.case) {
+        switch (summary.case) {
             case 'http': {
-                const http = data.summary.value;
+                const http = summary.value;
                 const url = http.url || '';
                 const queryIndex = url.indexOf('?');
                 const baseUrl = queryIndex !== -1 ? url.substring(0, queryIndex) : url;
@@ -89,30 +95,32 @@ export const RequestCellRenderer: React.FC<ICellRendererParams> = (params) => {
                 break;
             }
             case 'dns':
-                requestText = data.summary.value.questionName;
+                requestText = summary.value.questionName;
                 break;
             case 'tcp':
             case 'udp':
-                requestText = `${data.summary.value.serverAddressHost}:${data.summary.value.serverAddressPort}`;
+                requestText = `${summary.value.serverAddressHost}:${summary.value.serverAddressPort}`;
                 break;
         }
     } else {
         const flow = data as Flow;
-        if (flow.flow?.case === 'httpFlow') {
-            const httpFlow = flow.flow.value;
-            const url = httpFlow.request?.prettyUrl || httpFlow.request?.url || '';
-            const queryIndex = url.indexOf('?');
-            const baseUrl = queryIndex !== -1 ? url.substring(0, queryIndex) : url;
-            requestText = `${httpFlow.request?.method} ${baseUrl}`;
-        } else if (flow.flow?.case === 'dnsFlow') {
-            const dnsFlow = flow.flow.value;
-            requestText = dnsFlow.request?.questions[0]?.name || '';
-        } else if (flow.flow?.case === 'tcpFlow') {
-            const tcpFlow = flow.flow.value;
-            requestText = `${tcpFlow.server?.addressHost}:${tcpFlow.server?.addressPort}`;
-        } else if (flow.flow?.case === 'udpFlow') {
-            const udpFlow = flow.flow.value;
-            requestText = `${udpFlow.server?.addressHost}:${udpFlow.server?.addressPort}`;
+        if (flow && flow.flow) {
+            if (flow.flow.case === 'httpFlow') {
+                const httpFlow = flow.flow.value;
+                const url = httpFlow.request?.prettyUrl || httpFlow.request?.url || '';
+                const queryIndex = url.indexOf('?');
+                const baseUrl = queryIndex !== -1 ? url.substring(0, queryIndex) : url;
+                requestText = `${httpFlow.request?.method} ${baseUrl}`;
+            } else if (flow.flow.case === 'dnsFlow') {
+                const dnsFlow = flow.flow.value;
+                requestText = dnsFlow.request?.questions[0]?.name || '';
+            } else if (flow.flow.case === 'tcpFlow') {
+                const tcpFlow = flow.flow.value;
+                requestText = `${tcpFlow.server?.addressHost}:${tcpFlow.server?.addressPort}`;
+            } else if (flow.flow.case === 'udpFlow') {
+                const udpFlow = flow.flow.value;
+                requestText = `${udpFlow.server?.addressHost}:${udpFlow.server?.addressPort}`;
+            }
         }
     }
 
@@ -124,134 +132,134 @@ export const RequestCellRenderer: React.FC<ICellRendererParams> = (params) => {
     );
 };
 
-export const InTransferCellRenderer: React.FC<ICellRendererParams> = (params) => {
+export const InTransferCellRenderer: React.FC<ICellRendererParams & { headerName?: string }> = (params) => {
     const data = params.data as Flow | FlowSummary;
 
-    if ('summary' in data && data.summary) {
-        switch (data.summary.case) {
+    const summary = getSummary(data as FlowSummary);
+    if (summary && summary.case) {
+        switch (summary.case) {
             case 'http':
-                return <span>{formatBytes(Number(data.summary.value.responseContentLength))}</span>;
+                return <span>{formatBytes(Number(summary.value.responseContentLength))}</span>;
             case 'tcp':
             case 'udp':
             case 'dns':
-                return <span>-</span>; // FlowSummary for TCP/UDP/DNS doesn't have transfer sizes yet
+                return <span>-</span>;
             default:
                 return <span>-</span>;
         }
     }
 
     const flow = data as Flow;
-    switch (flow.flow?.case) {
-        case 'httpFlow': {
-            const httpFlow = flow.flow.value;
-            return <span>{formatBytes(httpFlow.response?.content?.length)}</span>;
+    if (flow && flow.flow) {
+        switch (flow.flow.case) {
+            case 'httpFlow': {
+                const httpFlow = flow.flow.value;
+                return <span>{formatBytes(httpFlow.response?.content?.length)}</span>;
+            }
+            case 'tcpFlow': {
+                const tcpFlow = flow.flow.value;
+                const bytes = tcpFlow.messages?.filter(m => !m.fromClient).reduce((sum, m) => sum + (m.content?.length || 0), 0) ?? 0;
+                return <span>{formatBytes(bytes)}</span>;
+            }
+            case 'udpFlow': {
+                const udpFlow = flow.flow.value;
+                const bytes = udpFlow.messages?.filter(m => !m.fromClient).reduce((sum, m) => sum + (m.content?.length || 0), 0) ?? 0;
+                return <span>{formatBytes(bytes)}</span>;
+            }
+            case 'dnsFlow': {
+                const dnsFlow = flow.flow.value;
+                return <span>{formatBytes(dnsFlow.response?.packed?.length)}</span>;
+            }
         }
-        case 'tcpFlow': {
-            const tcpFlow = flow.flow.value;
-            // Inbound: bytes received from server (messages from server)
-            const bytes = tcpFlow.messages?.filter(m => !m.fromClient).reduce((sum, m) => sum + (m.content?.length || 0), 0) ?? 0;
-            return <span>{formatBytes(bytes)}</span>;
-        }
-        case 'udpFlow': {
-            const udpFlow = flow.flow.value;
-            // Inbound: bytes received from server (messages from server)
-            const bytes = udpFlow.messages?.filter(m => !m.fromClient).reduce((sum, m) => sum + (m.content?.length || 0), 0) ?? 0;
-            return <span>{formatBytes(bytes)}</span>;
-        }
-        case 'dnsFlow': {
-            const dnsFlow = flow.flow.value;
-            // Inbound: response size (packed)
-            return <span>{formatBytes(dnsFlow.response?.packed?.length)}</span>;
-        }
-        default:
-            return <span>-</span>;
     }
+    return <span>-</span>;
 };
 
-export const OutTransferCellRenderer: React.FC<ICellRendererParams> = (params) => {
+export const OutTransferCellRenderer: React.FC<ICellRendererParams & { headerName?: string }> = (params) => {
     const data = params.data as Flow | FlowSummary;
 
-    if ('summary' in data && data.summary) {
-        switch (data.summary.case) {
+    const summary = getSummary(data as FlowSummary);
+    if (summary && summary.case) {
+        switch (summary.case) {
             case 'http':
-                return <span>{formatBytes(Number(data.summary.value.requestContentLength))}</span>;
+                return <span>{formatBytes(Number(summary.value.requestContentLength))}</span>;
             case 'tcp':
             case 'udp':
             case 'dns':
-                return <span>-</span>; // FlowSummary for TCP/UDP/DNS doesn't have transfer sizes yet
+                return <span>-</span>;
             default:
                 return <span>-</span>;
         }
     }
 
     const flow = data as Flow;
-    switch (flow.flow?.case) {
-        case 'httpFlow': {
-            const httpFlow = flow.flow.value;
-            return <span>{formatBytes(httpFlow.request?.content?.length)}</span>;
+    if (flow && flow.flow) {
+        switch (flow.flow.case) {
+            case 'httpFlow': {
+                const httpFlow = flow.flow.value;
+                return <span>{formatBytes(httpFlow.request?.content?.length)}</span>;
+            }
+            case 'tcpFlow': {
+                const tcpFlow = flow.flow.value;
+                const bytes = tcpFlow.messages?.filter(m => m.fromClient).reduce((sum, m) => sum + (m.content?.length || 0), 0) ?? 0;
+                return <span>{formatBytes(bytes)}</span>;
+            }
+            case 'udpFlow': {
+                const udpFlow = flow.flow.value;
+                const bytes = udpFlow.messages?.filter(m => m.fromClient).reduce((sum, m) => sum + (m.content?.length || 0), 0) ?? 0;
+                return <span>{formatBytes(bytes)}</span>;
+            }
+            case 'dnsFlow': {
+                const dnsFlow = flow.flow.value;
+                return <span>{formatBytes(dnsFlow.request?.packed?.length)}</span>;
+            }
         }
-        case 'tcpFlow': {
-            const tcpFlow = flow.flow.value;
-            // Outbound: bytes sent to server (messages from client)
-            const bytes = tcpFlow.messages?.filter(m => m.fromClient).reduce((sum, m) => sum + (m.content?.length || 0), 0) ?? 0;
-            return <span>{formatBytes(bytes)}</span>;
-        }
-        case 'udpFlow': {
-            const udpFlow = flow.flow.value;
-            // Outbound: bytes sent to server (messages from client)
-            const bytes = udpFlow.messages?.filter(m => m.fromClient).reduce((sum, m) => sum + (m.content?.length || 0), 0) ?? 0;
-            return <span>{formatBytes(bytes)}</span>;
-        }
-        case 'dnsFlow': {
-            const dnsFlow = flow.flow.value;
-            // Outbound: request size (packed)
-            return <span>{formatBytes(dnsFlow.request?.packed?.length)}</span>;
-        }
-        default:
-            return <span>-</span>;
     }
+    return <span>-</span>;
 };
 
-export const DurationCellRenderer: React.FC<ICellRendererParams> = (params) => {
+export const DurationCellRenderer: React.FC<ICellRendererParams & { headerName?: string }> = (params) => {
     const data = params.data as Flow | FlowSummary;
 
-    if ('summary' in data && data.summary) {
-        switch (data.summary.case) {
+    const summary = getSummary(data as FlowSummary);
+    if (summary && summary.case) {
+        switch (summary.case) {
             case 'http':
-                return <span>{formatDuration(Number(data.summary.value.durationMs))}</span>;
+                return <span>{formatDuration(Number(summary.value.durationMs))}</span>;
             case 'tcp':
             case 'udp':
             case 'dns':
-                return <span>-</span>; // FlowSummary for TCP/UDP/DNS doesn't have duration yet
+                return <span>-</span>;
             default:
                 return <span>-</span>;
         }
     }
 
     const flow = data as Flow;
-    switch (flow.flow?.case) {
-        case 'httpFlow': {
-            const httpFlow = flow.flow.value;
-            return <span>{formatDuration(httpFlow.durationMs)}</span>;
+    if (flow && flow.flow) {
+        switch (flow.flow.case) {
+            case 'httpFlow': {
+                const httpFlow = flow.flow.value;
+                return <span>{formatDuration(Number(httpFlow.durationMs))}</span>;
+            }
+            case 'tcpFlow': {
+                const tcpFlow = flow.flow.value;
+                return <span>{formatDuration(Number(tcpFlow.durationMs))}</span>;
+            }
+            case 'udpFlow': {
+                const udpFlow = flow.flow.value;
+                return <span>{formatDuration(Number(udpFlow.durationMs))}</span>;
+            }
+            case 'dnsFlow': {
+                const dnsFlow = flow.flow.value;
+                return <span>{formatDuration(Number(dnsFlow.durationMs))}</span>;
+            }
         }
-        case 'tcpFlow': {
-            const tcpFlow = flow.flow.value;
-            return <span>{formatDuration(tcpFlow.durationMs)}</span>;
-        }
-        case 'udpFlow': {
-            const udpFlow = flow.flow.value;
-            return <span>{formatDuration(udpFlow.durationMs)}</span>;
-        }
-        case 'dnsFlow': {
-            const dnsFlow = flow.flow.value;
-            return <span>{formatDuration(dnsFlow.durationMs)}</span>;
-        }
-        default:
-            return <span>-</span>;
     }
+    return <span>-</span>;
 };
 
-export const TimestampCellRenderer: React.FC<ICellRendererParams> = (params) => {
+export const TimestampCellRenderer: React.FC<ICellRendererParams & { headerName?: string }> = (params) => {
     const data = params.data as Flow | FlowSummary;
     const timestamp = getFlowTimestampStart(data);
     if (timestamp) {

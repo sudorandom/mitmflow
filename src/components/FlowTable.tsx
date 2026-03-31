@@ -70,7 +70,7 @@ const Table = forwardRef<HTMLTableElement, React.TableHTMLAttributes<HTMLTableEl
         {...props}
         ref={ref}
         className="w-full text-sm flex-shrink-0 text-gray-900 dark:text-zinc-300"
-        style={{ ...props.style, borderCollapse: 'collapse' }}
+        style={{ ...props.style, borderCollapse: 'collapse', tableLayout: 'fixed' }}
     />
 ));
 Table.displayName = 'Table';
@@ -210,7 +210,8 @@ const FlowTable = forwardRef<HTMLDivElement, FlowTableProps>(
             },
             {
                 headerName: "Request",
-                flex: 1,
+                width: 'auto',
+                minWidth: 400,
                 cellRenderer: RequestCellRenderer,
                 valueGetter: (params: ValueGetterParams<FlowSummary>) => {
                     const flow = params.data;
@@ -411,6 +412,8 @@ const FlowTable = forwardRef<HTMLDivElement, FlowTableProps>(
                     onRowSelected(nextFlow, { event: e });
                     // Scroll to item using Virtuoso
                     virtuosoRef.current?.scrollToIndex({ index: nextIndex, align: 'center' });
+                    // Explicitly focus the scroller to prevent focus loss during re-renders
+                    (e.currentTarget as HTMLElement).focus();
                 }
             }
         };
@@ -488,15 +491,22 @@ const FlowTable = forwardRef<HTMLDivElement, FlowTableProps>(
                     {/* Render other columns */}
                     {columnDefs.slice(1).map((col, i) => {
                         const content: React.ReactNode = col.cellRenderer && typeof col.cellRenderer === 'function'
-                            ? (col.cellRenderer as (params: { data: FlowSummary }) => React.ReactNode)({ data: flow })
+                            ? (col.cellRenderer as (params: { data: FlowSummary, headerName?: string }) => React.ReactNode)({ data: flow, headerName: col.headerName })
                             : (typeof col.valueGetter === 'function'
                                 ? col.valueGetter({ data: flow } as ValueGetterParams<FlowSummary>)
                                 : null);
                         return (
                             <td
                                 key={i}
-                                className={`${col.cellClass || ''} px-2 py-1`}
+                                className={`${col.cellClass || ''} px-2 py-1 truncate`}
                                 role="gridcell"
+                                style={{ 
+                                    width: col.width || 'auto',
+                                    minWidth: col.minWidth,
+                                    overflow: 'hidden',
+                                    textOverflow: 'ellipsis',
+                                    whiteSpace: 'nowrap'
+                                }}
                             >
                                 {content}
                             </td>

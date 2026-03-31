@@ -1,4 +1,3 @@
-
 import {
     File,
     FileJson,
@@ -11,61 +10,62 @@ import {
     Server,
 } from "lucide-react";
 import { Flow, FlowSummary } from "../gen/mitmflow/v1/mitmflow_pb";
+import { getSummary } from "../utils";
 
 export default function FlowIcon({ flow }: { flow: Flow | FlowSummary }) {
-    const isFullFlow = 'flow' in flow && flow.flow;
-    const isSummaryFlow = 'summary' in flow && flow.summary;
+    if (!flow) return null;
 
-    if (!isFullFlow && !isSummaryFlow) {
-        return null;
-    }
+    const summary = getSummary(flow as FlowSummary);
+    const flowCase = summary.case;
 
-    if (isFullFlow) {
-        const fullFlow = flow as Flow;
-        if (fullFlow.flow.case === "httpFlow") {
-            const contentType =
-                fullFlow.httpFlowExtra?.response?.effectiveContentType ||
-                fullFlow.httpFlowExtra?.request?.effectiveContentType;
+    if (flowCase === "http") {
+        let contentType: string | undefined;
+        
+        // Try to get content type if it's a full Flow
+        if ('flow' in flow && flow.flow?.case === 'httpFlow') {
+            contentType =
+                flow.httpFlowExtra?.response?.effectiveContentType ||
+                flow.httpFlowExtra?.request?.effectiveContentType;
+        } else {
+            // Check for plain JSON full Flow structure
+            const anyFlow = flow as unknown as { 
+                httpFlowExtra?: { 
+                    response?: { effectiveContentType?: string }, 
+                    request?: { effectiveContentType?: string } 
+                } 
+            };
+            contentType = 
+                anyFlow.httpFlowExtra?.response?.effectiveContentType ||
+                anyFlow.httpFlowExtra?.request?.effectiveContentType;
+        }
 
+        if (contentType) {
             const iconMap: [string, JSX.Element][] = [
-                ["json", <FileJson className="w-5 h-5" />],
-                ["xml", <FileCode className="w-5 h-5" />],
-                ["text/html", <FileCode className="w-5 h-5" />],
-                ["text/css", <FileCode className="w-5 h-5" />],
-                ["application/javascript", <FileCode className="w-5 h-5" />],
-                ["text", <FileText className="w-5 h-5" />],
-                ["font", <FileType className="w-5 h-5" />],
-                ["image", <FileImage className="w-5 h-5" />],
-                ["dns", <Network className="w-5 h-5" />],
+                ["json", <FileJson key="json" className="w-5 h-5" />],
+                ["xml", <FileCode key="xml" className="w-5 h-5" />],
+                ["text/html", <FileCode key="html" className="w-5 h-5" />],
+                ["text/css", <FileCode key="css" className="w-5 h-5" />],
+                ["application/javascript", <FileCode key="js" className="w-5 h-5" />],
+                ["text", <FileText key="text" className="w-5 h-5" />],
+                ["font", <FileType key="font" className="w-5 h-5" />],
+                ["image", <FileImage key="img" className="w-5 h-5" />],
+                ["dns", <Network key="dns" className="w-5 h-5" />],
             ];
 
-            if (contentType) {
-                for (const [key, icon] of iconMap) {
-                    if (contentType.includes(key)) {
-                        return icon;
-                    }
+            for (const [key, icon] of iconMap) {
+                if (contentType.includes(key)) {
+                    return icon;
                 }
             }
+        }
 
-            return <File className="w-5 h-5" />;
-        } else if (fullFlow.flow.case === "dnsFlow") {
-            return <Network className="w-5 h-5" />;
-        } else if (fullFlow.flow.case === "tcpFlow") {
-            return <Server className="w-5 h-5" />;
-        } else if (fullFlow.flow.case === "udpFlow") {
-            return <MessageCircle className="w-5 h-5" />;
-        }
-    } else if (isSummaryFlow) {
-        const summaryFlow = flow as FlowSummary;
-        if (summaryFlow.summary.case === "http") {
-            return <File className="w-5 h-5" />; // Summaries don't have content type yet
-        } else if (summaryFlow.summary.case === "dns") {
-            return <Network className="w-5 h-5" />;
-        } else if (summaryFlow.summary.case === "tcp") {
-            return <Server className="w-5 h-5" />;
-        } else if (summaryFlow.summary.case === "udp") {
-            return <MessageCircle className="w-5 h-5" />;
-        }
+        return <File className="w-5 h-5" />;
+    } else if (flowCase === "dns") {
+        return <Network className="w-5 h-5" />;
+    } else if (flowCase === "tcp") {
+        return <Server className="w-5 h-5" />;
+    } else if (flowCase === "udp") {
+        return <MessageCircle className="w-5 h-5" />;
     }
 
     return null;

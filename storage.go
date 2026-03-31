@@ -31,7 +31,7 @@ func NewFlowStorage(dir string, maxFlows int) (*FlowStorage, error) {
 		dir:       dir,
 		maxFlows:  maxFlows,
 		store:     NewMemoryStore(),
-		persistCh: make(chan func(), 1000), // Buffer to avoid blocking main path
+		persistCh: make(chan func(), 64), // Reduced buffer to provide backpressure and save memory
 	}
 
 	s.wg.Add(1)
@@ -132,11 +132,16 @@ func (s *FlowStorage) SaveFlow(flow *mitmflowv1.Flow) error {
 		return fmt.Errorf("storage closed")
 	}
 
-	// Clone flow for async persistence to avoid data races
-	flowClone := proto.Clone(flow).(*mitmflowv1.Flow)
+	// Marshal flow for async persistence to avoid data races and save memory
+	data, err := proto.Marshal(flow)
+	if err != nil {
+		return fmt.Errorf("failed to marshal flow: %w", err)
+	}
+
+	filename := filepath.Join(s.dir, id+".bin")
 	s.persistCh <- func() {
-		if err := s.saveToDisk(flowClone); err != nil {
-			log.Printf("failed to save flow %s: %v", GetFlowID(flowClone), err)
+		if err := os.WriteFile(filename, data, 0644); err != nil {
+			log.Printf("failed to save flow %s: %v", id, err)
 		}
 	}
 
@@ -167,9 +172,14 @@ func (s *FlowStorage) UpdateFlow(id string, pinned *bool, note *string) (*mitmfl
 		return nil, fmt.Errorf("storage closed")
 	}
 
-	flowClone := proto.Clone(flow).(*mitmflowv1.Flow)
+	data, err := proto.Marshal(flow)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal flow: %w", err)
+	}
+
+	filename := filepath.Join(s.dir, id+".bin")
 	s.persistCh <- func() {
-		if err := s.saveToDisk(flowClone); err != nil {
+		if err := os.WriteFile(filename, data, 0644); err != nil {
 			log.Printf("failed to save flow %s: %v", id, err)
 		}
 	}
@@ -242,17 +252,6 @@ func (s *FlowStorage) ReverseWalk(fn func(*mitmflowv1.Flow) bool) {
 
 func (s *FlowStorage) GetFlow(id string) (*mitmflowv1.Flow, bool) {
 	return s.store.Get(id)
-}
-
-func (s *FlowStorage) saveToDisk(flow *mitmflowv1.Flow) error {
-	data, err := proto.Marshal(flow)
-	if err != nil {
-		return fmt.Errorf("failed to marshal flow: %w", err)
-	}
-
-	id := GetFlowID(flow)
-	filename := filepath.Join(s.dir, id+".bin")
-	return os.WriteFile(filename, data, 0644)
 }
 
 func (s *FlowStorage) prune() {
