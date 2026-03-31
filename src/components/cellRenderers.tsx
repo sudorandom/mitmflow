@@ -14,7 +14,7 @@ export const StatusCellRenderer: React.FC<ICellRendererParams & { headerName?: s
 
     // Handle FlowSummary
     const summary = getSummary(data as FlowSummary);
-    if (summary && summary.case) {
+    if (summary.case && summary.value) {
         switch (summary.case) {
             case 'http': {
                 const http = summary.value;
@@ -29,7 +29,15 @@ export const StatusCellRenderer: React.FC<ICellRendererParams & { headerName?: s
                 return <StatusPill status={statusCode === 0 ? '...' : statusCode} color={statusColor()} />;
             }
             case 'dns':
+                if (summary.value.error) {
+                    return <StatusPill status="Error" color="red" />;
+                }
+                return <StatusPill status="OK" color="green" />;
             case 'tcp':
+                if (summary.value.error) {
+                    return <StatusPill status="Error" color="red" />;
+                }
+                return <StatusPill status="OK" color="green" />;
             case 'udp':
                 if (summary.value.error) {
                     return <StatusPill status="Error" color="red" />;
@@ -84,7 +92,7 @@ export const RequestCellRenderer: React.FC<ICellRendererParams & { headerName?: 
     let requestText = '';
 
     const summary = getSummary(data as FlowSummary);
-    if (summary && summary.case) {
+    if (summary.case && summary.value) {
         switch (summary.case) {
             case 'http': {
                 const http = summary.value;
@@ -98,6 +106,8 @@ export const RequestCellRenderer: React.FC<ICellRendererParams & { headerName?: 
                 requestText = summary.value.questionName;
                 break;
             case 'tcp':
+                requestText = `${summary.value.serverAddressHost}:${summary.value.serverAddressPort}`;
+                break;
             case 'udp':
                 requestText = `${summary.value.serverAddressHost}:${summary.value.serverAddressPort}`;
                 break;
@@ -136,7 +146,7 @@ export const InTransferCellRenderer: React.FC<ICellRendererParams & { headerName
     const data = params.data as Flow | FlowSummary;
 
     const summary = getSummary(data as FlowSummary);
-    if (summary && summary.case) {
+    if (summary.case && summary.value) {
         switch (summary.case) {
             case 'http':
                 return <span>{formatBytes(Number(summary.value.responseContentLength))}</span>;
@@ -179,7 +189,7 @@ export const OutTransferCellRenderer: React.FC<ICellRendererParams & { headerNam
     const data = params.data as Flow | FlowSummary;
 
     const summary = getSummary(data as FlowSummary);
-    if (summary && summary.case) {
+    if (summary.case && summary.value) {
         switch (summary.case) {
             case 'http':
                 return <span>{formatBytes(Number(summary.value.requestContentLength))}</span>;
@@ -222,7 +232,7 @@ export const DurationCellRenderer: React.FC<ICellRendererParams & { headerName?:
     const data = params.data as Flow | FlowSummary;
 
     const summary = getSummary(data as FlowSummary);
-    if (summary && summary.case) {
+    if (summary.case && summary.value) {
         switch (summary.case) {
             case 'http':
                 return <span>{formatDuration(Number(summary.value.durationMs))}</span>;

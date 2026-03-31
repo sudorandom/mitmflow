@@ -1,4 +1,4 @@
-import { Flow, FlowSummary } from "./gen/mitmflow/v1/mitmflow_pb";
+import { Flow, FlowSummary, HttpFlowSummary, DnsFlowSummary, TcpFlowSummary, UdpFlowSummary } from "./gen/mitmflow/v1/mitmflow_pb";
 import { Timestamp } from "@bufbuild/protobuf/wkt";
 
 
@@ -152,20 +152,27 @@ export const getTimestamp = (ts: TimestampInput): number => {
   return Number(seconds) * 1000 + ts.nanos / 1000000;
 }
 
+type SummaryResult = 
+  | { case: 'http', value: HttpFlowSummary }
+  | { case: 'dns', value: DnsFlowSummary }
+  | { case: 'tcp', value: TcpFlowSummary }
+  | { case: 'udp', value: UdpFlowSummary }
+  | { case: undefined, value: undefined };
+
 // Helper to handle oneof summary in both Protobuf and plain JSON formats
-export const getSummary = (flow: FlowSummary | undefined | null) => {
+export const getSummary = (flow: FlowSummary | undefined | null): SummaryResult => {
   if (!flow) return { case: undefined, value: undefined };
   
   if (flow.summary && flow.summary.case) {
-    return flow.summary;
+    return flow.summary as SummaryResult;
   }
 
   // Fallback for plain JSON objects where oneof fields are at the top level
   const anyFlow = flow as unknown as Record<string, unknown>;
-  if (anyFlow.http) return { case: 'http' as const, value: anyFlow.http as NonNullable<FlowSummary['summary']['value']> };
-  if (anyFlow.dns) return { case: 'dns' as const, value: anyFlow.dns as NonNullable<FlowSummary['summary']['value']> };
-  if (anyFlow.tcp) return { case: 'tcp' as const, value: anyFlow.tcp as NonNullable<FlowSummary['summary']['value']> };
-  if (anyFlow.udp) return { case: 'udp' as const, value: anyFlow.udp as NonNullable<FlowSummary['summary']['value']> };
+  if (anyFlow.http) return { case: 'http', value: anyFlow.http as HttpFlowSummary };
+  if (anyFlow.dns) return { case: 'dns', value: anyFlow.dns as DnsFlowSummary };
+  if (anyFlow.tcp) return { case: 'tcp', value: anyFlow.tcp as TcpFlowSummary };
+  if (anyFlow.udp) return { case: 'udp', value: anyFlow.udp as UdpFlowSummary };
   
   return { case: undefined, value: undefined };
 };
@@ -319,7 +326,7 @@ export const getFlowTitle = (flow: Flow | FlowSummary): string => {
             case 'http':
                 return `${summary.value.method} ${summary.value.url}`;
             case 'dns':
-                return `dns://${summary.value.questionName}`; // Assuming questionName is in summary
+                return `dns://${summary.value.questionName}`;
             case 'tcp':
                 return `tcp://${summary.value.clientPeernameHost}:${summary.value.clientPeernamePort} -> ${summary.value.serverAddressHost}:${summary.value.serverAddressPort}`;
             case 'udp':

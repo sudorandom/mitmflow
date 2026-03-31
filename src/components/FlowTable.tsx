@@ -2,7 +2,7 @@ import React, { forwardRef, useMemo, useState, useEffect, useRef } from 'react';
 import { ColDef, ValueGetterParams } from 'ag-grid-community';
 import { Pin, StickyNote } from 'lucide-react';
 import { FlowSummary } from '../gen/mitmflow/v1/mitmflow_pb';
-import { getFlowId, getFlowTimestampStart, getTimestamp } from '../utils';
+import { getFlowId, getFlowTimestampStart, getTimestamp, getSummary } from '../utils';
 import { TableVirtuoso, VirtuosoHandle, TableComponents } from 'react-virtuoso';
 
 import './FlowTable.css';
@@ -196,13 +196,14 @@ const FlowTable = forwardRef<HTMLDivElement, FlowTableProps>(
             },
             {
                 headerName: "Status",
-                width: 100,
+                width: 80,
                 cellRenderer: StatusCellRenderer,
                 valueGetter: (params: ValueGetterParams<FlowSummary>) => {
                     const flow = params.data;
                     if (!flow) return null;
-                    if (flow.summary.case === 'http') {
-                        return flow.summary.value.statusCode;
+                    const summary = getSummary(flow);
+                    if (summary.case === 'http') {
+                        return summary.value.statusCode;
                     }
                     return null;
                 },
@@ -210,22 +211,23 @@ const FlowTable = forwardRef<HTMLDivElement, FlowTableProps>(
             },
             {
                 headerName: "Request",
-                width: 'auto',
+                width: 400,
                 minWidth: 400,
                 cellRenderer: RequestCellRenderer,
                 valueGetter: (params: ValueGetterParams<FlowSummary>) => {
                     const flow = params.data;
-                    if (!flow || !flow.summary.case) return '';
-                    switch (flow.summary.case) {
+                    if (!flow) return '';
+                    const summary = getSummary(flow);
+                    if (!summary.case || !summary.value) return '';
+                    switch (summary.case) {
                         case 'http':
-                            const http = flow.summary.value;
-                            return `${http.method} ${http.url.split('?')[0]}`;
+                            return `${summary.value.method} ${summary.value.url.split('?')[0]}`;
                         case 'dns':
-                            return flow.summary.value.questionName;
+                            return summary.value.questionName;
                         case 'tcp':
-                            return `${flow.summary.value.serverAddressHost}:${flow.summary.value.serverAddressPort}`;
+                            return `${summary.value.serverAddressHost}:${summary.value.serverAddressPort}`;
                         case 'udp':
-                            return `${flow.summary.value.serverAddressHost}:${flow.summary.value.serverAddressPort}`;
+                            return `${summary.value.serverAddressHost}:${summary.value.serverAddressPort}`;
                         default:
                             return '';
                     }
@@ -240,8 +242,9 @@ const FlowTable = forwardRef<HTMLDivElement, FlowTableProps>(
                 valueGetter: (params: ValueGetterParams<FlowSummary>) => {
                     const flow = params.data;
                     if (!flow) return null;
-                    if (flow.summary.case === 'http') {
-                        return flow.summary.value.requestContentLength;
+                    const summary = getSummary(flow);
+                    if (summary.case === 'http') {
+                        return summary.value.requestContentLength;
                     }
                     return null;
                 },
@@ -255,8 +258,9 @@ const FlowTable = forwardRef<HTMLDivElement, FlowTableProps>(
                 valueGetter: (params: ValueGetterParams<FlowSummary>) => {
                     const flow = params.data;
                     if (!flow) return null;
-                    if (flow.summary.case === 'http') {
-                        return flow.summary.value.responseContentLength;
+                    const summary = getSummary(flow);
+                    if (summary.case === 'http') {
+                        return summary.value.responseContentLength;
                     }
                     return null;
                 },
@@ -270,8 +274,9 @@ const FlowTable = forwardRef<HTMLDivElement, FlowTableProps>(
                 valueGetter: (params: ValueGetterParams<FlowSummary>) => {
                     const flow = params.data;
                     if (!flow) return null;
-                    if (flow.summary.case === 'http') {
-                        return flow.summary.value.durationMs;
+                    const summary = getSummary(flow);
+                    if (summary.case === 'http') {
+                        return summary.value.durationMs;
                     }
                     return null;
                 },
