@@ -41,6 +41,7 @@ const App: React.FC = () => {
   const [isFlowsTruncated, setIsFlowsTruncated] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
   const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>('connecting');
+  const [isBackfilling, setIsBackfilling] = useState(false);
   const latestTimestampNs = useRef<bigint>(BigInt(0));
   const {
     text: filterText,
@@ -420,6 +421,7 @@ const App: React.FC = () => {
     const abortController = new AbortController();
     const signal = abortController.signal;
 
+    setIsBackfilling(true);
     const fetchHistory = async (retryCount = 0) => {
        try {
          const req = create(GetFlowsRequestSchema, {
@@ -432,14 +434,18 @@ const App: React.FC = () => {
                  processHistoryFlow(res.flow); // Use synchronous processor
              }
          }
+         if (!signal.aborted) {
+           setIsBackfilling(false);
+         }
        } catch (err) {
          if (!signal.aborted) {
             console.error("History fetch error:", err);
             if (retryCount < 5) {
-                setConnectionStatus('reconnecting');
+                if (retryCount > 0) setConnectionStatus('reconnecting');
                 setTimeout(() => fetchHistory(retryCount + 1), 2000);
             } else {
                 setConnectionStatus('failed');
+                setIsBackfilling(false);
             }
          }
        }
@@ -462,7 +468,7 @@ const App: React.FC = () => {
       const signal = abortController.signal;
       let retryTimeout: NodeJS.Timeout;
 
-      const subscribeLive = async () => {
+      const subscribeLive = async (retryCount = 0) => {
           if (signal.aborted) return;
           try {
               const req = create(StreamFlowsRequestSchema, {
@@ -478,17 +484,17 @@ const App: React.FC = () => {
                   }
               }
               if (!signal.aborted) {
-                  retryTimeout = setTimeout(subscribeLive, 2000);
+                  retryTimeout = setTimeout(() => subscribeLive(0), 2000);
               }
           } catch (err) {
               if (signal.aborted) return;
               console.error("Live stream error:", err);
-              setConnectionStatus('reconnecting');
-              retryTimeout = setTimeout(subscribeLive, 2000);
+              if (retryCount > 0) setConnectionStatus('reconnecting');
+              retryTimeout = setTimeout(() => subscribeLive(retryCount + 1), 2000);
           }
       };
 
-      subscribeLive();
+      subscribeLive(0);
 
       return () => {
           abortController.abort();
@@ -776,14 +782,18 @@ const App: React.FC = () => {
             ${connectionStatus === 'reconnecting' ? 'text-orange-600 dark:text-orange-400 bg-orange-100 dark:bg-orange-900/50' : ''}
             ${connectionStatus === 'failed' ? 'text-red-600 dark:text-red-400 bg-red-100 dark:bg-red-900/50' : ''}
           `}>
-            <span className={`w-2 h-2 rounded-full align-middle
-              ${connectionStatus === 'live' ? 'bg-green-500 dark:bg-green-400 animate-pulse' : ''}
-              ${connectionStatus === 'paused' ? 'bg-yellow-500 dark:bg-yellow-400' : ''}
-              ${connectionStatus === 'connecting' ? 'bg-blue-500 dark:bg-blue-400 animate-pulse' : ''}
-              ${connectionStatus === 'reconnecting' ? 'bg-orange-500 dark:bg-orange-400 animate-pulse' : ''}
-              ${connectionStatus === 'failed' ? 'bg-red-500 dark:bg-red-400' : ''}
-            `} />
-            {connectionStatus === 'reconnecting' ? 'Reconnecting' : connectionStatus.charAt(0).toUpperCase() + connectionStatus.slice(1)}
+            {isBackfilling ? (
+              <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-current"></div>
+            ) : (
+              <span className={`w-2 h-2 rounded-full align-middle
+                ${connectionStatus === 'live' ? 'bg-green-500 dark:bg-green-400 animate-pulse' : ''}
+                ${connectionStatus === 'paused' ? 'bg-yellow-500 dark:bg-yellow-400' : ''}
+                ${connectionStatus === 'connecting' ? 'bg-blue-500 dark:bg-blue-400 animate-pulse' : ''}
+                ${connectionStatus === 'reconnecting' ? 'bg-orange-500 dark:bg-orange-400 animate-pulse' : ''}
+                ${connectionStatus === 'failed' ? 'bg-red-500 dark:bg-red-400' : ''}
+              `} />
+            )}
+            {isBackfilling ? 'Loading' : (connectionStatus === 'reconnecting' ? 'Reconnecting' : connectionStatus.charAt(0).toUpperCase() + connectionStatus.slice(1))}
           </div>
           <div className="md:hidden relative" ref={menuRef}>
             <button
@@ -1016,7 +1026,15 @@ const App: React.FC = () => {
 
       {/* --- Main Content: Table + Details --- */}
       <div className="flex flex-col flex-grow min-h-0">
-        <div className="flex-grow min-h-0 overflow-auto" ref={mainTableRef}>
+        <div className="flex-grow min-h-0 overflow-auto relative" ref={mainTableRef}>
+          {isBackfilling && filteredFlows.length === 0 && (
+            <div className="absolute inset-0 z-10 flex items-center justify-center bg-white/80 dark:bg-zinc-900/80 backdrop-blur-sm">
+               <div className="flex flex-col items-center gap-3">
+                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-500"></div>
+                 <div className="text-gray-500 dark:text-zinc-400 font-medium">Loading flows...</div>
+               </div>
+            </div>
+          )}
           <FlowTable
             flows={filteredFlows}
             focusedFlowId={selectedFlowId}
