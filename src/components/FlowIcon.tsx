@@ -16,7 +16,14 @@ export default function FlowIcon({ flow }: { flow: Flow | FlowSummary }) {
     if (!flow) return null;
 
     const summary = getSummary(flow as FlowSummary);
-    const flowCase = summary.case;
+    let flowCase = summary.case;
+
+    if (!flowCase && 'flow' in flow && flow.flow?.case) {
+        if (flow.flow.case === 'httpFlow') flowCase = 'http';
+        else if (flow.flow.case === 'dnsFlow') flowCase = 'dns';
+        else if (flow.flow.case === 'tcpFlow') flowCase = 'tcp';
+        else if (flow.flow.case === 'udpFlow') flowCase = 'udp';
+    }
 
     if (flowCase === "http") {
         let contentType: string | undefined;
