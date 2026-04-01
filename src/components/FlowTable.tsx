@@ -1,4 +1,4 @@
-import React, { forwardRef, useMemo, useState, useEffect, useRef } from 'react';
+import React, { forwardRef, useMemo, useState, useEffect, useRef, useCallback } from 'react';
 import { ColDef, ValueGetterParams } from 'ag-grid-community';
 import { Pin, StickyNote } from 'lucide-react';
 import { FlowSummary } from '../gen/mitmflow/v1/mitmflow_pb';
@@ -349,7 +349,7 @@ const FlowTable = forwardRef<HTMLDivElement, FlowTableProps>(
             });
         };
 
-        const handleSelectAllVisible = () => {
+        const handleSelectAllVisible = useCallback(() => {
             if (allVisibleSelected) {
                 // Deselect all visible
                 sortedFlows.forEach(flow => {
@@ -363,9 +363,9 @@ const FlowTable = forwardRef<HTMLDivElement, FlowTableProps>(
                     if (id && !selectedFlowIds.has(id)) onToggleRowSelection(id);
                 });
             }
-        };
+        }, [allVisibleSelected, sortedFlows, selectedFlowIds, onToggleRowSelection]);
 
-        const handleTableKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+        const handleTableKeyDown = useCallback((e: React.KeyboardEvent<HTMLDivElement>) => {
             if ((e.target as HTMLElement).id === 'filter-input') return;
 
             const isNavigationKey = ['ArrowUp', 'ArrowDown', 'PageUp', 'PageDown'].includes(e.key);
@@ -421,7 +421,7 @@ const FlowTable = forwardRef<HTMLDivElement, FlowTableProps>(
                     (e.currentTarget as HTMLElement).focus();
                 }
             }
-        };
+        }, [sortedFlows, focusedFlowId, handleSelectAllVisible, onToggleRowSelection, onRowSelected]);
 
         const context = useMemo<TableContext>(() => ({
             focusedFlowId,

@@ -191,6 +191,7 @@ const App: React.FC = () => {
   const mainTableRef = useRef<HTMLDivElement>(null); // Ref for the main table scrolling area
   const lastSelectedFlowId = useRef<string | null>(null);
   const detailsAbortController = useRef<AbortController | null>(null);
+  const fetchDetailsTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   const deleteMenuRef = useRef<HTMLDivElement>(null); // Ref for delete menu
   const bulkDownloadRef = useRef<HTMLDivElement>(null); // New ref for bulk download menu
@@ -710,37 +711,45 @@ const App: React.FC = () => {
     setDetailsFlow(null); // Clear previous details while loading new ones
     lastSelectedFlowId.current = currentFlowId;
     setIsPanelMinimized(false);
-    
+
     // Cancel any pending request
     if (detailsAbortController.current) {
         detailsAbortController.current.abort();
     }
+    if (fetchDetailsTimeoutRef.current) {
+        clearTimeout(fetchDetailsTimeoutRef.current);
+    }
+
     const abortController = new AbortController();
     detailsAbortController.current = abortController;
 
-    // Fetch full flow details
-    try {
-        const res = await client.getFlow({ flowId: currentFlowId }, { signal: abortController.signal });
-        if (res.flow) {
-            setDetailsFlow(res.flow);
+    // Debounce fetch full flow details
+    fetchDetailsTimeoutRef.current = setTimeout(async () => {
+        try {
+            const res = await client.getFlow({ flowId: currentFlowId }, { signal: abortController.signal });
+            if (res.flow) {
+                setDetailsFlow(res.flow);
+            }
+        } catch (err) {
+            if ((err as { name?: string })?.name === 'AbortError' || (err as { code?: string })?.code === 'canceled') {
+                return;
+            }
+            console.error("Failed to fetch flow details", err);
+            showToast("Failed to load flow details");
+        } finally {
+            if (detailsAbortController.current === abortController) {
+                detailsAbortController.current = null;
+            }
         }
-    } catch (err) {
-        if ((err as { name?: string })?.name === 'AbortError' || (err as { code?: string })?.code === 'canceled') {
-            return;
-        }
-        console.error("Failed to fetch flow details", err);
-        showToast("Failed to load flow details");
-    } finally {
-        if (detailsAbortController.current === abortController) {
-            detailsAbortController.current = null;
-        }
-    }
+    }, 200);
   }, [client, showToast]);
-
   useEffect(() => {
     return () => {
         if (detailsAbortController.current) {
             detailsAbortController.current.abort();
+        }
+        if (fetchDetailsTimeoutRef.current) {
+            clearTimeout(fetchDetailsTimeoutRef.current);
         }
     };
   }, []);
